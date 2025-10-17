@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "vite-react-typescript-starter": "file:.."
+  }
+}
