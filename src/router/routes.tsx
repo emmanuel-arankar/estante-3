@@ -1,16 +1,17 @@
 import { lazy } from 'react';
 import { RouteObject, ScrollRestoration } from 'react-router-dom';
-import { PATHS } from './paths';
+import { PATHS } from '@/router/paths';
 
 // Layout e Utilitários
-import { Layout } from '../components/layout/Layout';
-import { ContainedLayout } from '../components/layout/ContainedLayout'; 
-import { ProtectedRoute } from './ProtectedRoute';
-import { withSuspense } from './RouteSuspense';
-import { NotFound } from '../pages/NotFound';
+import { Layout } from '@/components/layout/Layout';
+import { ContainedLayout } from '@/components/layout/ContainedLayout'; 
+import { ProtectedRoute } from '@/router/ProtectedRoute';
+import { withSuspense } from '@/router/RouteSuspense';
+import { NotFound } from '@/pages/NotFound';
+import { ErrorElement } from '@/router/ErrorElement';
 
 // Loaders
-import { layoutLoader } from './loaders';
+import { layoutLoader } from '@/router/loaders';
 
 // Módulos de Rota
 import { 
@@ -20,9 +21,9 @@ import {
   friendsRoutes, 
   protectedChatRoutes, 
   notificationRoutes,
-} from '../features/routes';
+} from '@/features/routes';
 
-const Home = lazy(() => import('../pages/Home').then(module => ({ default: module.Home })));
+const Home = lazy(() => import('@/pages/Home').then(module => ({ default: module.Home })));
 
 export const routes: RouteObject[] = [
   {
@@ -32,7 +33,7 @@ export const routes: RouteObject[] = [
         <ScrollRestoration />
       </>
     ),
-    errorElement: <NotFound />,
+    errorElement: <ErrorElement />,
     loader: layoutLoader,
     children: [
       // --- Rotas de Tela Cheia (sem container) ---
