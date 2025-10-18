@@ -1,7 +1,7 @@
-import * as express from 'express';
 import * as admin from 'firebase-admin';
-import * as cors from 'cors';
-import * as cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express from 'express';
+import cookieParser from 'cookie-parser';
 import { https } from 'firebase-functions';
 import authRouter from './auth';
 import friendsRouter from './friends';

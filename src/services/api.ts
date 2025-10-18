@@ -1,7 +1,4 @@
-import { User } from '@/models';
-
-// # removido - A URL base não é mais necessária
-// const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+import { User } from "@/models";
 
 /**
  * Busca usuários na API.
@@ -14,18 +11,23 @@ export const searchUsersAPI = async (searchTerm: string): Promise<User[]> => {
   }
 
   try {
-    // # atualizado - Faz a chamada para um caminho relativo
-    const response = await fetch(`/api/findFriends?searchTerm=${encodeURIComponent(searchTerm)}`);
+    // # atualizado - Adicionado objeto de opções com 'credentials: "include"'
+    const response = await fetch(`/api/findFriends?searchTerm=${encodeURIComponent(searchTerm)}`, {
+      credentials: 'include',
+    });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Erro da API:', errorData);
-      return [];
+      // # atualizado - Lê o erro como JSON (baseado no seu log)
+      const errorData = await response.json(); 
+      // # atualizado - Lança o erro para ser pego pelo NewConversationModal
+      throw new Error(errorData.error || `Erro da API: ${response.statusText}`);
     }
 
     return await response.json() as User[];
   } catch (error) {
     console.error('Falha ao buscar usuários na API:', error);
-    return [];
+    // # atualizado - Repassa o erro para o NewConversationModal
+    // para que o toastErrorClickable possa mostrá-lo.
+    throw error;
   }
 };

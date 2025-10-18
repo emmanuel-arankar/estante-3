@@ -16,6 +16,7 @@
     "vite-react-typescript-starter": "file:.."
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "ts-node-dev": "^2.0.0",

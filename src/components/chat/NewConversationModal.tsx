@@ -22,15 +22,16 @@ interface NewConversationModalProps {
 }
 
 export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
-
+  
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  
   // Buscar usuários
-  const searchUsers = async (searchTerm: string) => {
+  const searchUsers = async (searchTerm: string) => { // atualizado
     if (!searchTerm.trim() || searchTerm.length < 2) {
       setUsers([]);
       return;
@@ -39,10 +40,26 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
     setLoading(true);
     try {
       const foundUsers = await searchUsersAPI(searchTerm);
-      setUsers(foundUsers);
+      
+      // Sugestão 1: Filtrar o usuário logado dos resultados
+      if (currentUser) {
+        const filteredUsers = foundUsers.filter(user => user.id !== currentUser.uid);
+        setUsers(filteredUsers);
+      } else {
+        setUsers(foundUsers);
+      }
+
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
-      toastErrorClickable('Erro ao buscar usuários');
+      
+      // Sugestão 2: Mostrar um erro mais específico
+      let errorMessage = 'Erro ao buscar usuários';
+      if (error instanceof Error) {
+        // Mostra a mensagem de erro real da API, se disponível
+        errorMessage = error.message || errorMessage; 
+      }
+      toastErrorClickable(errorMessage);
+
     } finally {
       setLoading(false);
     }
