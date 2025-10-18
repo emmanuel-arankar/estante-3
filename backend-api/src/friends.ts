@@ -1,9 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express'; 
 import * as admin from 'firebase-admin';
+import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware'; 
 
 const router = Router();
 
-router.get('/findFriends', async (req, res) => {
+router.get('/findFriends', checkAuth, async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const loggedInUserId = authReq.user.uid;
+  
   const { searchTerm } = req.query;
 
   if (typeof searchTerm !== 'string' || searchTerm.trim() === '') {
@@ -23,10 +27,13 @@ router.get('/findFriends', async (req, res) => {
       return res.status(200).json([]);
     }
 
-    const users = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const users = snapshot.docs
+      // Bônus: Filtrar para que o usuário não se encontre na busca
+      .filter(doc => doc.id !== loggedInUserId) 
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
     return res.status(200).json(users);
   } catch (error) {

@@ -1,6 +1,7 @@
 import * as express from 'express';
 import * as admin from 'firebase-admin';
 import * as cors from 'cors';
+import * as cookieParser from 'cookie-parser';
 import { https } from 'firebase-functions';
 import authRouter from './auth';
 import friendsRouter from './friends';
@@ -20,6 +21,7 @@ const app = express();
 // Middlewares
 app.use(cors({ origin: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Rotas da API
 app.use('/api', authRouter);
