@@ -1,4 +1,3 @@
-// ==================== MODELOS DENORMALIZADOS ====================
 export type SortOption = 'default' | 'name' | 'nickname' | 'friendshipDate';
 export type SortDirection = 'asc' | 'desc';
 

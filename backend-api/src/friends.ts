@@ -1,84 +1,76 @@
 import { Router, Request, Response } from 'express'; 
 import * as admin from 'firebase-admin';
 import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware'; 
-import { User } from '../../src/models'; // Adjust path if needed
 
 const router = Router();
 
+// Lógica de busca dupla (nome e nickname)
 router.get('/findFriends', checkAuth, async (req: Request, res: Response) => {
-  // # updated: Added extensive logging
-  console.log("--- findFriends API called ---"); 
+  const authReq = req as AuthenticatedRequest;
+  const loggedInUserId = authReq.user.uid;
+  
+  const { searchTerm } = req.query;
+
+  // Validação alinhada ao frontend (min 2 caracteres)
+  if (typeof searchTerm !== 'string' || searchTerm.trim().length < 2) {
+    return res.status(400).json({ error: 'Search term must be at least 2 characters' });
+  }
+
+  const trimmedSearch = searchTerm.trim();
+  const endTerm = trimmedSearch + '\uf8ff';
+
   try {
-    const authReq = req as AuthenticatedRequest;
-    const loggedInUserId = authReq.user.uid;
-    console.log(`Authenticated User ID: ${loggedInUserId}`);
+    const usersRef = admin.firestore().collection('users');
 
-    const searchTermQuery = req.query.searchTerm;
-    console.log(`Raw Search Term Query: ${searchTermQuery}`);
-    
-    if (typeof searchTermQuery !== 'string' || searchTermQuery.trim().length < 2) {
-      console.log("Search term invalid.");
-      return res.status(400).json({ error: 'Termo de busca inválido (mínimo 2 caracteres).' });
-    }
-    const searchTerm = searchTermQuery.toLowerCase();
-    console.log(`Lowercase Search Term: ${searchTerm}`);
+    // Query 1: Buscar por displayName
+    const nameQuery = usersRef
+      .where('displayName', '>=', trimmedSearch)
+      .where('displayName', '<=', endTerm)
+      .limit(10);
+   
+    // Query 2: Buscar por nickname
+    // Remove o '@' se o usuário digitou, para buscar no campo 'nickname'
+    const nicknameSearch = trimmedSearch.startsWith('@') 
+      ? trimmedSearch.substring(1) 
+      : trimmedSearch;
+    const endNicknameTerm = nicknameSearch + '\uf8ff';
+   
+    const nicknameQuery = usersRef
+      .where('nickname', '>=', nicknameSearch)
+      .where('nickname', '<=', endNicknameTerm)
+      .limit(10);
 
-    const friendsCollection = admin.firestore()
-      .collection("users")
-      .doc(loggedInUserId)
-      .collection("denormalizedFriendships");
-    console.log(`Querying subcollection: users/${loggedInUserId}/denormalizedFriendships`);
+    // Executar ambas as queries em paralelo
+    const [nameSnapshot, nicknameSnapshot] = await Promise.all([
+      nameQuery.get(),
+      nicknameQuery.get(),
+    ]);
 
-    // Fetch friends with status 'accepted'
-    const friendsSnapshot = await friendsCollection.where('status', '==', 'accepted').get();
-    console.log(`Found ${friendsSnapshot.size} accepted friendships.`);
+    // Usar um Map para mesclar resultados e remover duplicatas
+    const usersMap = new Map();
 
-    if (friendsSnapshot.empty) {
-      console.log("No accepted friendships found, returning empty array.");
-      return res.status(200).json([]);
-    }
-
-    // Map and log raw data
-    const allFriendsData = friendsSnapshot.docs.map(doc => {
-      console.log(`Raw friendship doc (${doc.id}):`, JSON.stringify(doc.data())); // Log raw data
-      return doc.data().friend as User; 
-    }).filter(friend => {
-      // # updated: Log if friend data is missing/malformed
-      if (!friend || !friend.id) { 
-        console.warn("Malformed friend data found in denormalizedFriendships:", friend);
-        return false;
+    // Adiciona resultados da busca por nome
+    nameSnapshot.docs.forEach(doc => {
+      if (doc.id !== loggedInUserId) { // Filtra o usuário logado
+        usersMap.set(doc.id, { id: doc.id, ...doc.data() });
       }
-      return true;
     });
-    console.log(`Mapped ${allFriendsData.length} friend objects.`);
-    // # updated: Log the first friend object found (if any) to check structure
-    if (allFriendsData.length > 0) {
-      console.log("First friend object structure:", JSON.stringify(allFriendsData[0]));
-    }
 
-
-    // Apply filter and log matches/non-matches
-    const filteredFriends = allFriendsData.filter(friend => {
-      const nameMatch = friend.displayName && 
-                        friend.displayName.toLowerCase().includes(searchTerm);
-      const nickMatch = friend.nickname && 
-                        friend.nickname.toLowerCase().includes(searchTerm);
-      // # updated: Log filtering decision
-      console.log(`Filtering friend: ID=${friend.id}, Name="${friend.displayName}", Nick="${friend.nickname}". NameMatch=${nameMatch}, NickMatch=${nickMatch}, Keep=${nameMatch || nickMatch}`);
-      return nameMatch || nickMatch;
+    // Adiciona resultados da busca por nickname (sobrescreve duplicatas)
+    nicknameSnapshot.docs.forEach(doc => {
+      if (doc.id !== loggedInUserId) { // Filtra o usuário logado
+        usersMap.set(doc.id, { id: doc.id, ...doc.data() });
+      }
     });
-    console.log(`Found ${filteredFriends.length} friends after filtering.`);
 
-    const results = filteredFriends.slice(0, 10); 
-    console.log(`Returning ${results.length} results.`);
-    console.log("--- findFriends API finished ---");
-    return res.status(200).json(results);
+    // Converte o Map de volta para um array
+    const users = Array.from(usersMap.values());
 
+    return res.status(200).json(users);
   } catch (error) {
-    console.error('Error in findFriends API:', error);
-    const errorMessage = error instanceof Error ? error.message : "Internal Server Error";
-    console.log("--- findFriends API finished with error ---");
-    return res.status(500).json({ error: errorMessage });
+    console.error('Error finding friends:', error);
+    // Retorna erro como JSON
+    return res.status(500).json({ error: 'Internal Server Error' }); 
   }
 });
 

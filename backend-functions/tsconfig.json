@@ -7,7 +7,6 @@
     "sourceMap": true,
     "strict": true,
     "target": "es2017",
-    // # atualizado - Adiciona paths para reconhecer a 'backend-api'
     "baseUrl": ".",
     "paths": {
       "backend-api": ["../backend-api/src"]

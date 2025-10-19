@@ -14,6 +14,8 @@ if (admin.apps.length === 0) {
 if (process.env.FUNCTIONS_EMULATOR === 'true') {
   //process.env['FIREBASE_AUTH_EMULATOR_HOST'] = '127.0.0.1:9099';
   delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
 }
 
 const app = express();
