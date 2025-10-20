@@ -23,7 +23,7 @@ import { auth, db } from '@/services/firebase'; // # atualizado
 import { doc, setDoc } from 'firebase/firestore';
 import { generateUniqueNickname } from '@/utils/nickname'; // # atualizado
 import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast'; // # atualizado
-import { User } from '@/models'; // # atualizado
+import { User } from '@estante/common-types';
 import { Label } from "@/components/ui/label";
 
 export const LoginForm = () => {

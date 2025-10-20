@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Search, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { 
+  Avatar, 
+  AvatarFallback, 
+  AvatarImage 
+} from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner } from '../ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { OnlineStatus } from './OnlineStatus';
-import { useAuth } from '../../hooks/useAuth';
-import { searchUsersAPI } from '../../services/api';
-import { User } from '../../models';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { searchUsersAPI } from '@/services/api';
+import { User } from '@estante/common-types';
 import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
-import { PATHS } from '../../router/paths';
+import { PATHS } from '@/router/paths';
 
 interface NewConversationModalProps {
   isOpen: boolean;
