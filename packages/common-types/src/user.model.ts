@@ -20,35 +20,6 @@ export interface User {
   updatedAt: Date;
 }
 
-export interface Friendship {
-  id: string;
-  userId: string;
-  friendId: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  requestedBy: string;
-  friendshipDate?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface FriendshipWithUser extends Friendship {
-  friend: User;          // Dados completos do amigo (para joins)
-}
-
-export interface UserBook {
-  id: string;
-  userId: string;
-  bookId: string;
-  status: 'reading' | 'completed' | 'want-to-read' | 'abandoned';
-  rating?: number;
-  review?: string;
-  notes?: string;
-  startedAt?: Date;
-  completedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface UserAvatar {
   id: string;
   userId: string;

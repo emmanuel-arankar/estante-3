@@ -1,5 +1,19 @@
-export type SortOption = 'default' | 'name' | 'nickname' | 'friendshipDate';
-export type SortDirection = 'asc' | 'desc';
+import { User } from ".";
+
+export interface Friendship {
+  id: string;
+  userId: string;
+  friendId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  requestedBy: string;
+  friendshipDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FriendshipWithUser extends Friendship {
+  friend: User;          // Dados completos do amigo (para joins)
+}
 
 export interface DenormalizedUser {
   id: string;
@@ -23,47 +37,12 @@ export interface DenormalizedFriendship {
   createdAt: Date;
   updatedAt: Date;
   
-  // ✅ DADOS DENORMALIZADOS DO AMIGO
-  friend: DenormalizedUser; // Todos os dados necessários do amigo
+  // Dados denormalizados do amigo
+  friend: DenormalizedUser;
 }
 
 export interface FriendshipStats {
   totalFriends: number;
   pendingRequests: number;
   sentRequests: number;
-}
-
-// Tipos para hooks React
-export interface UseFriendsResult {
-  friends: DenormalizedFriendship[];
-  allFriends: DenormalizedFriendship[];
-  requests: DenormalizedFriendship[];
-  sentRequests: DenormalizedFriendship[];
-  stats: FriendshipStats;
-  loading: boolean;
-  loadingMore: boolean;
-  error: string | null;
-  hasMoreFriends: boolean;
-  
-  // Controles de busca e ordenação
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  sortField: SortOption;
-  setSortField: (field: SortOption) => void;
-  sortDirection: SortDirection;
-  setSortDirection: (direction: SortDirection) => void;
-  
-  // Ações de carregamento
-  loadAllFriends: (refresh?: boolean) => Promise<void>;
-  loadMoreFriends: () => Promise<void>;
-  refreshData: () => Promise<void>;
-}
-
-export interface FriendshipActions {
-  sendFriendRequest: (targetUserId: string) => Promise<void>;
-  acceptFriendRequest: (friendshipId: string) => Promise<void>;
-  rejectFriendRequest: (friendshipId: string) => Promise<void>;
-  removeFriend: (friendshipId: string) => Promise<void>;
-  cancelSentRequest: (friendshipId: string) => Promise<void>;
-  cancelAllSentRequests: () => Promise<void>;
 }
