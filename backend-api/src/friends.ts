@@ -1,40 +1,45 @@
-import { Router, Request, Response } from 'express'; 
+import { Router, Request, Response } from 'express';
 import * as admin from 'firebase-admin';
-import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware'; 
+import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware';
+import { findFriendsQuerySchema } from './schemas/friends.schema';
 
 const router = Router();
 
 // Lógica de busca dupla (nome e nickname)
 router.get('/findFriends', checkAuth, async (req: Request, res: Response) => {
-  const authReq = req as AuthenticatedRequest;
-  const loggedInUserId = authReq.user.uid;
-  
-  const { searchTerm } = req.query;
-
-  // Validação alinhada ao frontend (min 2 caracteres)
-  if (typeof searchTerm !== 'string' || searchTerm.trim().length < 2) {
-    return res.status(400).json({ error: 'Search term must be at least 2 characters' });
-  }
-
-  const trimmedSearch = searchTerm.trim();
-  const endTerm = trimmedSearch + '\uf8ff';
-
   try {
+    const authReq = req as AuthenticatedRequest;
+    const loggedInUserId = authReq.user.uid;
+
+    // # atualizado: Validar req.query usando o schema
+    const validationResult = findFriendsQuerySchema.safeParse(req.query);
+
+    if (!validationResult.success) {
+      // Se a validação falhar, retorna erro 400 com detalhes
+      return res.status(400).json({
+        error: 'Dados de busca inválidos',
+        details: validationResult.error.flatten().fieldErrors,
+      });
+    }
+
+    const { searchTerm } = validationResult.data;
+    const endTerm = searchTerm + '\uf8ff';
+
     const usersRef = admin.firestore().collection('users');
 
     // Query 1: Buscar por displayName
     const nameQuery = usersRef
-      .where('displayName', '>=', trimmedSearch)
+      .where('displayName', '>=', searchTerm)
       .where('displayName', '<=', endTerm)
       .limit(10);
-   
+
     // Query 2: Buscar por nickname
     // Remove o '@' se o usuário digitou, para buscar no campo 'nickname'
-    const nicknameSearch = trimmedSearch.startsWith('@') 
-      ? trimmedSearch.substring(1) 
-      : trimmedSearch;
+    const nicknameSearch = searchTerm.startsWith('@')
+      ? searchTerm.substring(1)
+      : searchTerm;
     const endNicknameTerm = nicknameSearch + '\uf8ff';
-   
+
     const nicknameQuery = usersRef
       .where('nickname', '>=', nicknameSearch)
       .where('nickname', '<=', endNicknameTerm)
@@ -70,7 +75,7 @@ router.get('/findFriends', checkAuth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error finding friends:', error);
     // Retorna erro como JSON
-    return res.status(500).json({ error: 'Internal Server Error' }); 
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

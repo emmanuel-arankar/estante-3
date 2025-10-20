@@ -8,18 +8,16 @@
     "dev": "ts-node-dev --respawn src/index.ts"
   },
   "dependencies": {
-    "@estante/common-types": "1.0.0", 
+    "@estante/common-types": "1.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.2.0",
     "firebase-functions": "^6.5.0",
-    "vite-react-typescript-starter": "file:.."
+    "vite-react-typescript-starter": "file:..",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.9",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5"
   }

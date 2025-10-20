@@ -19,48 +19,16 @@ import {
   removeDenormalizedFriend,
   searchFriends
 } from '@/services/denormalizedFriendships';
+import type { 
+  UseFriendsResult, 
+  FriendshipActions, 
+  SortOption, 
+  SortDirection 
+} from '@/hooks/types/friendship.types';
 import {
   DenormalizedFriendship,
   FriendshipStats,
 } from '@estante/common-types';
-
-type SortOption = 'default' | 'name' | 'nickname' | 'friendshipDate';
-type SortDirection = 'asc' | 'desc';
-
-// Tipos para hooks React
-interface UseFriendsResult {
-  friends: DenormalizedFriendship[];
-  allFriends: DenormalizedFriendship[];
-  requests: DenormalizedFriendship[];
-  sentRequests: DenormalizedFriendship[];
-  stats: FriendshipStats;
-  loading: boolean;
-  loadingMore: boolean;
-  error: string | null;
-  hasMoreFriends: boolean;
-  
-  // Controles de busca e ordenação
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  sortField: SortOption;
-  setSortField: (field: SortOption) => void;
-  sortDirection: SortDirection;
-  setSortDirection: (direction: SortDirection) => void;
-  
-  // Ações de carregamento
-  loadAllFriends: (refresh?: boolean) => Promise<void>;
-  loadMoreFriends: () => Promise<void>;
-  refreshData: () => Promise<void>;
-}
-
-interface FriendshipActions {
-  sendFriendRequest: (targetUserId: string) => Promise<void>;
-  acceptFriendRequest: (friendshipId: string) => Promise<void>;
-  rejectFriendRequest: (friendshipId: string) => Promise<void>;
-  removeFriend: (friendshipId: string) => Promise<void>;
-  cancelSentRequest: (friendshipId: string) => Promise<void>;
-  cancelAllSentRequests: () => Promise<void>;
-}
 
 // ==================== CACHE INTELIGENTE ====================
 interface FriendsCache {
@@ -389,6 +357,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     friends: filteredAndSortedFriends, allFriends, requests: filteredAndSortedRequests, sentRequests: filteredAndSortedSentRequests, stats, loading, loadingMore, error, hasMoreFriends, searchQuery, setSearchQuery, sortField, setSortField, sortDirection, setSortDirection, loadAllFriends, loadMoreFriends, refreshData, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, cancelSentRequest, cancelAllSentRequests,
   };
 };
+
 /**
  * Hook simplificado apenas para estatísticas
  */
