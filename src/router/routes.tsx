@@ -61,7 +61,7 @@ export const routes: RouteObject[] = [
               ...protectedChatRoutes,
               {
                 path: PATHS.ADMIN_DASHBOARD,
-                lazy: () => import('../features/admin/admin.routes'),
+                lazy: () => import('@/features/admin/admin.routes'),
               },
             ],
           },

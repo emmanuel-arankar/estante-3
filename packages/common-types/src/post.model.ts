@@ -1,8 +1,10 @@
+export type PostType = 'status' | 'review' | 'quote' | 'discussion' | 'avatar_update';
+
 export interface Post {
   id: string;
   userId: string;
   content: string;
-  type: 'status' | 'review' | 'quote' | 'discussion' | 'avatar_update';
+  type: PostType;
   bookId?: string;
   mediaUrls?: string[];
   likes: string[];

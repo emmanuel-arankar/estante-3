@@ -38,7 +38,7 @@ export const generateNickname = (displayName: string): string => {
 // Função para verificar se nickname já existe
 export const isNicknameAvailable = async (nickname: string): Promise<boolean> => {
   const { collection, query, where, getDocs } = await import('firebase/firestore');
-  const { db } = await import('../services/firebase');
+  const { db } = await import('@/services/firebase');
   
   const q = query(
     collection(db, 'users'),

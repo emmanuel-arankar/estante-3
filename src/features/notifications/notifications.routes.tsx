@@ -4,7 +4,7 @@ import { PATHS } from '@/router/paths';
 import { withSuspense } from '@/router/RouteSuspense';
 import { notificationsLoader } from '@/features/notifications/notifications.loaders';
 
-const Notifications = lazy(() => import('../../pages/Notifications').then(module => ({ default: module.Notifications })));
+const Notifications = lazy(() => import('@/pages/Notifications').then(module => ({ default: module.Notifications })));
 
 export const notificationRoutes: RouteObject[] = [
   {

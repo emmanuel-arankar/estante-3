@@ -14,8 +14,8 @@ import {
 } from '@/router/paths';
 import { withSuspense } from '@/router/RouteSuspense';
 
-const Profile = lazy(() => import('../../pages/Profile').then(module => ({ default: module.Profile })));
-const EditProfile = lazy(() => import('../../pages/EditProfile').then(module => ({ default: module.EditProfile })));
+const Profile = lazy(() => import('@/pages/Profile').then(module => ({ default: module.Profile })));
+const EditProfile = lazy(() => import('@/pages/EditProfile').then(module => ({ default: module.EditProfile })));
 
 const ProfileLayout = () => <Outlet />;
 

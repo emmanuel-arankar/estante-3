@@ -1,10 +1,12 @@
 import { User } from ".";
 
+export type FriendshipStatus = 'pending' | 'accepted' | 'rejected';
+
 export interface Friendship {
   id: string;
   userId: string;
   friendId: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: FriendshipStatus;
   requestedBy: string;
   friendshipDate?: Date;
   createdAt: Date;
@@ -29,11 +31,11 @@ export interface DenormalizedUser {
 
 export interface DenormalizedFriendship {
   id: string;
-  userId: string;           // ID do usuário "dono" do documento
-  friendId: string;         // ID do amigo
-  status: 'pending' | 'accepted' | 'rejected';
-  requestedBy: string;      // Quem iniciou a solicitação
-  friendshipDate?: Date;    // Quando foi aceita
+  userId: string;           // Código do proprietário do documento
+  friendId: string;         // Código do amigo
+  status: FriendshipStatus; 
+  requestedBy: string;      // Quem fez a solicitação de amizade
+  friendshipDate?: Date;    // Quando foi aceita a amizade
   createdAt: Date;
   updatedAt: Date;
   

@@ -1,9 +1,11 @@
+export type ChatMessageType = 'text' | 'image' | 'book';
+
 export interface ChatMessage {
   id: string;
   senderId: string;
   receiverId: string;
   content: string;
-  type: 'text' | 'image' | 'book';
+  type: ChatMessageType;
   readAt?: Date;
   createdAt: Date;
 }

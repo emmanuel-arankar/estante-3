@@ -5,9 +5,9 @@ import { publicOnlyLoader } from '@/features/auth/auth.loaders';
 import { PATHS } from '@/router/paths';
 import { withSuspense } from '@/router/RouteSuspense';
 
-const Login = lazy(() => import('../../pages/Login').then(module => ({ default: module.Login })));
-const Register = lazy(() => import('../../pages/Register').then(module => ({ default: module.Register })));
-const ForgotPassword = lazy(() => import('../../pages/ForgotPassword').then(module => ({ default: module.ForgotPassword })));
+const Login = lazy(() => import('@/pages/Login').then(module => ({ default: module.Login })));
+const Register = lazy(() => import('@/pages/Register').then(module => ({ default: module.Register })));
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword').then(module => ({ default: module.ForgotPassword })));
 
 export const authRoutes: RouteObject[] = [
   {

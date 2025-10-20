@@ -1,7 +1,9 @@
+export type NotificationType = 'like' | 'comment' | 'follow' | 'message' | 'mention' | 'friend_request' | 'friend_accept';
+
 export interface Notification {
   id: string;
   userId: string;
-  type: 'like' | 'comment' | 'follow' | 'message' | 'mention' | 'friend_request' | 'friend_accept';
+  type: NotificationType;
   fromUserId: string;
   postId?: string;
   message: string;

@@ -1,3 +1,5 @@
+export type UserBookStatus = 'reading' | 'completed' | 'want-to-read' | 'abandoned';
+
 export interface Book {
   id: string;
   title: string;
@@ -16,7 +18,7 @@ export interface UserBook {
   id: string;
   userId: string;
   bookId: string;
-  status: 'reading' | 'completed' | 'want-to-read' | 'abandoned';
+  status: UserBookStatus;
   rating?: number;
   review?: string;
   notes?: string;

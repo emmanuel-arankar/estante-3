@@ -3,9 +3,12 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { uploadImage } from '../../services/storage';
-import { LoadingSpinner } from './loading-spinner';
-import { toastSuccessClickable, toastErrorClickable } from './toast';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { uploadImage } from '@/services/storage';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from './toast';
 
 interface ImageUploadProps {
   onUpload: (url: string) => void;
