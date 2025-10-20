@@ -15,10 +15,16 @@ import {
   Unsubscribe,
   runTransaction
 } from 'firebase/firestore';
-import { db } from './firebase';
-import { DenormalizedFriendship, DenormalizedUser } from '../models/friendship';
-import { createNotification } from './firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { 
+  getFunctions, 
+  httpsCallable 
+} from 'firebase/functions';
+import { db } from '@/services/firebase';
+import { createNotification } from '@/services/firestore';
+import { 
+  DenormalizedFriendship, 
+  DenormalizedUser 
+} from '@estante/common-types';
 
 // ==================== SINCRONIZAÇÃO DE DADOS DENORMALIZADOS ====================
 

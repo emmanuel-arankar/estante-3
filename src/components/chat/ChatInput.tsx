@@ -1,12 +1,16 @@
 import { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Send, Image, Smile, Paperclip, Mic } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ImageUpload } from '../ui/image-upload';
 import EmojiPicker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
-import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { ImageUpload } from '@/components/ui/image-upload';
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ChatInputProps {
   onSendMessage: (content: string, type?: 'text' | 'image') => Promise<void>;

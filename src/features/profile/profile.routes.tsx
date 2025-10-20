@@ -1,15 +1,18 @@
 import { lazy } from 'react';
 import { RouteObject, Outlet } from 'react-router-dom';
+import { User, Edit3 } from 'lucide-react';
 import {
   profileLoader,
   editProfileLoader,
   meProfileLoader,
-} from './profile.loaders';
-import { editProfileAction } from './profile.actions';
-import { withSuspense } from '../../router/RouteSuspense';
-import { PATHS, ROUTE_PATTERNS } from '../../router/paths';
-import { ErrorElement } from '../../router/ErrorElement';
-import { User, Edit3 } from 'lucide-react';
+} from '@/features/profile/profile.loaders';
+import { editProfileAction } from '@/features/profile/profile.actions';
+import { ErrorElement } from '@/router/ErrorElement';
+import { 
+  PATHS,
+  ROUTE_PATTERNS 
+} from '@/router/paths';
+import { withSuspense } from '@/router/RouteSuspense';
 
 const Profile = lazy(() => import('../../pages/Profile').then(module => ({ default: module.Profile })));
 const EditProfile = lazy(() => import('../../pages/EditProfile').then(module => ({ default: module.EditProfile })));

@@ -1,16 +1,16 @@
-import { useState, useEffect, useMemo } from 'react'; // # atualizado
-import { Header } from './Header';
-import { Footer } from './Footer';
-import { Toaster } from 'react-hot-toast';
+import { useState, useEffect, useMemo, CSSProperties } from 'react';
 import { Outlet, useLoaderData, useLocation, useMatches, useNavigation } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { mainPageFadeVariants, MAIN_PAGE_TRANSITION } from '../../lib/animations';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { toastSuccessClickable } from '@/components/ui/toast';
+import { mainPageFadeVariants, MAIN_PAGE_TRANSITION } from '@/lib/animations';
 import { PATHS } from '@/router/paths';
 import { FocusManager } from '@/router/FocusManager';
-import { toastSuccessClickable } from '../ui/toast';
-import { User } from '@/models';
 import { useAuthStore } from '@/stores/authStore';
-import { LoadingSpinner } from '../ui/loading-spinner';
+import { User } from '@estante/common-types';
 
 interface LayoutData {
   userProfile: User | null;
@@ -132,7 +132,7 @@ export const Layout = () => {
             exit="exit"
             transition={MAIN_PAGE_TRANSITION}
             // # atualizado: Garante que a página que entra e a que sai ocupem o mesmo espaço.
-            style={{ gridArea: "1 / 1" }}
+            style={{ gridArea: "1 / 1" } as CSSProperties}
           >
             <Outlet />
           </motion.div>

@@ -1,4 +1,4 @@
-import { User } from "@/models";
+import { User } from '@estante/common-types';
 
 /**
  * Busca usuários na API.

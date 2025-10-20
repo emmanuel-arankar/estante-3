@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LoadingSpinner } from './loading-spinner';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useImageCache } from '@/hooks/useImageCache';
 
 interface OptimizedAvatarProps {

@@ -1,6 +1,13 @@
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { User } from '../../models';
+import { 
+  doc, 
+  getDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs 
+} from 'firebase/firestore';
+import { db } from '@/services/firebase';
+import { User } from '@estante/common-types';
 
 /**
  * Definição de query reutilizável para buscar um usuário pelo ID.

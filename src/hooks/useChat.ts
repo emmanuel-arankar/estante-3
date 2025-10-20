@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { toastErrorClickable } from '@/components/ui/toast';
+import { useAuth } from '@/hooks/useAuth';
 import {
   sendMessage,
   subscribeToMessages,
@@ -7,9 +8,8 @@ import {
   setUserOnline,
   setUserOffline,
   updateUserChatList,
-} from '../services/realtime';
-import { ChatMessage } from '../models';
-import { toastErrorClickable } from '@/components/ui/toast';
+} from '@/services/realtime';
+import { ChatMessage } from '@estante/common-types';
 
 export const useChat = (receiverId?: string) => {
   const { user } = useAuth();

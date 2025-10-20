@@ -1,5 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom';
-import { routes } from './routes';
+import { routes } from '@/router/routes';
 
 /**
  * # atualizado: O arquivo index agora apenas cria o roteador.

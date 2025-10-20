@@ -11,14 +11,12 @@ import {
   UserCircle,
   Users
 } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Avatar,
   AvatarFallback,
   AvatarImage
 } from '@/components/ui/avatar';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,13 +24,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { logout } from '@/services/auth';
-import { useImageLoad } from '@/hooks/useImageLoad';
-import { subscribeToFriendRequests } from '@/services/firestore';
-import { PATHS } from '@/router/paths';
-import { User } from '@/models';
-import { PrefetchLink } from '@/components/ui/prefetch-link';
-import { userQuery } from '@/features/users/user.queries';
+import { Input } from '@/components/ui/input';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { 
   Sheet, 
   SheetClose, 
@@ -42,7 +35,12 @@ import {
   SheetTitle, 
   SheetTrigger 
 } from '@/components/ui/sheet';
-import { Separator } from '../ui/separator';
+import { Separator } from '@/components/ui/separator';
+import { useImageLoad } from '@/hooks/useImageLoad';
+import { logout } from '@/services/auth';
+import { subscribeToFriendRequests } from '@/services/firestore';
+import { PATHS } from '@/router/paths';
+import { User } from '@estante/common-types';
 
 interface HeaderProps {
   userProfile: User | null;

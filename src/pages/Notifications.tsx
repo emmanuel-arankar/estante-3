@@ -1,14 +1,25 @@
 import { useState, useEffect } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { motion } from 'framer-motion';
 import { Bell, UserPlus, Heart, MessageCircle, UserCheck, X, Check } from 'lucide-react';
+import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { 
   Avatar, 
   AvatarFallback, 
   AvatarImage 
 } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Card, 
+  CardContent 
+} from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getUserNotifications,
@@ -17,12 +28,7 @@ import {
   rejectFriendRequest,
   getUserById
 } from '@/services/firestore';
-import { Notification, User } from '@/models';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { motion } from 'framer-motion';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
-import { PageMetadata } from '@/common/PageMetadata';
+import { Notification, User } from '@estante/common-types';
 
 export const Notifications = () => {
   const { user } = useAuth();

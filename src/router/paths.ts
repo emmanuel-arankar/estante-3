@@ -9,30 +9,30 @@ type RouteParams = {
 };
 
 export const PATHS = {
-  HOME: '/',
-  LOGIN: '/login',
-  REGISTER: '/register',
-  FORGOT_PASSWORD: '/forgot-password',
+  HOME:             '/',
+  LOGIN:            '/login',
+  REGISTER:         '/register',
+  FORGOT_PASSWORD:  '/forgot-password',
   
   // Rotas de Perfil
-  PROFILE_ME: '/profile/me',
-  PROFILE_EDIT: '/profile/me/edit',
-  PROFILE_POSTS:   'posts',
-  PROFILE_BOOKS:   'books',
-  PROFILE_REVIEWS: 'reviews',
-  PROFILE_FRIENDS: 'friends',
+  PROFILE_ME:       '/profile/me',
+  PROFILE_EDIT:     '/profile/me/edit',
+  PROFILE_POSTS:    'posts',
+  PROFILE_BOOKS:    'books',
+  PROFILE_REVIEWS:  'reviews',
+  PROFILE_FRIENDS:  'friends',
   PROFILE_ACTIVITY: 'activity',
   
   // Rotas de Amigos
-  FRIENDS: '/friends',
+  FRIENDS:          '/friends',
   FRIENDS_REQUESTS: 'requests',
-  FRIENDS_SENT: 'sent',
+  FRIENDS_SENT:     'sent',
   
-  NOTIFICATIONS: '/notifications',
-  MESSAGES: '/messages',
+  NOTIFICATIONS:    '/notifications',
+  MESSAGES:         '/messages',
   
   // Rotas de Administração
-  ADMIN_DASHBOARD: '/admin',
+  ADMIN_DASHBOARD:  '/admin',
 
   // Funções construtoras para rotas dinâmicas
   PROFILE: (params: RouteParams['profile']) => `/profile/${params.nickname}`,

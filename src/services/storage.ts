@@ -1,5 +1,10 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from './firebase';
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  deleteObject 
+} from 'firebase/storage';
+import { storage } from '@/services/firebase';
 
 // Interface para metadata de cache
 interface UploadOptions {

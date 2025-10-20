@@ -1,8 +1,8 @@
 import { redirect } from 'react-router-dom';
-import { getUserNotifications } from '../../services/firestore';
-import { queryClient } from '../../lib/queryClient';
-import { getCurrentUser } from '../../services/auth';
-import { PATHS } from '../../router/paths';
+import { queryClient } from '@/lib/queryClient';
+import { PATHS } from '@/router/paths';
+import { getCurrentUser } from '@/services/auth';
+import { getUserNotifications } from '@/services/firestore';
 
 const notificationsQuery = (userId: string) => ({
     queryKey: ['notifications', userId],

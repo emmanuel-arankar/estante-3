@@ -1,14 +1,22 @@
 import { useState } from 'react';
-import { Heart, MessageCircle, Share2, BookOpen, MoveHorizontal as MoreHorizontal } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Post } from '../../models';
-import { useAuth } from '../../hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
+import { Heart, MessageCircle, Share2, BookOpen, MoveHorizontal as MoreHorizontal } from 'lucide-react';
+import { 
+  Avatar, 
+  AvatarFallback, 
+  AvatarImage 
+} from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader 
+} from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
+import { Post } from '@estante/common-types';
 
 interface PostCardProps {
   post: Post;

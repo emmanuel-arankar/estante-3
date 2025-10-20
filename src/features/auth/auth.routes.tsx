@@ -1,9 +1,9 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { loginAction, registerAction } from './auth.actions';
-import { withSuspense } from '../../router/RouteSuspense';
-import { PATHS } from '../../router/paths';
-import { publicOnlyLoader } from './auth.loaders'; // # atualizado
+import { loginAction, registerAction } from '@/features/auth/auth.actions';
+import { publicOnlyLoader } from '@/features/auth/auth.loaders';
+import { PATHS } from '@/router/paths';
+import { withSuspense } from '@/router/RouteSuspense';
 
 const Login = lazy(() => import('../../pages/Login').then(module => ({ default: module.Login })));
 const Register = lazy(() => import('../../pages/Register').then(module => ({ default: module.Register })));

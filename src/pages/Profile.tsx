@@ -1,36 +1,36 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useLoaderData, useNavigate, Outlet, useLocation, Await } from 'react-router-dom';
-import {
-  MapPin,
-  Link as LinkIcon,
-  Calendar,
-  Edit3,
-  Cake,
-  UserPlus,
-  UserCheck,
-  MessageCircle,
-  Camera,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
-import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
-import { PhotoViewer } from '@/components/profile/PhotoViewer';
-import { AvatarEditorModal } from '@/components/ui/avatar-editor-modal';
-import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
-import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton'; 
-import { useAuthStore } from '@/stores/authStore';
-import { useFriendshipStatus } from '@/hooks/useDenormalizedFriends';
-import { User as UserModel } from '../models';
-import { sendDenormalizedFriendRequest } from '@/services/denormalizedFriendships';
-import { getUserAvatars } from '@/services/firestore';
-import { PATHS } from '@/router/paths';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations'; 
+import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, UserCheck, MessageCircle, Camera } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
+import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
+import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton'; 
+import { PhotoViewer } from '@/components/profile/PhotoViewer';
+import { AvatarEditorModal } from '@/components/ui/avatar-editor-modal';
+import { Button } from '@/components/ui/button';
+import { 
+  Card, 
+  CardContent 
+} from '@/components/ui/card';
+import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
+import { 
+  Tabs, 
+  TabsList, 
+  TabsTrigger 
+} from '@/components/ui/tabs';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
+import { useFriendshipStatus } from '@/hooks/useDenormalizedFriends';
+import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations'; 
+import { PATHS } from '@/router/paths';
+import { sendDenormalizedFriendRequest } from '@/services/denormalizedFriendships';
+import { getUserAvatars } from '@/services/firestore';
+import { useAuthStore } from '@/stores/authStore';
+import { User as UserModel } from '@estante/common-types';
 
 // Função para converter datas do Firestore com segurança
 const convertFirestoreDate = (date: any): Date | null => {

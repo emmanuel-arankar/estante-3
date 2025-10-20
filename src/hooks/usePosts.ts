@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { usePostsStore } from '../stores/postsStore';
-import { useAuth } from './useAuth';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
+import { useAuth } from '@/hooks/useAuth';
+import { usePostsStore } from '@/stores/postsStore';
 import {
   getPosts,
   createPost,
@@ -8,9 +12,8 @@ import {
   unlikePost,
   addComment,
   subscribeToFeedPosts,
-} from '../services/firestore';
-import { Post, Comment } from '../models';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
+} from '@/services/firestore';
+import { Post, Comment } from '@estante/common-types';
 
 export const usePosts = () => {
   const { user } = useAuth();

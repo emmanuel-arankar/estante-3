@@ -5,14 +5,17 @@ import {
   updateProfile as updateFirebaseAuthProfile,
   deleteUser,
 } from 'firebase/auth';
-import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore'; // # atualizado: importado getDoc
-import { auth, db } from '../../services/firebase';
-import { generateNickname, generateUniqueNickname } from '../../utils/nickname';
-import { queryClient } from '../../lib/queryClient';
-import { toastErrorClickable, toastSuccessClickable } from '../../components/ui/toast'; // # atualizado: importado toastSuccessClickable
-import { User } from '../../models';
-import { PATHS } from '../../router/paths';
-import { useAuthStore } from '../../stores/authStore';
+import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
+import { 
+  toastErrorClickable, 
+  toastSuccessClickable 
+} from '@/components/ui/toast'; 
+import { queryClient } from '@/lib/queryClient';
+import { PATHS } from '@/router/paths';
+import { auth, db } from '@/services/firebase';
+import { useAuthStore } from '@/stores/authStore';
+import { generateNickname, generateUniqueNickname } from '@/utils/nickname';
+import { User } from '@estante/common-types';
 
 export const loginAction = async ({ request }: any) => {
   const formData = await request.formData();

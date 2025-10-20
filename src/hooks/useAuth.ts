@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-// # atualizado: Adicionar signOut
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
-import { useAuthStore } from '../stores/authStore';
 import { setSessionCookie } from '@/services/auth';
+import { auth } from '@/services/firebase';
+import { useAuthStore } from '@/stores/authStore';
 
 export const useAuth = () => {
   const {

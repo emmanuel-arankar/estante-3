@@ -1,5 +1,5 @@
-import { PageMetadata } from '@/common/PageMetadata';
 import { ShieldCheck } from 'lucide-react';
+import { PageMetadata } from '@/common/PageMetadata';
 
 export const AdminDashboard = () => {
   return (

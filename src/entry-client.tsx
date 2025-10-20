@@ -2,9 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { QueryClientProvider, HydrationBoundary } from '@tanstack/react-query'; // # atualizado
-import { appRouter } from './router';
-import { queryClient } from './lib/queryClient';
+import { 
+  QueryClientProvider, 
+  HydrationBoundary 
+} from '@tanstack/react-query'; 
+import { appRouter } from '@/router';
+import { queryClient } from '@/lib/queryClient';
 import './index.css';
 
 ReactDOM.hydrateRoot(

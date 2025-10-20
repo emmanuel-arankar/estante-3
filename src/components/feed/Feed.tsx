@@ -1,10 +1,10 @@
 import InfiniteScroll from 'react-infinite-scroll-component';
-import { PostCard } from './PostCard';
-import { CreatePost } from './CreatePost';
-import { LoadingSpinner } from '../ui/loading-spinner';
-import { usePosts } from '../../hooks/usePosts';
-import { useAuth } from '../../hooks/useAuth';
 import { motion } from 'framer-motion';
+import { CreatePost } from '@/components/feed/CreatePost';
+import { PostCard } from '@/components/feed/PostCard';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useAuth } from '@/hooks/useAuth';
+import { usePosts } from '@/hooks/usePosts';
 
 export const Feed = () => {
   const { user } = useAuth();

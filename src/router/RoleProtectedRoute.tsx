@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { UserRole } from '../models';
-import { PATHS } from './paths';
 import { useQuery } from '@tanstack/react-query';
-import { userQuery } from '../features/users/user.queries';
+import { useAuth } from '@/hooks/useAuth';
+import { UserRole } from '@estante/common-types';
+import { PATHS } from '@/router/paths';
+import { userQuery } from '@/features/users/user.queries';
 
 // # atualizado: Adicionando a propriedade 'children' à interface
 interface RoleProtectedRouteProps {

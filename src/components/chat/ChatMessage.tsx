@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { motion } from 'framer-motion';
 import { Check, CheckCheck, MoreVertical, Reply, Copy, Trash2 } from 'lucide-react';
 import { 
   Avatar, 
@@ -12,11 +15,8 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { ChatMessage as ChatMessageType } from '@estante/common-types';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { ChatMessage as ChatMessageType } from '@estante/common-types';
 
 interface ChatMessageProps {
   message: ChatMessageType;

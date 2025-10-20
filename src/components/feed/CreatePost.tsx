@@ -2,18 +2,33 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Image, BookOpen, Quote, MessageSquare, Send } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ImageUpload } from '../ui/image-upload';
-import { useAuth } from '../../hooks/useAuth';
-import { LoadingSpinner } from '../ui/loading-spinner';
-import { useQuery } from '@tanstack/react-query';
-import { userQuery } from '@/features/users/user.queries';
 import { motion } from 'framer-motion';
+import { Image, BookOpen, Quote, MessageSquare, Send } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { 
+  Avatar, 
+  AvatarFallback, 
+  AvatarImage 
+} from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { ImageUpload } from '@/components/ui/image-upload';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { userQuery } from '@/features/users/user.queries';
+import { useAuth } from '@/hooks/useAuth';
 
 const createPostSchema = z.object({
   content: z.string().min(1, 'O conteúdo é obrigatório').max(1000, 'Máximo 1000 caracteres'),

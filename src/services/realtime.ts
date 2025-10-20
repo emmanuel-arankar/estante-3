@@ -9,8 +9,8 @@ import {
   set,
   onDisconnect,
 } from 'firebase/database';
-import { database } from './firebase';
-import { ChatMessage } from '../models';
+import { database } from '@/services/firebase';
+import { ChatMessage } from '@estante/common-types';
 
 // Chat Messages
 export const sendMessage = async (

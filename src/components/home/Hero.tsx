@@ -1,8 +1,8 @@
+import { CSSProperties, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 export const Hero = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,7 +26,7 @@ export const Hero = () => {
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-            }}
+            } as CSSProperties}
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.8, 0.2],

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
+import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
 import { PATHS } from '@/router/paths';
-import { PageMetadata } from '@/common/PageMetadata';
 
 export const NotFound = () => {
   return (

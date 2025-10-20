@@ -1,20 +1,31 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ArrowLeft, Upload, Save, RotateCcw, Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { LoadingSpinner } from './loading-spinner';
-import { uploadProfileImage } from '../../services/storage';
-import { useAuth } from '../../hooks/useAuth';
 import { updateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-import { toastSuccessClickable, toastErrorClickable } from './toast';
-import { syncDenormalizedUserData } from '../../services/denormalizedFriendships';
-import { saveUserAvatar, getUserAvatars, createAvatarPost } from '../../services/firestore';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Upload, Save, RotateCcw, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Slider } from '@/components/ui/slider';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
+import { useAuth } from '@/hooks/useAuth';
+import { syncDenormalizedUserData } from '@/services/denormalizedFriendships';
+import { db } from '@/services/firebase';
+import { 
+  saveUserAvatar, 
+  getUserAvatars, 
+  createAvatarPost 
+} from '@/services/firestore';
+import { uploadProfileImage } from '@/services/storage';
 
 interface PhotoEditorProps {
   currentPhotoURL?: string;

@@ -1,13 +1,13 @@
 import { redirect } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../../services/firebase';
-import { syncDenormalizedUserData } from '../../services/denormalizedFriendships';
-import { queryClient } from '../../lib/queryClient';
 import {
   toastSuccessClickable,
   toastErrorClickable,
-} from '../../components/ui/toast';
-import { PATHS } from '../../router/paths';
+} from '@/components/ui/toast';
+import { queryClient } from '@/lib/queryClient';
+import { PATHS } from '@/router/paths';
+import { syncDenormalizedUserData } from '@/services/denormalizedFriendships';
+import { auth, db } from '@/services/firebase';
 
 export const editProfileAction = async ({ request }: any) => {
   const formData = await request.formData();

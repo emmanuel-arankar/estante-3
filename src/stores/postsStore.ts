@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Post } from '../models';
+import { Post } from '@estante/common-types';
 
 interface PostsState {
   posts: Post[];

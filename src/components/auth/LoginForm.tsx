@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { Form, Link, useNavigation, useNavigate, useLocation } from 'react-router-dom'; 
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup,
+  getAdditionalUserInfo 
+} from 'firebase/auth'; 
+import { doc, setDoc } from 'firebase/firestore';
 import { Eye, EyeOff, Mail, Lock, Chrome } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Card, 
   CardContent, 
@@ -10,21 +15,19 @@ import {
   CardTitle,
   CardDescription
 } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { PATHS } from '@/router/paths';
-import { 
-  GoogleAuthProvider, 
-  signInWithPopup,
-  getAdditionalUserInfo 
-} from 'firebase/auth'; // # atualizado
-import { auth, db } from '@/services/firebase'; // # atualizado
-import { doc, setDoc } from 'firebase/firestore';
-import { generateUniqueNickname } from '@/utils/nickname'; // # atualizado
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast'; // # atualizado
-import { User } from '@estante/common-types';
+import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Separator } from '@/components/ui/separator';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
+import { auth, db } from '@/services/firebase'; 
+import { PATHS } from '@/router/paths';
+import { generateUniqueNickname } from '@/utils/nickname'; 
+import { User } from '@estante/common-types';
 
 export const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);

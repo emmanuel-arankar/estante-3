@@ -1,7 +1,7 @@
 import { redirect } from 'react-router-dom';
-import { getUserRoles } from '../../services/auth';
-import { PATHS } from '../../router/paths';
 import { toastErrorClickable } from '@/components/ui/toast';
+import { PATHS } from '@/router/paths';
+import { getUserRoles } from '@/services/auth';
 
 export const adminLoader = async () => {
   try {

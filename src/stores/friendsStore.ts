@@ -4,11 +4,26 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { enableMapSet } from 'immer';
 import Fuse from 'fuse.js';
-import { collection, query, where, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  DocumentData,
+  DocumentSnapshot,
+  QuerySnapshot
+} from 'firebase/firestore';
 import { db } from '@/services/firebase';
-import { FriendshipWithUser, User } from '@/models';
-import { acceptFriendRequest, rejectFriendRequest, removeFriend } from '../services/firestore';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
+import { FriendshipWithUser, User } from '@estante/common-types';
+import { 
+  acceptFriendRequest, 
+  rejectFriendRequest, 
+  removeFriend 
+} from '@/services/firestore';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
 
 enableMapSet();
 
@@ -392,7 +407,7 @@ export const useFriendsData = () => {
 
   const friendsQuery = useInfiniteQuery({
     queryKey: ['friends', user?.uid ?? ''],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam }: { pageParam: DocumentSnapshot<DocumentData> | undefined }) => { 
       try {
         if (!user?.uid) return { friends: [], hasMore: false, lastDoc: null };
         const result = await getUserFriendsPaginated(user.uid, 30, pageParam);

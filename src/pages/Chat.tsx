@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Phone, Video, MoreVertical, Search } from 'lucide-react';
+import { PageMetadata } from '@/common/PageMetadata';
+import { 
+  Avatar, 
+  AvatarFallback, 
+  AvatarImage 
+} from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { OnlineStatus } from '@/components/chat/OnlineStatus';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { motion } from 'framer-motion';
 import { PATHS } from '@/router/paths';
-import { PageMetadata } from '@/common/PageMetadata';
-import { User } from '../models';
+import { User } from '@estante/common-types';
 
 export const Chat = () => {
   const { receiverId } = useParams<{ receiverId: string }>();

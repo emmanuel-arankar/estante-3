@@ -1,24 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { useLocation, useOutletContext, Link } from 'react-router-dom';
-import { 
-  Search, 
-  Users, 
-  UserPlus, 
-  Clock, 
-  RefreshCw 
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { useDenormalizedFriends } from '../../hooks/useDenormalizedFriends';
-import { DenormalizedFriendship } from '../../models/friendship';
+import { useLocation, useOutletContext } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { SortDropdown } from './SortDropdown';
 import { ptBR } from 'date-fns/locale';
-import { PATHS } from '../../router/paths';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Users, UserPlus, Clock, RefreshCw } from 'lucide-react';
+import { SortDropdown } from '@/components/friends/SortDropdown';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -29,8 +15,21 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
-import { PrefetchLink } from '../ui/prefetch-link';
+import { Button } from '@/components/ui/button';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { userByNicknameQuery } from '@/features/users/user.queries';
+import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
+import { PATHS } from '@/router/paths';
+import { DenormalizedFriendship } from '@estante/common-types';
 
 // # atualizado: FriendCard com PrefetchLink
 const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; onAction: (id: string) => void }>(

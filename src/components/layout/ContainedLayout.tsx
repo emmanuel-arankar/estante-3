@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 
 export const ContainedLayout = () => {
   return (

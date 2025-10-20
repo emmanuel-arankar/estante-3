@@ -1,5 +1,8 @@
 import { getPendingRequestCount } from '@/services/firestore';
-import { awaitAuthReady, getCurrentUser } from '@/services/auth';
+import { 
+  awaitAuthReady, 
+  getCurrentUser 
+} from '@/services/auth';
 import { queryClient } from '@/lib/queryClient';
 import { userQuery } from '@/features/users/user.queries';
 import { useAuthStore } from '@/stores/authStore';

@@ -1,19 +1,28 @@
-import { ArrowLeft } from 'lucide-react';
-import { Heart, MessageCircle, Send, MoveVertical as MoreVertical } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { motion } from 'framer-motion';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from '../../hooks/useAuth';
 import { useState, useEffect } from 'react';
-import { likeAvatar, commentOnAvatar, getUserAvatars } from '../../services/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
-import { LoadingSpinner } from '../ui/loading-spinner';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Heart, MessageCircle, Send, MoveVertical as MoreVertical } from 'lucide-react';
+import { 
+  Avatar, 
+  AvatarImage, 
+  AvatarFallback 
+} from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
+import { useAuth } from '@/hooks/useAuth';
+import { likeAvatar, commentOnAvatar, getUserAvatars } from '@/services/firestore';
  
 interface PhotoViewerProps {
   imageUrl: string;

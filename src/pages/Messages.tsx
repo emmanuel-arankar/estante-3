@@ -1,21 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MessageCircle, Plus, MoreVertical } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { OnlineStatus } from '@/components/chat/OnlineStatus';
-import { NewConversationModal } from '@/components/chat/NewConversationModal';
-import { useChat } from '@/hooks/useChat';
-import { useAuth } from '@/hooks/useAuth';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { PATHS } from '@/router/paths';
+import { Search, MessageCircle, Plus, MoreVertical } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
+import { OnlineStatus } from '@/components/chat/OnlineStatus';
+import { NewConversationModal } from '@/components/chat/NewConversationModal';
+import { 
+  Avatar, 
+  AvatarFallback, 
+  AvatarImage 
+} from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { 
+  Card, 
+  CardContent 
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useChat } from '@/hooks/useChat';
+import { useAuth } from '@/hooks/useAuth';
+import { PATHS } from '@/router/paths';
 
 export const Messages = () => {
   const { user } = useAuth();

@@ -1,5 +1,5 @@
 import { Suspense, ElementType } from 'react';
-import { LoadingSpinner } from '../components/ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const RouteFallback = () => (
   <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">

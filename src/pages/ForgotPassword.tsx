@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link } from 'react-router-dom';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -14,11 +15,13 @@ import {
   CardTitle, 
   CardDescription 
 } from '@/components/ui/card';
-import { auth } from '@/services/firebase';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
+import { auth } from '@/services/firebase';
 import { PATHS } from '@/router/paths';
-import { PageMetadata } from '@/common/PageMetadata';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Email inválido'),

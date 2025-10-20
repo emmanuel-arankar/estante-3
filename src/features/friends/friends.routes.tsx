@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { withSuspense } from '../../router/RouteSuspense';
-import { PATHS } from '../../router/paths';
+import { PATHS } from '@/router/paths';
+import { withSuspense } from '@/router/RouteSuspense';
 
 // O componente Friends se torna o layout para esta seção
 const Friends = lazy(() => import('../../pages/Friends').then(module => ({ default: module.Friends })));

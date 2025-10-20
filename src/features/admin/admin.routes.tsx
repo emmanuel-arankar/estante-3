@@ -1,10 +1,8 @@
-// atualizado
 import { lazy } from 'react';
 import { Outlet, RouteObject } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
-
-import { withSuspense } from '../../router/RouteSuspense';
-import { adminLoader } from './admin.loaders';
+import { adminLoader } from '@/features/admin/admin.loaders';
+import { withSuspense } from '@/router/RouteSuspense';
 
 // Lazy loading do componente principal do dashboard
 const AdminDashboard = lazy(() => import('../../pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));

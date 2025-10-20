@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useLoaderData, Form, useNavigation } from 'react-router-dom';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import {
-  ArrowLeft,
-  Save,
-  User,
-  MapPin,
-  Link as LinkIcon,
-  Check,
-  X,
-  Loader2
-} from 'lucide-react';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs 
+} from 'firebase/firestore';
+import { ArrowLeft, Save, User, MapPin, Link as LinkIcon, Check, X, Loader2 } from 'lucide-react';
+import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -30,9 +27,8 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/services/firebase';
-import { User as UserModel } from '@/models';
 import { PATHS } from '@/router/paths';
-import { PageMetadata } from '@/common/PageMetadata';
+import { User as UserModel } from '@estante/common-types';
 
 const convertFirestoreDate = (date: any): Date | null => {
   if (!date) return null;

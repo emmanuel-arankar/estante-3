@@ -1,6 +1,6 @@
 import { RouterProvider } from 'react-router-dom';
-import { appRouter } from './router';
-import { useAuth } from './hooks/useAuth';
+import { appRouter } from '@/router';
+import { useAuth } from '@/hooks/useAuth';
 
 function App() {
   // O hook useAuth é chamado aqui para iniciar a verificação de auth.

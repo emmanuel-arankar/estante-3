@@ -1,15 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMemo } from 'react';
 import { DocumentData, DocumentSnapshot } from 'firebase/firestore';
-import { useAuth } from './useAuth';
-import {
-  DenormalizedFriendship,
-  FriendshipStats,
-  UseFriendsResult,
-  FriendshipActions,
-  SortOption,
-  SortDirection
-} from '../models/friendship';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
+import { useAuth } from '@/hooks/useAuth';
 import {
   getDenormalizedFriends,
   getDenormalizedFriendRequests,
@@ -22,8 +18,15 @@ import {
   rejectDenormalizedFriendRequest,
   removeDenormalizedFriend,
   searchFriends
-} from '../services/denormalizedFriendships';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
+} from '@/services/denormalizedFriendships';
+import {
+  DenormalizedFriendship,
+  FriendshipStats,
+  UseFriendsResult,
+  FriendshipActions,
+  SortOption,
+  SortDirection
+} from '@estante/common-types';
 
 // ==================== CACHE INTELIGENTE ====================
 interface FriendsCache {

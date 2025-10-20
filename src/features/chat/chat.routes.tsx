@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { withSuspense } from '../../router/RouteSuspense';
-import { ROUTE_PATTERNS, PATHS } from '../../router/paths';
+import { ROUTE_PATTERNS, PATHS } from '@/router/paths';
+import { withSuspense } from '@/router/RouteSuspense';
 
 const Messages = lazy(() => import('../../pages/Messages').then(module => ({ default: module.Messages })));
 const Chat = lazy(() => import('../../pages/Chat').then(module => ({ default: module.Chat })));

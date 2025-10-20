@@ -20,7 +20,7 @@ import {
   getCountFromServer,
   DocumentSnapshot,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from '@/services/firebase';
 import {
   Post,
   User,
@@ -30,7 +30,7 @@ import {
   Notification,
   Friendship,
   FriendshipWithUser
-} from '../models';
+} from '@estante/common-types';
 
 // Collections
 export const COLLECTIONS = {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Form, Link, useNavigation } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -12,7 +13,6 @@ import {
 } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PATHS } from '@/router/paths';
-import { PageMetadata } from '@/common/PageMetadata';
 
 export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);

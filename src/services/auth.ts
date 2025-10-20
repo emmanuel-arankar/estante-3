@@ -4,10 +4,13 @@ import {
   getIdTokenResult,
   User as FirebaseUser
 } from 'firebase/auth';
-import { auth } from './firebase';
-import { useAuthStore } from '../stores/authStore';
-import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
+import { 
+  toastSuccessClickable, 
+  toastErrorClickable 
+} from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
+import { auth } from '@/services/firebase';
+import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Envia o ID token para o backend para criar um cookie de sessão.

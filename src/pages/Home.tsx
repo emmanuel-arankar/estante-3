@@ -1,5 +1,5 @@
-import { Hero } from '@/components/home/Hero';
 import { PageMetadata } from '@/common/PageMetadata';
+import { Hero } from '@/components/home/Hero';
 
 export const Home = () => {
   const siteSchema = {

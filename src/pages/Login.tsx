@@ -1,6 +1,6 @@
+import { BookOpen } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { LoginForm } from '@/components/auth/LoginForm';
-import { BookOpen } from 'lucide-react';
 
 export const Login = () => {
   return (

@@ -10,7 +10,6 @@ import {
   ReactRenderer,
   useEditor,
   BubbleMenu,
-  // # atualizado: Imports para o Node View
   ReactNodeViewRenderer,
   NodeViewWrapper,
   type NodeViewProps,
@@ -42,17 +41,18 @@ import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import Tippy from '@tippyjs/react';
 
+import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from '@/components/ui/popover';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
+import { Separator } from '@/components/ui/separator';
+import { userByNicknameQuery as userQueries } from '@/features/users/user.queries';
 import { cn } from '@/lib/utils';
 import { PATHS } from '@/router/paths';
 import { searchUsersForMention } from '@/services/firestore';
-
-// # atualizado: Importando o PrefetchLink e OptimizedAvatar
-import { userByNicknameQuery as userQueries } from '@/features/users/user.queries';
-import { PrefetchLink } from '@/components/ui/prefetch-link';
-import { OptimizedAvatar } from './optimized-avatar';
-
-import { Separator } from './separator';
-import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
 // # atualizado: Tipagem para os props do componente de menções (com photoURL)
 type MentionListProps = SuggestionProps & {

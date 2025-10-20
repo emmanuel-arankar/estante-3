@@ -1,5 +1,7 @@
 import React from 'react';
 import { useMatches, Link, UIMatch } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronRightIcon, Home } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbLink,
@@ -7,10 +9,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ChevronRightIcon, Home } from 'lucide-react';
+import { itemVariants, SMOOTH_TRANSITION } from '@/lib/animations'; 
 import { PATHS } from '@/router/paths';
-import { motion, AnimatePresence } from 'framer-motion'; // # atualizado
-import { itemVariants, SMOOTH_TRANSITION } from '../../lib/animations'; // # atualizado
 
 interface BreadcrumbHandle {
   breadcrumb: (data?: any) => { label: string; icon?: React.ReactNode };

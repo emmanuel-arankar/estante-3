@@ -1,6 +1,13 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { 
+  Card, 
+  CardContent 
+} from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Tabs, 
+  TabsList, 
+  TabsTrigger 
+} from '@/components/ui/tabs';
 
 export const ProfileSkeleton = () => {
   return (

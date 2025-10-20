@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronDown, ArrowDownAZ, ArrowDownZA, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -6,8 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, ArrowDownAZ, ArrowDownZA, Check } from 'lucide-react';
-import { SortOption, SortDirection } from '@/models/friendship';
+import { SortOption, SortDirection } from '@estante/common-types';
 
 interface SortDropdownProps {
   sortBy: SortOption;

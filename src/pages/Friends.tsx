@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { List, Grid, Users, UserPlus, Clock } from 'lucide-react';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
 import { AnimatePresence, motion } from 'framer-motion';
-import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations';
+import { List, Grid, Users, UserPlus, Clock } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
+import { 
+  ToggleGroup, 
+  ToggleGroupItem 
+} from '@/components/ui/toggle-group';
+import { 
+  Tabs, 
+  TabsList,
+  TabsTrigger 
+} from '@/components/ui/tabs';
+import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
+import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations';
 
 export const Friends = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
