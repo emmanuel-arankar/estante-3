@@ -1,12 +1,19 @@
+import { useUserPresence } from "@/hooks/useUserPresence";
 import { cn } from '@/lib/utils';
 
 interface OnlineStatusProps {
-  isOnline: boolean;
+  userId: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
 
-export const OnlineStatus = ({ isOnline, className, size = 'sm' }: OnlineStatusProps) => {
+export const OnlineStatus = ({ 
+  userId, 
+  className, 
+  size = 'sm' 
+}: OnlineStatusProps) => {
+  const { online } = useUserPresence(userId);
+
   const sizeClasses = {
     sm: 'h-3 w-3',
     md: 'h-4 w-4',
@@ -17,10 +24,11 @@ export const OnlineStatus = ({ isOnline, className, size = 'sm' }: OnlineStatusP
     <div
       className={cn(
         'rounded-full border-2 border-white',
-        sizeClasses[size],
-        isOnline ? 'bg-green-500' : 'bg-gray-400',
+        sizeClasses[size], 
+        online ? 'bg-green-500' : 'bg-gray-400', 
         className
       )}
+      title={online ? "Online" : "Offline"} 
     />
   );
 };

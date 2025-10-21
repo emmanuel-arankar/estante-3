@@ -1,16 +1,14 @@
 import { RouterProvider } from 'react-router-dom';
 import { appRouter } from '@/router';
 import { useAuth } from '@/hooks/useAuth';
+import { useManageMyPresence } from '@/hooks/useUserPresence';
 
 function App() {
-  // O hook useAuth é chamado aqui para iniciar a verificação de auth.
-  // A lógica de carregamento será movida para o Layout.
-  useAuth();
+  // Inicializa o listener de autenticação e atualiza o store
+  useAuth(); 
+  // Lê o user do store (via useAuth interno) e gerencia a presença
+  useManageMyPresence(); 
 
-  // O RouterProvider foi movido para main.tsx.
-  // O componente App agora pode ser simplificado ou removido,
-  // mas por enquanto vamos mantê-lo para conter a lógica do useAuth.
-  // A renderização real acontecerá através da configuração do router.
   return <RouterProvider router={appRouter} />;
 }
 
