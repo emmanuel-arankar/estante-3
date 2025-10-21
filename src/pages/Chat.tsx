@@ -91,7 +91,7 @@ export const Chat = () => {
                       {receiverInfo?.displayName?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <OnlineStatus isOnline={receiverInfo?.online} className="absolute -bottom-1 -right-1" />
+                  <OnlineStatus userId={receiverInfo?.id} className="absolute -bottom-1 -right-1" />
                 </div>
 
                 <div>
