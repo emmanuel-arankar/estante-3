@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
+import * as logger from 'firebase-functions/logger';
 
 /**
  * Estende a interface Request do Express para incluir 
@@ -19,6 +20,7 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
   const sessionCookie = req.cookies?.__session || '';
 
   if (!sessionCookie) {
+    logger.warn('Tentativa de acesso não autenticado (cookie ausente)', { path: req.path, ip: req.ip });
     // Se não houver cookie, o usuário não está logado.
     return res.status(401).send({ error: 'Não autenticado. Cookie de sessão ausente.' });
   }
@@ -34,13 +36,22 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
     // Anexa os dados do usuário (payload do token) à requisição.
     // Usamos um cast para nossa interface customizada.
     (req as AuthenticatedRequest).user = decodedToken;
-
-    // Continua para a próxima função (o handler da rota principal)
+    // Logar sucesso (opcional, pode ser verboso)
+    // logger.debug('Cookie de sessão verificado com sucesso', { uid: decodedToken.uid, path: req.path });
     return next();
+  } catch (error: any) {
+    logger.warn('Falha ao verificar cookie de sessão:', {
+        errorCode: error.code,
+        errorMessage: error.message,
+        path: req.path,
+        ip: req.ip
+    });
+    // Determinar a mensagem de erro específica baseada no código
+    let clientErrorMessage = 'Sessão inválida ou expirada. Faça login novamente.';
+    if (error.code === 'auth/session-cookie-revoked') {
+      clientErrorMessage = 'Sua sessão foi revogada (ex: mudança de senha). Faça login novamente.';
+    }
 
-  } catch (error) {
-    // O cookie é inválido, expirado ou foi revogado.
-    console.warn('Falha ao verificar cookie de sessão:', error);
-    return res.status(401).send({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
+    return res.status(401).send({ error: clientErrorMessage });
   }
 };

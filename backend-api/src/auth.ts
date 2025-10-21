@@ -1,20 +1,26 @@
 import { Router } from 'express';
 import * as admin from 'firebase-admin';
-import { FirebaseError } from 'firebase-admin/app';
 import * as logger from 'firebase-functions/logger';
+import { FirebaseError } from 'firebase-admin/app';
 import { sessionLoginBodySchema } from './schemas/auth.schema';
 
 const router = Router();
 
-const QUATORZE_DIAS_EM_MS = 60 * 60 * 24 * 14 * 1000;
+const SESSION_COOKIE_DURATION_MS = parseInt(process.env.SESSION_COOKIE_DURATION_MS || '', 10) || 14 * 24 * 60 * 60 * 1000;
+logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS} ms`);
+
 /**
  * Cria um cookie de sessão a partir de um ID token do Firebase.
  */
 router.post('/sessionLogin', async (req, res) => {
-  // # atualizado: Validar req.body usando o schema
+  // Valida req.body usando o schema
   const validationResult = sessionLoginBodySchema.safeParse(req.body);
 
   if (!validationResult.success) {
+    logger.warn('Falha na validação do login de sessão', {
+      errors: validationResult.error.flatten().fieldErrors,
+      body: req.body // Cuidado ao logar bodies em produção se contiverem dados sensíveis não criptografados
+    });
     return res.status(400).json({
       error: 'Dados de login inválidos',
       details: validationResult.error.flatten().fieldErrors,
@@ -22,8 +28,7 @@ router.post('/sessionLogin', async (req, res) => {
   }
 
   const { idToken } = validationResult.data;
-
-  const expiresIn = QUATORZE_DIAS_EM_MS;
+  const expiresIn = SESSION_COOKIE_DURATION_MS;
 
   try {
     const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
@@ -33,15 +38,18 @@ router.post('/sessionLogin', async (req, res) => {
       maxAge: expiresIn,
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax' as const // Considere adicionar para proteção CSRF adicional
+      sameSite: 'lax' as const
     };
 
     res.cookie('__session', sessionCookie, options);
     logger.info('Cookie de sessão criado com sucesso.');
     return res.status(200).send({ status: 'success' });
   } catch (error: any) {
-    // # atualizado: Usar logger.error para logs estruturados
-    logger.error('Erro ao criar cookie de sessão:', error);
+    logger.error('Erro ao criar cookie de sessão:', {
+      errorMessage: error.message,
+      errorCode: error.code,
+      // Evite logar o idToken inteiro por segurança
+    });
 
     const firebaseError = error as FirebaseError;
     let statusCode = 500;
