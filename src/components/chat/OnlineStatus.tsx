@@ -1,26 +1,33 @@
+// src/components/chat/OnlineStatus.tsx (Versão para Teste)
 import { cn } from '@/lib/utils';
+import { useUserPresence } from "@/hooks/useUserPresence";
 
 interface OnlineStatusProps {
-  isOnline: boolean;
+  userId: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
 
-export const OnlineStatus = ({ isOnline, className, size = 'sm' }: OnlineStatusProps) => {
-  const sizeClasses = {
-    sm: 'h-3 w-3',
-    md: 'h-4 w-4',
-    lg: 'h-5 w-5',
-  };
+export const OnlineStatus = ({ userId, className, size = 'sm' }: OnlineStatusProps) => {
+  const { online } = useUserPresence(userId);
+  console.log(`[OnlineStatus] Re-rendering for userId: ${userId}, online: ${online}`); // Manter log
+
+  const sizePixels = { sm: '12px', md: '16px', lg: '20px' };
 
   return (
     <div
-      className={cn(
-        'rounded-full border-2 border-white',
-        sizeClasses[size],
-        isOnline ? 'bg-green-500' : 'bg-gray-400',
-        className
-      )}
+      style={{
+        height: sizePixels[size],
+        width: sizePixels[size],
+        borderRadius: '50%',
+        border: '2px solid white',
+        // Usar cores explícitas aqui
+        backgroundColor: online ? '#22c55e' : '#9ca3af', // Verde vs Cinza
+        // Adicionar !important pode ajudar a identificar conflitos, mas não é solução final
+        // backgroundColor: online ? '#22c55e !important' : '#9ca3af !important',
+      }}
+      className={className} // Manter className para posicionamento
+      title={online ? "Online" : "Offline"}
     />
   );
 };

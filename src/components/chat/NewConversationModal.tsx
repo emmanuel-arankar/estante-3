@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/card';
 import { 
   Dialog, 
-  DialogContent, 
+  DialogContent,
+  DialogDescription, 
   DialogHeader, 
   DialogTitle 
 } from '@/components/ui/dialog';
@@ -27,6 +28,7 @@ import {
   toastErrorClickable 
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserPresence } from '@/hooks/useUserPresence';
 import { searchUsersAPI } from '@/services/api';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
@@ -112,6 +114,9 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
             <MessageCircle className="h-5 w-5 text-emerald-600" />
             <span>Nova Conversa</span>
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Busque um amigo pelo nome ou nickname para iniciar uma nova conversa.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -128,7 +133,7 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
           </div>
 
           {/* Results */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto pr-2">
             {loading ? (
               <div className="flex justify-center py-8">
                 <LoadingSpinner size="md" />
@@ -150,7 +155,7 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
               </div>
             ) : (
               <div className="space-y-2">
-                {users.map((user, index) => (
+                {users.map((user, index) => (                 
                   <motion.div
                     key={user.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -171,7 +176,7 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
                               </AvatarFallback>
                             </Avatar>
                             <OnlineStatus 
-                              isOnline={Math.random() > 0.5} // TODO: Implementar status real
+                              userId={user.id}
                               className="absolute -bottom-1 -right-1" 
                             />
                           </div>
