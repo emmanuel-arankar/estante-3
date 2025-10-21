@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import * as logger from 'firebase-functions/logger';
 import cors from 'cors';
 import express from 'express';
 import cookieParser from 'cookie-parser';
@@ -13,9 +14,13 @@ if (admin.apps.length === 0) {
 
 if (process.env.FUNCTIONS_EMULATOR === 'true') {
   //process.env['FIREBASE_AUTH_EMULATOR_HOST'] = '127.0.0.1:9099';
+  logger.info('Emulator detectado, removendo variáveis de ambiente do emulador para backend-api');
   delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
   delete process.env.FIRESTORE_EMULATOR_HOST;
   delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+  logger.info('Variáveis de ambiente do emulador removidas.');
+} else {
+  logger.info('Rodando em ambiente de produção ou sem emuladores definidos para backend-api.');
 }
 
 const app = express();
