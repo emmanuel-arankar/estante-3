@@ -12,7 +12,7 @@ logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS
 /**
  * Cria um cookie de sessão a partir de um ID token do Firebase.
  */
-router.post('/sessionLogin', async (req, res) => {
+router.post('/sessionLogin', async (req, res, next) => {
   // Valida req.body usando o schema
   const validationResult = sessionLoginBodySchema.safeParse(req.body);
 
@@ -52,35 +52,47 @@ router.post('/sessionLogin', async (req, res) => {
     });
 
     const firebaseError = error as FirebaseError;
-    let statusCode = 500;
-    let errorMessage = 'Falha interna ao processar autenticação.';
+    let statusCode = 401; // Assume 401 para erros Firebase Auth por padrão aqui
+    let errorMessage = 'Falha na autenticação. Faça login novamente.';
+    let shouldLogError = true; // Controla se logamos como erro ou aviso
 
     switch (firebaseError.code) {
+      // Casos que são erros do cliente ou esperados (401), logamos como aviso
       case 'auth/user-not-found':
-        statusCode = 401;
         errorMessage = 'Usuário não encontrado. Por favor, faça login novamente.';
+        shouldLogError = false;
         break;
       case 'auth/invalid-id-token':
-      case 'auth/argument-error': // Trata token malformado também
-        statusCode = 401;
+      case 'auth/argument-error':
         errorMessage = 'Token inválido. Faça login novamente.';
+        shouldLogError = false;
         break;
       case 'auth/id-token-expired':
-        statusCode = 401;
         errorMessage = 'Sua sessão expirou. Faça login novamente.';
+        shouldLogError = false;
         break;
       case 'auth/id-token-revoked':
-        statusCode = 401;
         errorMessage = 'Sua sessão foi invalidada. Faça login novamente.';
+        shouldLogError = false;
         break;
       // Adicione outros casos específicos se encontrar necessidade
       // case 'auth/internal-error': // Pode deixar cair no default 500
       //   break;
+      // Caso seja um erro inesperado do Firebase, deixe passar para o handler central (500)
       default:
-        // Mantém 500 e a mensagem genérica para erros não esperados
-        break;
+        // Passa o erro inesperado para o handler central
+        return next(error); // Isso vai acionar o errorHandler
     }
 
+    // Loga como aviso se for erro esperado do cliente
+    if (!shouldLogError) {
+      logger.warn('Falha ao criar cookie de sessão (erro esperado):', {
+        errorCode: firebaseError.code,
+        errorMessage: firebaseError.message,
+      });
+    }
+
+    // Retorna o erro específico (401)
     return res.status(statusCode).send({ error: errorMessage });
   }
 });
