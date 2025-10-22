@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { https } from 'firebase-functions';
 import authRouter from './auth';
 import friendsRouter from './friends';
+import healthRouter from './health';
 import { errorHandler } from './middleware/error.middleware';
 
 // Inicializa o Firebase Admin antes de qualquer lógica
@@ -88,6 +89,7 @@ app.use(cookieParser());
 // Rotas da API
 app.use('/api', authRouter);
 app.use('/api', friendsRouter);
+app.use('/api', healthRouter);
 
 // Registra o middleware de erro POR ÚLTIMO
 app.use(errorHandler);
