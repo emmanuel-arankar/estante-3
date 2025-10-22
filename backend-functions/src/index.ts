@@ -10,9 +10,9 @@ if (process.env.FUNCTIONS_EMULATOR) {
   process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
 
   logger.info("Variáveis de ambiente dos emuladores definidas para Cloud Functions.", {
-      auth: process.env.FIREBASE_AUTH_EMULATOR_HOST,
-      firestore: process.env.FIRESTORE_EMULATOR_HOST,
-      storage: process.env.FIREBASE_STORAGE_EMULATOR_HOST
+    auth: process.env.FIREBASE_AUTH_EMULATOR_HOST,
+    firestore: process.env.FIRESTORE_EMULATOR_HOST,
+    storage: process.env.FIREBASE_STORAGE_EMULATOR_HOST
   });
   logger.info("✅ Conectado o Cloud Functions aos emuladores.");
 } else {

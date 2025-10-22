@@ -8,6 +8,7 @@ import authRouter from './auth';
 import friendsRouter from './friends';
 import healthRouter from './health';
 import { errorHandler } from './middleware/error.middleware';
+import rateLimit from 'express-rate-limit';
 
 // Inicializa o Firebase Admin antes de qualquer lógica
 if (admin.apps.length === 0) {
@@ -46,7 +47,7 @@ if (isEmulator) {
   const devAllowedOrigin = process.env.DEV_ALLOWED_ORIGIN;  // Ex: ALLOWED_ORIGIN=http://127.0.0.1:5173,http://localhost:5173
   if (devAllowedOrigin) {
     allowedOrigins = [
-      ...allowedOrigins, 
+      ...allowedOrigins,
       ...devAllowedOrigin.split(',')
     ];
   }
@@ -55,7 +56,9 @@ if (isEmulator) {
   // Em produção, exige a configuração via variável de ambiente
   const prodAllowedOrigin = process.env.ALLOWED_ORIGIN;     // Ex: ALLOWED_ORIGIN=https://meu-app.web.app
   if (prodAllowedOrigin) {
-    allowedOrigins = [prodAllowedOrigin]; // Apenas a URL de produção
+    allowedOrigins = [
+      prodAllowedOrigin
+    ];
   } else {
     logger.error('ALLOWED_ORIGIN não está definida para ambiente de produção!');
     // allowedOrigins permanece vazio, bloqueando CORS
@@ -86,12 +89,49 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
+// Define um limite geral para a maioria das rotas API
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,                 // Janela de 15 minutos
+  max: 100,                                 // Limita cada IP a 100 requisições por janela (windowMs)
+  standardHeaders: true,                    // Retorna informações do limite nos cabeçalhos `RateLimit-*`
+  legacyHeaders: false,                     // Desabilita os cabeçalhos legados `X-RateLimit-*`
+  message: { error: 'Muitas requisições enviadas deste IP, por favor tente novamente após 15 minutos.' },
+  handler: (req, res, next, options) => {
+    logger.warn('Rate limit excedido', {
+      ip: req.ip,
+      path: req.path,
+      method: req.method,
+      limit: options.max,
+      windowMs: options.windowMs
+    });
+    res.status(options.statusCode).send(options.message);
+  }
+});
+
+// Define um limite mais estrito para rotas sensíveis como login
+const loginLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,               // Janela de 1 hora
+  max: 5,                                 // Limita cada IP a 5 tentativas de login por hora
+  message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    logger.warn('Rate limit de login excedido', { ip: req.ip });
+    res.status(options.statusCode).send(options.message);
+  }
+});
+
+// Aplica o limiter GERAL a TODAS as rotas /api ANTES das rotas específicas
+app.use('/api', apiLimiter);
+
 // Rotas da API
-app.use('/api', authRouter);
-app.use('/api', friendsRouter);
-app.use('/api', healthRouter);
+app.use('/api/sessionLogin', loginLimiter); // Aplica ANTES do authRouter pegar a rota
+app.use('/api', authRouter);                // Rotas de autenticação (agora com /sessionLogin tendo limite duplo)
+app.use('/api', friendsRouter);             // Rotas de amizades
+app.use('/api', healthRouter);              // Health check
 
 // Registra o middleware de erro POR ÚLTIMO
 app.use(errorHandler);
 
-export const api = https.onRequest(app);
+export { app };                             // Exportação nomeada para testes
+export const api = https.onRequest(app);    // Exportação default para deploy

@@ -4,7 +4,7 @@ import { ZodError } from 'zod';
 
 // Este é um tipo especial de middleware do Express que aceita 4 argumentos
 export const errorHandler = (
-  err: Error, 
+  err: Error,
   req: Request,
   res: Response,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

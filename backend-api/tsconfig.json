@@ -7,10 +7,21 @@
     "outDir": "dist",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2017",
+    // # atualizado: Adicionar types do Vitest e Node
+    "types": [
+      "node",
+      "vitest/globals"
+    ]
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src/**/*" // # atualizado: Incluir subdiretórios
+  ],
+  // # atualizado: Excluir pasta de testes da compilação principal
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/tests/**/*"
   ]
 }
