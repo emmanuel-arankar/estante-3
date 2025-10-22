@@ -1,27 +1,28 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "NodeNext", // # atualizado: Usar NodeNext (ou Bundler)
+    "moduleResolution": "NodeNext", // # atualizado: Especificar resolução moderna
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "esModuleInterop": true,
     "outDir": "dist",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017",
-    // # atualizado: Adicionar types do Vitest e Node
+    "target": "es2021", // # atualizado: Usar uma target um pouco mais moderna
+    "skipLibCheck": true, // # atualizado: Adicionar para ignorar .d.ts em node_modules
+    "resolveJsonModule": true, // # atualizado: Adicionar caso precise importar JSONs
     "types": [
       "node",
       "vitest/globals"
-    ]
+    ] // Mantém os types que adicionamos
   },
   "compileOnSave": true,
   "include": [
-    "src/**/*" // # atualizado: Incluir subdiretórios
+    "src/**/*" // Mantém incluir tudo em src
   ],
-  // # atualizado: Excluir pasta de testes da compilação principal
   "exclude": [
-    "node_modules",
+    "node_modules", // Garante que node_modules seja excluído
     "dist",
-    "src/tests/**/*"
+    "src/tests/**/*" // Mantém a exclusão dos testes
   ]
 }

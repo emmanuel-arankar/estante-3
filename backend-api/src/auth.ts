@@ -3,8 +3,26 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { FirebaseError } from 'firebase-admin/app';
 import { sessionLoginBodySchema } from './schemas/auth.schema';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+// Define um limite mais estrito para rotas sensíveis como login
+const loginLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // Janela de 1 hora
+    max: 5, // Limita cada IP a 5 tentativas de login por hora
+    message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res, next, options) => {
+        // Garantir que req.ip existe antes de logar
+        const ip = req.ip || 'IP não detectado';
+        logger.warn('Rate limit de login excedido', { ip: ip });
+        res.status(options.statusCode).send(options.message);
+    },
+    // Opcional: Adicionar skip para requisições bem-sucedidas não contarem (se desejar)
+    // skipSuccessfulRequests: true
+});
 
 const SESSION_COOKIE_DURATION_MS = parseInt(process.env.SESSION_COOKIE_DURATION_MS || '', 10) || 14 * 24 * 60 * 60 * 1000;
 logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS} ms`);
@@ -12,7 +30,7 @@ logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS
 /**
  * Cria um cookie de sessão a partir de um ID token do Firebase.
  */
-router.post('/sessionLogin', async (req, res, next) => {
+router.post('/sessionLogin', loginLimiter, async (req, res, next) => {
   // Valida req.body usando o schema
   const validationResult = sessionLoginBodySchema.safeParse(req.body);
 

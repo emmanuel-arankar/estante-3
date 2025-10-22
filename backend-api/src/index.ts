@@ -89,6 +89,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
+// Confia no primeiro proxy (Firebase Functions/Emulator)
+app.set('trust proxy', 1);
+
 // Define um limite geral para a maioria das rotas API
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,                 // Janela de 15 minutos
@@ -108,24 +111,10 @@ const apiLimiter = rateLimit({
   }
 });
 
-// Define um limite mais estrito para rotas sensíveis como login
-const loginLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,               // Janela de 1 hora
-  max: 5,                                 // Limita cada IP a 5 tentativas de login por hora
-  message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res, next, options) => {
-    logger.warn('Rate limit de login excedido', { ip: req.ip });
-    res.status(options.statusCode).send(options.message);
-  }
-});
-
 // Aplica o limiter GERAL a TODAS as rotas /api ANTES das rotas específicas
 app.use('/api', apiLimiter);
 
 // Rotas da API
-app.use('/api/sessionLogin', loginLimiter); // Aplica ANTES do authRouter pegar a rota
 app.use('/api', authRouter);                // Rotas de autenticação (agora com /sessionLogin tendo limite duplo)
 app.use('/api', friendsRouter);             // Rotas de amizades
 app.use('/api', healthRouter);              // Health check
