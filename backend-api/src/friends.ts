@@ -10,7 +10,7 @@ const FIND_FRIENDS_LIMIT = parseInt(process.env.FIND_FRIENDS_QUERY_LIMIT || '', 
 logger.info(`Usando limite de busca de amigos: ${FIND_FRIENDS_LIMIT}`);
 
 // Lógica de busca dupla (nome e nickname)
-router.get('/findFriends', checkAuth, async (req: Request, res: Response) => {
+router.get('/findFriends', checkAuth, async (req: Request, res: Response, next) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const loggedInUserId = authReq.user.uid;
@@ -85,7 +85,7 @@ router.get('/findFriends', checkAuth, async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Erro interno do servidor ao buscar amigos:', error);
     // Retornar erro como JSON
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return next(error);
   }
 });
 

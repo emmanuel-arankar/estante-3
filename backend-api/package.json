@@ -5,20 +5,28 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn src/index.ts"
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@estante/common-types": "1.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.1.0",
     "firebase-admin": "^12.2.0",
     "firebase-functions": "^6.5.0",
     "vite-react-typescript-starter": "file:..",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "^4.0.1",
+    "supertest": "^7.1.4",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^4.0.1"
   }
 }

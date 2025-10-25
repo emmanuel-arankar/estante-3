@@ -1,16 +1,28 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "NodeNext", // # atualizado: Usar NodeNext (ou Bundler)
+    "moduleResolution": "NodeNext", // # atualizado: Especificar resolução moderna
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "esModuleInterop": true,
     "outDir": "dist",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2021", // # atualizado: Usar uma target um pouco mais moderna
+    "skipLibCheck": true, // # atualizado: Adicionar para ignorar .d.ts em node_modules
+    "resolveJsonModule": true, // # atualizado: Adicionar caso precise importar JSONs
+    "types": [
+      "node",
+      "vitest/globals"
+    ] // Mantém os types que adicionamos
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src/**/*" // Mantém incluir tudo em src
+  ],
+  "exclude": [
+    "node_modules", // Garante que node_modules seja excluído
+    "dist",
+    "src/tests/**/*" // Mantém a exclusão dos testes
   ]
 }
