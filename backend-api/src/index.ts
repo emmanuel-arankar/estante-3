@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { https } from 'firebase-functions';
@@ -29,58 +29,30 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
 }
 
 const app = express();
+// Confia no primeiro proxy (Firebase Functions/Emulator)
+app.set('trust proxy', 1);
 
-const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+// Configuração do CORS
+const allowedOrigins = process.env.FUNCTIONS_EMULATOR === 'true'
+  ? [
+      'http://127.0.0.1:5000', 
+      'http://localhost:5000', 
+      'http://localhost:5173'
+    ] // Desenvolvimento
+  : [
+      'https://estante-virtual-805ef.web.app'
+    ]; // Produção
 
-// Lógica de CORS 
-let allowedOrigins: string[] = [];
-if (isEmulator) {
-  // Em desenvolvimento/emulador, permite URLs comuns de dev
-  allowedOrigins = [
-    'http://127.0.0.1:5000',  // Emulador Hosting
-    'http://localhost:5000',  // Emulador Hosting (alternativo)
-    'http://localhost:5173',  // Vite dev server
-    // Adicione outras URLs de desenvolvimento se necessário
-  ];
+logger.info(`Configurando CORS`, { isEmulator: process.env.FUNCTIONS_EMULATOR === 'true', allowedOrigins });
 
-  // Opcional: Ler origens adicionais do .env se precisar
-  const devAllowedOrigin = process.env.DEV_ALLOWED_ORIGIN;  // Ex: ALLOWED_ORIGIN=http://127.0.0.1:5173,http://localhost:5173
-  if (devAllowedOrigin) {
-    allowedOrigins = [
-      ...allowedOrigins,
-      ...devAllowedOrigin.split(',')
-    ];
-  }
-
-} else {
-  // Em produção, exige a configuração via variável de ambiente
-  const prodAllowedOrigin = process.env.ALLOWED_ORIGIN;     // Ex: ALLOWED_ORIGIN=https://meu-app.web.app
-  if (prodAllowedOrigin) {
-    allowedOrigins = [
-      prodAllowedOrigin
-    ];
-  } else {
-    logger.error('ALLOWED_ORIGIN não está definida para ambiente de produção!');
-    // allowedOrigins permanece vazio, bloqueando CORS
-  }
-}
-
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Permite requisições sem 'origin' (ex: Postman, apps móveis, server-to-server) OU
-    // se a origem da requisição estiver na lista de permitidas
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logger.warn('Requisição CORS bloqueada para origem não permitida:', { origin });
-      callback(new Error('Origem não permitida por CORS'));
-    }
-  },
-  // credentials: true // Descomente se o frontend precisar enviar cookies
+const corsOptions: CorsOptions = {
+  // A propriedade 'origin' pode receber a lista diretamente.
+  // O middleware 'cors' fará a verificação interna.
+  origin: allowedOrigins, 
+  credentials: true, // Manter para cookies de sessão
 };
 
 logger.info('Configurando CORS', {
-  isEmulator: isEmulator,
   allowedOrigins: allowedOrigins.length > 0 ? allowedOrigins : 'Nenhuma (Bloqueado)',
 });
 
@@ -88,9 +60,6 @@ logger.info('Configurando CORS', {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-
-// Confia no primeiro proxy (Firebase Functions/Emulator)
-app.set('trust proxy', 1);
 
 // Define um limite geral para a maioria das rotas API
 const apiLimiter = rateLimit({

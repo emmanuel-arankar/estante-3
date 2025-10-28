@@ -9,11 +9,11 @@ const router = Router();
 
 // Define um limite mais estrito para rotas sensíveis como login
 const loginLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // Janela de 1 hora
-  max: 5,                   // Limita cada IP a 5 tentativas de login por hora
-  message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
+  windowMs: 60 * 60 * 1000,                 // Janela de 1 hora
+  max: 5,                                   // Limita cada IP a 5 tentativas de login por hora
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
   keyGenerator: async (req, res) => {
     // 1. Prioridade: Usar o IP (para produção)
     if (req.ip) {
