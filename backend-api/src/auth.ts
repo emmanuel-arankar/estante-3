@@ -9,19 +9,40 @@ const router = Router();
 
 // Define um limite mais estrito para rotas sensíveis como login
 const loginLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // Janela de 1 hora
-    max: 5, // Limita cada IP a 5 tentativas de login por hora
-    message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (req, res, next, options) => {
-        // Garantir que req.ip existe antes de logar
-        const ip = req.ip || 'IP não detectado';
-        logger.warn('Rate limit de login excedido', { ip: ip });
-        res.status(options.statusCode).send(options.message);
-    },
-    // Opcional: Adicionar skip para requisições bem-sucedidas não contarem (se desejar)
-    // skipSuccessfulRequests: true
+  windowMs: 60 * 60 * 1000, // Janela de 1 hora
+  max: 5, // Limita cada IP a 5 tentativas de login por hora
+  message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req, res) => {
+    // Confia no cabeçalho 'X-Forwarded-For' (padrão do Firebase/GCP)
+    // 'trust proxy' deve estar habilitado no app Express (já está no index.ts)
+    const ip = req.ip;
+    if (ip) {
+      return ip;
+    }
+    // Fallback muito genérico (não ideal, mas evita o crash)
+    // Tenta usar outros cabeçalhos comuns como último recurso
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') {
+      return forwarded.split(',')[0].trim();
+    }
+    if (Array.isArray(forwarded)) {
+      return forwarded[0].trim();
+    }
+    // Se absolutamente nenhum IP for encontrado, limita pelo idToken (não ideal para IPs)
+    // Mas para o teste, o req.ip deve funcionar agora com 'trust proxy'
+    logger.warn('Não foi possível determinar o IP para o rate limit, usando fallback para o body.idToken');
+    return req.body.idToken || 'unknown-ip-fallback';
+  },
+  handler: (req, res, next, options) => {
+    // Garantir que req.ip existe antes de logar
+    const ip = req.ip || 'IP não detectado';
+    logger.warn('Rate limit de login excedido', { ip: ip });
+    res.status(options.statusCode).send(options.message);
+  },
+  // Opcional: Adicionar skip para requisições bem-sucedidas não contarem (se desejar)
+  // skipSuccessfulRequests: true
 });
 
 const SESSION_COOKIE_DURATION_MS = parseInt(process.env.SESSION_COOKIE_DURATION_MS || '', 10) || 14 * 24 * 60 * 60 * 1000;

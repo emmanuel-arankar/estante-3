@@ -6,10 +6,10 @@ import {
   deleteUser,
 } from 'firebase/auth';
 import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
-import { 
-  toastErrorClickable, 
-  toastSuccessClickable 
-} from '@/components/ui/toast'; 
+import {
+  toastErrorClickable,
+  toastSuccessClickable
+} from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
 import { auth, db } from '@/services/firebase';
@@ -72,8 +72,34 @@ export const loginAction = async ({ request }: any) => {
     return redirect(finalRedirectTo);
   } catch (error: any) {
     useAuthStore.getState().setIsLoadingProfile(false);
-    toastErrorClickable('Email ou senha inválidos.');
-    return { error: 'Falha no login' };
+
+    // # atualizado: Lógica de erro detalhada
+    let errorMessage = 'Ocorreu um erro ao tentar fazer login.';
+
+    if (error.code) {
+      switch (error.code) {
+        case 'auth/invalid-login-credentials':
+        case 'auth/invalid-credential':
+        case 'auth/wrong-password':
+        case 'auth/user-not-found':
+          errorMessage = 'E-mail ou senha inválidos.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Muitas tentativas de login falharam. Por favor, tente novamente mais tarde.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Erro de rede. Verifique sua conexão com a internet.';
+          break;
+        default:
+          console.error('Erro de login não tratado:', error); // Log para o console
+          errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
+      }
+    } else {
+      console.error('Erro de login desconhecido:', error);
+    }
+
+    toastErrorClickable(errorMessage);
+    return { error: errorMessage }; // Retorna a mensagem de erro real
   }
 };
 
@@ -97,12 +123,12 @@ export const registerAction = async ({ request }: any) => {
       let nickname = generateNickname(displayName as string);
       let isNicknameAvailable = false;
       let attempts = 0;
-      
+
       // Tenta encontrar um nickname único dentro da transação
       while (!isNicknameAvailable && attempts < 10) {
         const nicknameRef = doc(db, 'nicknames', nickname);
         const nicknameDoc = await transaction.get(nicknameRef);
-        
+
         if (!nicknameDoc.exists()) {
           isNicknameAvailable = true;
           transaction.set(nicknameRef, { userId: user.uid }); // Reserva o nickname
@@ -115,7 +141,7 @@ export const registerAction = async ({ request }: any) => {
       if (!isNicknameAvailable) {
         throw new Error('Não foi possível gerar um nickname único.');
       }
-      
+
       const newProfileData: Omit<User, 'id'> = {
         displayName: displayName as string,
         nickname,
@@ -133,11 +159,11 @@ export const registerAction = async ({ request }: any) => {
         updatedAt: new Date(),
         role: 'user',
       };
-      
+
       // Cria o documento do usuário
       const userDocRef = doc(db, 'users', user.uid);
       transaction.set(userDocRef, newProfileData);
-      
+
       // Atualiza o cache do React Query
       queryClient.setQueryData(['users', user.uid], {
         id: user.uid,
@@ -156,12 +182,12 @@ export const registerAction = async ({ request }: any) => {
         console.error("Falha no rollback, usuário pode precisar ser removido manualmente:", deleteError);
       });
     }
-    
+
     useAuthStore.getState().setIsLoadingProfile(false);
     toastErrorClickable(
-      error.message === 'Não foi possível gerar um nickname único.' 
-      ? error.message 
-      : 'Não foi possível criar a conta. O email já pode estar em uso.'
+      error.message === 'Não foi possível gerar um nickname único.'
+        ? error.message
+        : 'Não foi possível criar a conta. O email já pode estar em uso.'
     );
     return { error: 'Falha no registro' };
   }
