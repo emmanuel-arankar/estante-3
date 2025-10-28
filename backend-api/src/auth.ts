@@ -3,37 +3,49 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { FirebaseError } from 'firebase-admin/app';
 import { sessionLoginBodySchema } from './schemas/auth.schema';
-import rateLimit from 'express-rate-limit';
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 
 const router = Router();
 
 // Define um limite mais estrito para rotas sensíveis como login
 const loginLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // Janela de 1 hora
-  max: 5, // Limita cada IP a 5 tentativas de login por hora
+  max: 5,                   // Limita cada IP a 5 tentativas de login por hora
   message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req, res) => {
-    // Confia no cabeçalho 'X-Forwarded-For' (padrão do Firebase/GCP)
-    // 'trust proxy' deve estar habilitado no app Express (já está no index.ts)
-    const ip = req.ip;
-    if (ip) {
-      return ip;
+  keyGenerator: async (req, res) => {
+    // 1. Prioridade: Usar o IP (para produção)
+    if (req.ip) {
+      return ipKeyGenerator(req.ip);
     }
-    // Fallback muito genérico (não ideal, mas evita o crash)
-    // Tenta usar outros cabeçalhos comuns como último recurso
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
+
+    // 2. Fallback (Emulador): Usar o UID do usuário.
+    logger.warn('Não foi possível determinar o IP para o rate limit, usando fallback para o UID do usuário.');
+
+    // 3. Validar o body para pegar o idToken
+    const validationResult = sessionLoginBodySchema.safeParse(req.body);
+    if (validationResult.success && validationResult.data.idToken) {
+      const { idToken } = validationResult.data;
+      try {
+        // 4. Decodificar o token para obter o UID
+        // NOTA: Isso verifica o token, o que a rota faria de qualquer forma.
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+        // 5. Usar o UID como a chave estável
+        return decodedToken.uid;
+
+      } catch (error: any) {
+        // Se o token for inválido, expirado, etc.
+        logger.warn('Token inválido fornecido ao keyGenerator, limitando pelo próprio token.', { code: error.code });
+        // Usamos o próprio token (inválido) como chave. 
+        // Se um atacante enviar o mesmo token lixo 5x, será bloqueado.
+        return idToken;
+      }
     }
-    if (Array.isArray(forwarded)) {
-      return forwarded[0].trim();
-    }
-    // Se absolutamente nenhum IP for encontrado, limita pelo idToken (não ideal para IPs)
-    // Mas para o teste, o req.ip deve funcionar agora com 'trust proxy'
-    logger.warn('Não foi possível determinar o IP para o rate limit, usando fallback para o body.idToken');
-    return req.body.idToken || 'unknown-ip-fallback';
+
+    // 6. Fallback final se não houver IP nem token
+    return 'unknown-ip-or-body-fallback';
   },
   handler: (req, res, next, options) => {
     // Garantir que req.ip existe antes de logar

@@ -34,14 +34,14 @@ import {
 
 // Collections
 export const COLLECTIONS = {
-  USERS: 'users',
-  POSTS: 'posts',
-  BOOKS: 'books',
-  USER_BOOKS: 'userBooks',
-  NOTIFICATIONS: 'notifications',
-  COMMENTS: 'comments',
-  FRIENDSHIPS: 'friendships',
-  USER_AVATARS: 'userAvatars',
+  USERS:          'users',
+  POSTS:          'posts',
+  BOOKS:          'books',
+  USER_BOOKS:     'userBooks',
+  NOTIFICATIONS:  'notifications',
+  COMMENTS:       'comments',
+  FRIENDSHIPS:    'friendships',
+  USER_AVATARS:   'userAvatars',
 } as const;
 
 // ==================== HELPER FUNCTIONS ====================
