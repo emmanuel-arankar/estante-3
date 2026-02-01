@@ -34,14 +34,14 @@ import {
 
 // Collections
 export const COLLECTIONS = {
-  USERS:          'users',
-  POSTS:          'posts',
-  BOOKS:          'books',
-  USER_BOOKS:     'userBooks',
-  NOTIFICATIONS:  'notifications',
-  COMMENTS:       'comments',
-  FRIENDSHIPS:    'friendships',
-  USER_AVATARS:   'userAvatars',
+  USERS: 'users',
+  POSTS: 'posts',
+  BOOKS: 'books',
+  USER_BOOKS: 'userBooks',
+  NOTIFICATIONS: 'notifications',
+  COMMENTS: 'comments',
+  FRIENDSHIPS: 'friendships',
+  USER_AVATARS: 'userAvatars',
 } as const;
 
 // ==================== HELPER FUNCTIONS ====================
@@ -49,7 +49,7 @@ export const getUsersBatch = async (userIds: string[]): Promise<User[]> => {
   if (userIds.length === 0) return [];
 
   const allUsers: User[] = [];
-  
+
   for (let i = 0; i < userIds.length; i += 10) {
     const batchIds = userIds.slice(i, i + 10);
     const q = query(
@@ -76,13 +76,16 @@ export const createUser = async (userId: string, userData: Omit<User, 'id'>) => 
     currentlyReading: 0,
     followers: 0,
     following: 0,
+    friendsCount: 0,
+    pendingRequestsCount: 0,
+    sentRequestsCount: 0,
   });
 };
 
 export const getUserById = async (userId: string): Promise<User | null> => {
   const docRef = doc(db, COLLECTIONS.USERS, userId);
   const docSnap = await getDoc(docRef);
-  
+
   if (docSnap.exists()) {
     return { id: docSnap.id, ...docSnap.data() } as User;
   }
@@ -100,7 +103,7 @@ export const updateUser = async (userId: string, updates: Partial<User>) => {
 // ==================== FRIENDSHIP OPERATIONS ====================
 export const sendFriendRequest = async (fromUserId: string, toUserId: string) => {
   const batch = writeBatch(db);
-  
+
   // Create friendship documents (bidirectional)
   const friendshipId1 = `${fromUserId}_${toUserId}`;
   const friendshipRef1 = doc(db, COLLECTIONS.FRIENDSHIPS, friendshipId1);
@@ -125,7 +128,7 @@ export const sendFriendRequest = async (fromUserId: string, toUserId: string) =>
   });
 
   await batch.commit();
-  
+
   // Create notification
   await createNotification({
     userId: toUserId,
@@ -133,7 +136,7 @@ export const sendFriendRequest = async (fromUserId: string, toUserId: string) =>
     fromUserId,
     message: 'enviou uma solicitação de amizade',
     read: false,
-      createdAt: new Date(),
+    createdAt: new Date(),
   });
 };
 
@@ -159,7 +162,7 @@ export const acceptFriendRequest = async (userId: string, friendId: string) => {
   });
 
   await batch.commit();
-  
+
   // Create notification
   await createNotification({
     userId: friendId,
@@ -167,7 +170,7 @@ export const acceptFriendRequest = async (userId: string, friendId: string) => {
     fromUserId: userId,
     message: 'aceitou sua solicitação de amizade',
     read: false,
-      createdAt: new Date(),
+    createdAt: new Date(),
   });
 };
 
@@ -209,8 +212,8 @@ export const removeFriend = async (userId: string, friendId: string) => {
 
 // ==================== FRIENDSHIP QUERIES ====================
 export const getUserFriendsPaginated = async (
-  userId: string, 
-  limitCount: number = 30, 
+  userId: string,
+  limitCount: number = 30,
   lastDoc?: DocumentSnapshot
 ): Promise<{
   friends: FriendshipWithUser[];
@@ -218,7 +221,7 @@ export const getUserFriendsPaginated = async (
   hasMore: boolean;
 }> => {
   console.log('Função chamada com:', { userId, limitCount, lastDoc });
-  
+
   let q = query(
     collection(db, 'friendships'),
     where('userId', '==', userId),
@@ -233,13 +236,13 @@ export const getUserFriendsPaginated = async (
 
   const snapshot = await getDocs(q);
   const newLastDoc = snapshot.docs[snapshot.docs.length - 1];
-  
+
   // Get all friend IDs
   const friendIds = snapshot.docs.map(doc => doc.data().friendId);
-  
+
   // Batch fetch friend user data
   const users = await getUsersBatch(friendIds);
-  
+
   const friendsWithUsers = snapshot.docs.map(doc => {
     const friendship = doc.data() as Friendship;
     const friend = users.find(u => u.id === friendship.friendId);
@@ -372,10 +375,10 @@ export const subscribeToFriendships = (
     }
 
     const friendshipsWithUsers: FriendshipWithUser[] = friendships.map(friendship => {
-      const friendId = status === 'pending' && friendship.requestedBy !== userId 
-        ? friendship.requestedBy 
+      const friendId = status === 'pending' && friendship.requestedBy !== userId
+        ? friendship.requestedBy
         : friendship.friendId;
-      
+
       return {
         ...friendship,
         friend: userCache.get(friendId)!
@@ -426,23 +429,23 @@ export const getPendingRequestCount = async (userId: string): Promise<number> =>
 // ==================== FOLLOW SYSTEM ====================
 export const followUser = async (followerId: string, followedId: string) => {
   const batch = writeBatch(db);
-  
+
   // Increment follower's following count
   const followerRef = doc(db, COLLECTIONS.USERS, followerId);
   batch.update(followerRef, {
     following: increment(1),
     updatedAt: serverTimestamp(),
   });
-  
+
   // Increment followed user's followers count
   const followedRef = doc(db, COLLECTIONS.USERS, followedId);
   batch.update(followedRef, {
     followers: increment(1),
     updatedAt: serverTimestamp(),
   });
-  
+
   await batch.commit();
-  
+
   await createNotification({
     userId: followedId,
     type: 'follow',
@@ -455,21 +458,21 @@ export const followUser = async (followerId: string, followedId: string) => {
 
 export const unfollowUser = async (followerId: string, followedId: string) => {
   const batch = writeBatch(db);
-  
+
   // Decrement follower's following count
   const followerRef = doc(db, COLLECTIONS.USERS, followerId);
   batch.update(followerRef, {
     following: increment(-1),
     updatedAt: serverTimestamp(),
   });
-  
+
   // Decrement followed user's followers count
   const followedRef = doc(db, COLLECTIONS.USERS, followedId);
   batch.update(followedRef, {
     followers: increment(-1),
     updatedAt: serverTimestamp(),
   });
-  
+
   await batch.commit();
 };
 
@@ -496,7 +499,7 @@ export const getPosts = async (lastDoc?: any, limitCount = 10) => {
 
   const querySnapshot = await getDocs(q);
   const posts: Post[] = [];
-  
+
   querySnapshot.forEach((doc) => {
     posts.push({ id: doc.id, ...doc.data() } as Post);
   });
@@ -531,7 +534,7 @@ export const addComment = async (postId: string, comment: Omit<Comment, 'id'>) =
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  
+
   await updateDoc(postRef, {
     comments: arrayUnion(commentData),
     updatedAt: serverTimestamp(),
@@ -558,7 +561,7 @@ export const searchBooks = async (searchTerm: string, limitCount = 20) => {
 
   const querySnapshot = await getDocs(q);
   const books: Book[] = [];
-  
+
   querySnapshot.forEach((doc) => {
     books.push({ id: doc.id, ...doc.data() } as Book);
   });
@@ -589,7 +592,7 @@ export const getUserBooks = async (userId: string, status?: UserBook['status']) 
 
   const querySnapshot = await getDocs(q);
   const userBooks: UserBook[] = [];
-  
+
   querySnapshot.forEach((doc) => {
     userBooks.push({ id: doc.id, ...doc.data() } as UserBook);
   });
@@ -624,7 +627,7 @@ export const getUserNotifications = async (userId: string, limitCount = 20) => {
 
   const querySnapshot = await getDocs(q);
   const notifications: Notification[] = [];
-  
+
   querySnapshot.forEach((doc) => {
     notifications.push({ id: doc.id, ...doc.data() } as Notification);
   });
@@ -661,7 +664,7 @@ export const subscribeToUserNotifications = (
 
 // ==================== AVATAR OPERATIONS ====================
 export const saveUserAvatar = async (
-  userId: string, 
+  userId: string,
   avatarData: {
     originalUrl: string;
     croppedUrl: string;
@@ -691,16 +694,16 @@ export const saveUserAvatar = async (
     where('userId', '==', userId),
     where('isCurrent', '==', true)
   );
-  
+
   const existingAvatars = await getDocs(userAvatarsQuery);
   const batch = writeBatch(db);
-  
+
   existingAvatars.forEach((doc) => {
     if (doc.id !== avatarRef.id) {
       batch.update(doc.ref, { isCurrent: false });
     }
   });
-  
+
   await batch.commit();
 };
 
@@ -714,7 +717,7 @@ export const getUserAvatars = async (userId: string) => {
 
   const querySnapshot = await getDocs(q);
   const avatars: any[] = [];
-  
+
   querySnapshot.forEach((doc) => {
     const data = doc.data();
     avatars.push({
@@ -743,12 +746,12 @@ export const createAvatarPost = async (userId: string, avatarUrl: string) => {
 
 export const likeAvatar = async (avatarId: string, userId: string) => {
   const avatarRef = doc(db, COLLECTIONS.USER_AVATARS, avatarId);
-  
+
   const avatarDoc = await getDoc(avatarRef);
   if (avatarDoc.exists()) {
     const data = avatarDoc.data();
     const likes = data.likes || [];
-    
+
     if (likes.includes(userId)) {
       await updateDoc(avatarRef, {
         likes: arrayRemove(userId),
@@ -808,11 +811,11 @@ export const searchUsersForMention = async (
   const q =
     lowerCaseSearchTerm.length > 0
       ? query(
-          usersRef,
-          where('nickname', '>=', lowerCaseSearchTerm),
-          where('nickname', '<=', lowerCaseSearchTerm + '\uf8ff'),
-          limit(5)
-        )
+        usersRef,
+        where('nickname', '>=', lowerCaseSearchTerm),
+        where('nickname', '<=', lowerCaseSearchTerm + '\uf8ff'),
+        limit(5)
+      )
       : query(usersRef, limit(5));
 
   try {

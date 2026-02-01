@@ -10,7 +10,7 @@ const router = Router();
 // Define um limite mais estrito para rotas sensíveis como login
 const loginLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,                 // Janela de 1 hora
-  max: 5,                                   // Limita cada IP a 5 tentativas de login por hora
+  max: 300,                                 // Limite aumentado para 300/hora (5/min) para permitir desenvolvimento
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Muitas tentativas de login deste IP, por favor tente novamente após uma hora.' },
@@ -78,8 +78,13 @@ router.post('/sessionLogin', loginLimiter, async (req, res, next) => {
     });
   }
 
-  const { idToken } = validationResult.data;
-  const expiresIn = SESSION_COOKIE_DURATION_MS;
+  const { idToken, rememberMe } = validationResult.data;
+
+  // Define a duração com base no "Lembrar de mim"
+  // 14 dias se marcado, 24 horas se não marcado
+  const expiresIn = rememberMe
+    ? SESSION_COOKIE_DURATION_MS
+    : 24 * 60 * 60 * 1000;
 
   try {
     const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
@@ -93,7 +98,7 @@ router.post('/sessionLogin', loginLimiter, async (req, res, next) => {
     };
 
     res.cookie('__session', sessionCookie, options);
-    logger.info('Cookie de sessão criado com sucesso.');
+    logger.info(`Cookie de sessão criado com sucesso. Duração: ${expiresIn / 1000 / 3600}h, RememberMe: ${!!rememberMe}`);
     return res.status(200).send({ status: 'success' });
   } catch (error: any) {
     logger.error('Erro ao criar cookie de sessão:', {

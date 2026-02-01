@@ -1,34 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, MessageCircle } from 'lucide-react';
 import { OnlineStatus } from '@/components/chat/OnlineStatus';
-import { 
-  Avatar, 
-  AvatarFallback, 
-  AvatarImage 
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage
 } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Card, 
-  CardContent 
+import {
+  Card,
+  CardContent
 } from '@/components/ui/card';
-import { 
-  Dialog, 
+import {
+  Dialog,
   DialogContent,
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle 
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserPresence } from '@/hooks/useUserPresence';
 import { searchUsersAPI } from '@/services/api';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
@@ -41,12 +40,12 @@ interface NewConversationModalProps {
 export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalProps) => {
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
-  
+  const searchCacheRef = useRef<Map<string, User[]>>(new Map());
+
   // Buscar usuários
   const searchUsers = async (searchTerm: string) => { // atualizado
     if (!searchTerm.trim() || searchTerm.length < 2) {
@@ -54,26 +53,34 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
       return;
     }
 
+    // Check cache
+    if (searchCacheRef.current.has(searchTerm)) {
+      setUsers(searchCacheRef.current.get(searchTerm)!);
+      return;
+    }
+
     setLoading(true);
     try {
       const foundUsers = await searchUsersAPI(searchTerm);
-      
+      let finalUsers = foundUsers;
+
       // Sugestão 1: Filtrar o usuário logado dos resultados
       if (currentUser) {
-        const filteredUsers = foundUsers.filter(user => user.id !== currentUser.uid);
-        setUsers(filteredUsers);
-      } else {
-        setUsers(foundUsers);
+        finalUsers = foundUsers.filter(user => user.id !== currentUser.uid);
       }
+
+      // Update cache and state
+      searchCacheRef.current.set(searchTerm, finalUsers);
+      setUsers(finalUsers);
 
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
-      
+
       // Sugestão 2: Mostrar um erro mais específico
       let errorMessage = 'Erro ao buscar usuários';
       if (error instanceof Error) {
         // Mostra a mensagem de erro real da API, se disponível
-        errorMessage = error.message || errorMessage; 
+        errorMessage = error.message || errorMessage;
       }
       toastErrorClickable(errorMessage);
 
@@ -102,7 +109,6 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
   const handleClose = () => {
     setSearchQuery('');
     setUsers([]);
-    setSelectedUsers([]);
     onClose();
   };
 
@@ -155,7 +161,7 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
               </div>
             ) : (
               <div className="space-y-2">
-                {users.map((user, index) => (                 
+                {users.map((user, index) => (
                   <motion.div
                     key={user.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -163,7 +169,7 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                      <CardContent 
+                      <CardContent
                         className="p-3"
                         onClick={() => handleStartConversation(user)}
                       >
@@ -175,29 +181,29 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
                                 {user.displayName.charAt(0)}
                               </AvatarFallback>
                             </Avatar>
-                            <OnlineStatus 
+                            <OnlineStatus
                               userId={user.id}
-                              className="absolute -bottom-1 -right-1" 
+                              className="absolute -bottom-1 -right-1"
                             />
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <h3 className="font-semibold text-gray-900 truncate">
+                          <div className="flex-1 min-w-0 max-w-full overflow-hidden">
+                            <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                              <h3 className="font-semibold text-gray-900 truncate max-w-[150px]">
                                 {user.displayName}
                               </h3>
                               {user.nickname && (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-[10px] px-1.5 h-4 font-medium shrink-0">
                                   @{user.nickname}
                                 </Badge>
                               )}
                             </div>
                             {user.bio && (
-                              <p className="text-sm text-gray-600 truncate">
-                                {user.bio.replace(/<[^>]*>/g, '')} {/* Remove HTML tags */}
+                              <p className="text-xs text-gray-600 line-clamp-1 break-words">
+                                {user.bio.replace(/<[^>]*>/g, '')}
                               </p>
                             )}
-                            <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[10px] text-gray-500 font-medium">
                               <span>{user.booksRead || 0} livros lidos</span>
                               <span>{user.followers || 0} seguidores</span>
                             </div>

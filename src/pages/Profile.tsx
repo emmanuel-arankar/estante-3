@@ -1,31 +1,31 @@
-import { useState, useEffect, Suspense } from 'react';
-import { useLoaderData, useNavigate, Outlet, useLocation, Await } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useLoaderData, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, UserCheck, MessageCircle, Camera } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
-import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton'; 
 import { PhotoViewer } from '@/components/profile/PhotoViewer';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { AvatarEditorModal } from '@/components/ui/avatar-editor-modal';
 import { Button } from '@/components/ui/button';
-import { 
-  Card, 
-  CardContent 
+import {
+  Card,
+  CardContent
 } from '@/components/ui/card';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
-import { 
-  Tabs, 
-  TabsList, 
-  TabsTrigger 
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger
 } from '@/components/ui/tabs';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from '@/components/ui/toast';
 import { useFriendshipStatus } from '@/hooks/useDenormalizedFriends';
-import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations'; 
+import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations';
 import { PATHS } from '@/router/paths';
 import { sendDenormalizedFriendRequest } from '@/services/denormalizedFriendships';
 import { getUserAvatars } from '@/services/firestore';
@@ -53,7 +53,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
   const { user: currentUser } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const personSchema = {
     '@context': 'https://schema.org',
     '@type': 'Person',
@@ -69,7 +69,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentAvatarData, setCurrentAvatarData] = useState<{ uploadedAt?: Date; id?: string; }>({});
-  
+
   const outletKey = location.pathname;
 
   const getCurrentTab = () => {
@@ -157,7 +157,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
         image={initialProfileUser.photoURL}
         schema={personSchema}
       />
-      
+
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="mb-8">
           <CardContent className="p-8">
@@ -231,7 +231,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                           Solicitação Enviada
                         </Button>
                       ) : friendshipStatus === 'request_received' ? (
-                        <Button variant="outline" className="rounded-full" onClick={() => {}} disabled={actionLoading}>
+                        <Button variant="outline" className="rounded-full" onClick={() => { }} disabled={actionLoading}>
                           <UserCheck className="h-4 w-4 mr-2" />
                           Responder Solicitação
                         </Button>
@@ -343,18 +343,17 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
   );
 };
 
+// # atualizado: O loader agora retorna os dados diretamente (sem defer)
 export const Profile = () => {
-  // # atualizado: useLoaderData agora retorna um objeto com promessas
-  const data = useLoaderData() as { profileUser: Promise<UserModel> };
+  const data = useLoaderData() as { profileUser: UserModel };
 
-  return (
-    // # atualizado: Suspense mostra o Skeleton enquanto a promessa de dados não é resolvida.
-    <Suspense fallback={<ProfileSkeleton />}>
-      {/* # atualizado: Await resolve a promessa do loader. */}
-      <Await resolve={data.profileUser}>
-        {/* # atualizado: Quando os dados chegam, renderiza o conteúdo real. */}
-        {(resolvedProfileUser) => <ProfileContent initialProfileUser={resolvedProfileUser} />}
-      </Await>
-    </Suspense>
-  );
-}; 
+  if (!data?.profileUser) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return <ProfileContent initialProfileUser={data.profileUser} />;
+};

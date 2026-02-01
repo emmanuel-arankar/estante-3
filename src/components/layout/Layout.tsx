@@ -38,41 +38,44 @@ export const Layout = () => {
   const loaderData = useLoaderData() as LayoutData;
   const location = useLocation();
   const navigation = useNavigation();
-  const matches = useMatches(); // # atualizado
+  const matches = useMatches();
   const isLoading = navigation.state === 'loading';
 
   const authUser = useAuthStore((state) => state.user);
+  const storedUserProfile = useAuthStore((state) => state.userProfile);
   const isLoadingProfile = useAuthStore((state) => state.isLoadingProfile);
+  const authLoading = useAuthStore((state) => state.loading); // Loading inicial do Firebase
   const loadingMessage = useAuthStore((state) => state.loadingMessage);
-  
+
   const [headerData, setHeaderData] = useState(loaderData);
 
   usePageTitle();
 
-  // # atualizado: Chave de animação inteligente que ignora sub-rotas (abas).
   const pageKey = useMemo(() => {
     const routeMatch = [...matches]
       .reverse()
       .find((match) => {
-        // # atualizado: Verificação de tipo para garantir que 'handle' é um objeto e possui 'id'.
         const handle = match.handle as { id?: string };
         return handle?.id !== undefined;
       });
-  
+
     if (routeMatch) {
-      // # atualizado: Acesso seguro à propriedade 'id' após a verificação.
       return (routeMatch.handle as { id: string }).id;
     }
-  
-    // Fallback para o pathname se nenhum ID de rota for encontrado.
     return location.pathname + location.search;
   }, [matches, location]);
 
   useEffect(() => {
     if (navigation.state === 'idle') {
       setHeaderData(loaderData);
+
+      // Resetar loading de perfil quando a navegação terminar
+      // Importante: Resetamos mesmo se userProfile for null para não travar a UI
+      if (isLoadingProfile) {
+        useAuthStore.getState().setIsLoadingProfile(false);
+      }
     }
-  }, [navigation.state, loaderData]);
+  }, [navigation.state, loaderData, isLoadingProfile]);
 
   useEffect(() => {
     const toastMessage = sessionStorage.getItem('showLoginSuccessToast');
@@ -80,23 +83,56 @@ export const Layout = () => {
       toastSuccessClickable(toastMessage);
       sessionStorage.removeItem('showLoginSuccessToast');
     }
-  }, [location]);
+  }, [location.pathname]);
 
-  // # atualizado: Lógica para garantir que o perfil seja nulo se o usuário da store for nulo.
-  const effectiveProfile = authUser ? headerData.userProfile : null;
+  // Se estamos carregando auth ou perfil EXPLICITAMENTE, mostrar estado de loading
+  // Mas com um limite de sanidade (se passar de 4s, libera)
+  const [showLoadingSanity, setShowLoadingSanity] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoadingSanity(false), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const showAuthLoading = (authLoading || isLoadingProfile) && showLoadingSanity;
+
+  // Construir perfil efetivo com estratégia de fallback (Optimistic UI)
+  // CRITICAL: Se não há authUser, o perfil DEVE ser nulo para evitar dados fantasmas no Header
+  let effectiveProfile = authUser ? (headerData.userProfile || storedUserProfile) : null;
+
+  if (authUser && !effectiveProfile) {
+    // Perfil temporário para exibição imediata (apenas se estiver logado)
+    effectiveProfile = {
+      id: authUser.uid,
+      displayName: authUser.displayName || 'Usuário',
+      email: authUser.email || '',
+      photoURL: authUser.photoURL || '',
+      nickname: '', // Será tratado no componente
+      bio: '',
+      location: '',
+      website: '',
+      role: 'user',
+      joinedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      booksRead: 0,
+      currentlyReading: 0,
+      followers: 0,
+      following: 0,
+    } as User;
+  }
+
   const effectiveFriendRequests = authUser ? headerData.initialFriendRequests : 0;
 
-  const noFooterPaths = [PATHS.LOGIN, PATHS.REGISTER, PATHS.FORGOT_PASSWORD];
-  const shouldShowFooter = !noFooterPaths.includes(location.pathname);
+  const noFooterPaths = [PATHS.LOGIN, PATHS.REGISTER, PATHS.FORGOT_PASSWORD, PATHS.MESSAGES];
+  const shouldShowFooter = !noFooterPaths.includes(location.pathname) && !location.pathname.startsWith('/chat');
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 w-full overflow-x-hidden">
       <FocusManager />
-      
+
       <div
-        className={`fixed top-0 left-0 right-0 h-1 bg-emerald-500 z-[99] transition-transform duration-300 ${
-          isLoading ? 'scale-x-100' : 'scale-x-0'
-        }`}
+        className={`fixed top-0 left-0 right-0 h-1 bg-emerald-500 z-[99] transition-transform duration-300 ${isLoading ? 'scale-x-100' : 'scale-x-0'}`}
         style={{ transformOrigin: 'left' }}
       />
 
@@ -117,12 +153,13 @@ export const Layout = () => {
       </AnimatePresence>
 
       <Header
-        userProfile={effectiveProfile} // # atualizado
-        initialFriendRequests={effectiveFriendRequests} // # atualizado
+        userProfile={effectiveProfile}
+        initialFriendRequests={effectiveFriendRequests}
+        isAuthenticated={!!authUser}
+        isAuthLoading={showAuthLoading}
       />
 
       <main className="flex-1 w-full pt-20 grid relative">
-        {/* # atualizado: Removido mode="wait" para permitir a sobreposição (cross-fade) */}
         <AnimatePresence initial={false}>
           <motion.div
             key={pageKey}
@@ -131,7 +168,6 @@ export const Layout = () => {
             animate="visible"
             exit="exit"
             transition={MAIN_PAGE_TRANSITION}
-            // # atualizado: Garante que a página que entra e a que sai ocupem o mesmo espaço.
             style={{ gridArea: "1 / 1" } as CSSProperties}
           >
             <Outlet />

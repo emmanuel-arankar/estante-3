@@ -39,13 +39,14 @@ import {
 } from 'lucide-react';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
+import i18n_pt from '@emoji-mart/data/i18n/pt.json';
 import Tippy from '@tippyjs/react';
 
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
 } from '@/components/ui/popover';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { Separator } from '@/components/ui/separator';
@@ -403,7 +404,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <Smile className="h-4 w-4" />
           </button>
           {isEmojiPickerOpen && (
-            <Tippy appendTo={document.body} content={<div className="bg-white shadow-lg rounded-lg overflow-hidden"><Picker data={data} onEmojiSelect={addEmoji} theme="light" locale="pt" previewPosition="none" skinTonePosition="none" /></div>} interactive={true} visible={isEmojiPickerOpen} onClickOutside={() => setIsEmojiPickerOpen(false)} reference={emojiButtonRef} placement="bottom-start" trigger="manual" />
+            <Tippy appendTo={document.body} content={<div className="bg-white shadow-lg rounded-lg overflow-hidden"><Picker data={data} onEmojiSelect={addEmoji} theme="light" i18n={i18n_pt} locale="pt" previewPosition="none" skinTonePosition="none" /></div>} interactive={true} visible={isEmojiPickerOpen} onClickOutside={() => setIsEmojiPickerOpen(false)} reference={emojiButtonRef} placement="bottom-start" trigger="manual" />
           )}
         </div>
       </div>

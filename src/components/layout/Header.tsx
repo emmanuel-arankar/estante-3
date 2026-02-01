@@ -26,34 +26,56 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { 
-  Sheet, 
-  SheetClose, 
-  SheetContent, 
-  SheetDescription, 
-  SheetHeader, 
-  SheetTitle, 
-  SheetTrigger 
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger
 } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { useImageLoad } from '@/hooks/useImageLoad';
 import { logout } from '@/services/auth';
 import { subscribeToFriendRequests } from '@/services/firestore';
+import { subscribeToTotalUnreadMessages } from '@/services/realtime';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
 
 interface HeaderProps {
   userProfile: User | null;
   initialFriendRequests: number;
+  isAuthenticated?: boolean;
+  isAuthLoading?: boolean;
 }
 
-export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
+export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = false, isAuthLoading = false }: HeaderProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [friendRequestsCount, setFriendRequestsCount] = useState(initialFriendRequests);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   const { isLoaded: isAvatarLoaded } = useImageLoad(userProfile?.photoURL);
+
+  // Estado de segurança local: Se o loading demorar > 3s, assume deslogado visualmente
+  const [forceGuestMode, setForceGuestMode] = useState(false);
+
+  useEffect(() => {
+    if (isAuthLoading && !isAuthenticated && !userProfile) {
+      const timer = setTimeout(() => {
+        console.warn("Header loading timeout - showing guest UI");
+        setForceGuestMode(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    } else if (!isAuthLoading) {
+      setForceGuestMode(false);
+    }
+  }, [isAuthLoading, isAuthenticated, userProfile]);
+
+  // Apenas mostra loading se NÃO estivermos em modo de segurança
+  const effectiveIsAuthLoading = isAuthLoading && !forceGuestMode;
 
   useEffect(() => {
     if (!userProfile?.id) { // # atualizado
@@ -70,6 +92,21 @@ export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
     };
   }, [userProfile?.id]); // # atualizado
 
+  useEffect(() => {
+    if (!userProfile?.id) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+
+    const unsubscribe = subscribeToTotalUnreadMessages(userProfile.id, (count) => {
+      setUnreadMessagesCount(count);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [userProfile?.id]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -80,8 +117,10 @@ export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await logout();
+      // Navegar para Home PRIMEIRO para evitar que o ProtectedRoute da página atual
+      // redirecione para /login quando o usuário ficar null.
       navigate(PATHS.HOME);
+      await logout();
     } catch (error) {
       console.error('Erro no logout:', error);
     } finally {
@@ -121,12 +160,16 @@ export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
                   <Bell className="h-5 w-5" />
                 </Link>
 
-                {/* # atualizado: Removido o Button asChild e aplicado estilos no Link */}
                 <Link
                   to={PATHS.MESSAGES}
                   className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'relative rounded-full' })}
                 >
                   <MessageCircle className="h-5 w-5" />
+                  {unreadMessagesCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadMessagesCount > 99 ? '+99' : unreadMessagesCount}
+                    </span>
+                  )}
                 </Link>
 
                 {/* # atualizado: Removido o Button asChild e aplicado estilos no Link */}
@@ -166,8 +209,8 @@ export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
                     </div>
                     <DropdownMenuSeparator />
                     {/* # atualizado: Removido <PrefetchLink> e usado onSelect */}
-                    <DropdownMenuItem 
-                      onSelect={() => navigate(PATHS.PROFILE_ME)} 
+                    <DropdownMenuItem
+                      onSelect={() => navigate(PATHS.PROFILE_ME)}
                       className="cursor-pointer"
                     >
                       <UserCircle className="mr-2 h-4 w-4" />
@@ -175,17 +218,17 @@ export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
                     </DropdownMenuItem>
 
                     {/* # atualizado: Removido <Link> e usado onSelect */}
-                    <DropdownMenuItem 
-                      onSelect={() => navigate(PATHS.PROFILE_EDIT)} 
+                    <DropdownMenuItem
+                      onSelect={() => navigate(PATHS.PROFILE_EDIT)}
                       className="cursor-pointer"
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Configurações</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={handleLogout} 
-                      disabled={isLoggingOut} 
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
                       className="cursor-pointer text-red-600 focus:text-red-600"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
@@ -197,19 +240,26 @@ export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
                 </DropdownMenu>
               </div>
             </>
+          ) : (isAuthenticated || effectiveIsAuthLoading) ? (
+            // Autenticado ou carregando auth - mostra loading simples
+            <div className="hidden md:flex items-center space-x-4">
+              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center animate-pulse">
+                <LoadingSpinner size="sm" />
+              </div>
+            </div>
           ) : (
             <div className="hidden md:flex items-center space-x-4">
-              <Button 
-                variant="ghost" 
-                asChild 
+              <Button
+                variant="ghost"
+                asChild
                 className="text-gray-600 hover:text-emerald-600 rounded-full font-sans mb-2"
               >
                 <Link to={PATHS.LOGIN}>
                   Entrar
                 </Link>
               </Button>
-              <Button 
-                asChild 
+              <Button
+                asChild
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6 font-sans"
               >
                 <Link to={PATHS.REGISTER}>
@@ -270,9 +320,29 @@ export const Header = ({ userProfile, initialFriendRequests }: HeaderProps) => {
                         <nav className="flex flex-col space-y-2">
                           <SheetClose asChild><Link to={PATHS.FRIENDS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Users className="mr-3 h-5 w-5" />Amigos</Link></SheetClose>
                           <SheetClose asChild><Link to={PATHS.NOTIFICATIONS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Bell className="mr-3 h-5 w-5" />Notificações</Link></SheetClose>
-                          <SheetClose asChild><Link to={PATHS.MESSAGES} className="flex items-center p-2 rounded-md hover:bg-gray-100"><MessageCircle className="mr-3 h-5 w-5" />Mensagens</Link></SheetClose>
+                          <SheetClose asChild>
+                            <Link to={PATHS.MESSAGES} className="flex items-center p-2 rounded-md hover:bg-gray-100 flex-grow">
+                              <div className="relative">
+                                <MessageCircle className="mr-3 h-5 w-5" />
+                                {unreadMessagesCount > 0 && (
+                                  <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center border-2 border-white">
+                                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                                  </span>
+                                )}
+                              </div>
+                              Mensagens
+                            </Link>
+                          </SheetClose>
                           <SheetClose asChild><Link to={PATHS.PROFILE_EDIT} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Settings className="mr-3 h-5 w-5" />Configurações</Link></SheetClose>
                         </nav>
+                      </div>
+                    ) : (isAuthenticated || isAuthLoading) ? (
+                      // Autenticado ou carregando auth - mostra loading simples
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <LoadingSpinner size="md" className="text-emerald-600" />
+                        <p className="mt-2 text-sm text-gray-500">
+                          {isAuthLoading ? 'Verificando acesso...' : 'Carregando perfil...'}
+                        </p>
                       </div>
                     ) : (
                       /* # atualizado: Adicionada separação entre os botões */

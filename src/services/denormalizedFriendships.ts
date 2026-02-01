@@ -11,19 +11,20 @@ import {
   onSnapshot,
   serverTimestamp,
   writeBatch,
+  increment,
   DocumentSnapshot,
   Unsubscribe,
   runTransaction
 } from 'firebase/firestore';
-import { 
-  getFunctions, 
-  httpsCallable 
+import {
+  getFunctions,
+  httpsCallable
 } from 'firebase/functions';
 import { db } from '@/services/firebase';
 import { createNotification } from '@/services/firestore';
-import { 
-  DenormalizedFriendship, 
-  DenormalizedUser 
+import {
+  DenormalizedFriendship,
+  DenormalizedUser
 } from '@estante/common-types';
 
 // ==================== SINCRONIZAÇÃO DE DADOS DENORMALIZADOS ====================
@@ -35,7 +36,7 @@ import {
 export const syncDenormalizedUserData = async (userId: string) => {
   try {
     console.log('🔄 Sincronizando dados denormalizados para usuário:', userId);
-    
+
     // Buscar dados atualizados do usuário
     const updatedUser = await getUserForDenormalization(userId);
     if (!updatedUser) {
@@ -45,15 +46,15 @@ export const syncDenormalizedUserData = async (userId: string) => {
 
     const batch = writeBatch(db);
     let updateCount = 0;
-    
+
     // Buscar todas as amizades onde este usuário é o "friend"
     const friendshipsQuery = query(
       collection(db, 'friendships'),
       where('friendId', '==', userId)
     );
-    
+
     const snapshot = await getDocs(friendshipsQuery);
-    
+
     snapshot.docs.forEach(docSnapshot => {
       const friendshipRef = doc(db, 'friendships', docSnapshot.id);
       batch.update(friendshipRef, {
@@ -66,7 +67,7 @@ export const syncDenormalizedUserData = async (userId: string) => {
       });
       updateCount++;
     });
-    
+
     if (updateCount > 0) {
       await batch.commit();
       console.log(`✅ ${updateCount} documentos de amizade atualizados para usuário ${userId}`);
@@ -88,7 +89,7 @@ export const getUserForDenormalization = async (userId: string): Promise<Denorma
   try {
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) return null;
-    
+
     const userData = userDoc.data();
     return {
       id: userId,
@@ -114,15 +115,15 @@ export const getUserForDenormalization = async (userId: string): Promise<Denorma
 export const updateDenormalizedUserData = async (userId: string, updatedData: Partial<DenormalizedUser>) => {
   try {
     const batch = writeBatch(db);
-    
+
     // Buscar todas as amizades onde este usuário é o "friend"
     const friendshipsQuery = query(
       collection(db, 'friendships'),
       where('friendId', '==', userId)
     );
-    
+
     const snapshot = await getDocs(friendshipsQuery);
-    
+
     snapshot.docs.forEach(docSnapshot => {
       const friendshipRef = doc(db, 'friendships', docSnapshot.id);
       batch.update(friendshipRef, {
@@ -134,7 +135,7 @@ export const updateDenormalizedUserData = async (userId: string, updatedData: Pa
         updatedAt: serverTimestamp()
       });
     });
-    
+
     await batch.commit();
     console.log(`✅ Dados denormalizados atualizados para usuário ${userId}`);
   } catch (error) {
@@ -160,20 +161,20 @@ export const sendDenormalizedFriendRequest = async (fromUserId: string, toUserId
         // Se já existe um documento, não faz nada para evitar duplicatas ou sobrescritas.
         // Pode ser uma solicitação pendente ou já amigos.
         console.log(`Relação de amizade entre ${fromUserId} e ${toUserId} já existe.`);
-        return; 
+        return;
       }
-      
+
       const [fromUser, toUser] = await Promise.all([
         getUserForDenormalization(fromUserId),
         getUserForDenormalization(toUserId)
       ]);
-      
+
       if (!fromUser || !toUser) {
         throw new Error('Usuário não encontrado');
       }
-      
+
       const timestamp = new Date(); // Usar um timestamp do cliente para consistência na transação
-      
+
       transaction.set(fromUserFriendshipRef, {
         userId: fromUserId,
         friendId: toUserId,
@@ -183,7 +184,7 @@ export const sendDenormalizedFriendRequest = async (fromUserId: string, toUserId
         updatedAt: timestamp,
         friend: toUser
       });
-      
+
       transaction.set(toUserFriendshipRef, {
         userId: toUserId,
         friendId: fromUserId,
@@ -193,8 +194,22 @@ export const sendDenormalizedFriendRequest = async (fromUserId: string, toUserId
         updatedAt: timestamp,
         friend: fromUser
       });
+
+      // ✅ Incrementar contadores
+      const fromUserRef = doc(db, 'users', fromUserId);
+      const toUserRef = doc(db, 'users', toUserId);
+
+      transaction.update(fromUserRef, {
+        sentRequestsCount: increment(1),
+        updatedAt: timestamp
+      });
+
+      transaction.update(toUserRef, {
+        pendingRequestsCount: increment(1),
+        updatedAt: timestamp
+      });
     });
-    
+
     // Notificação pode ser enviada fora da transação
     await createNotification({
       userId: toUserId,
@@ -204,7 +219,7 @@ export const sendDenormalizedFriendRequest = async (fromUserId: string, toUserId
       read: false,
       createdAt: new Date(),
     });
-    
+
     console.log(`✅ Solicitação de amizade enviada: ${fromUserId} → ${toUserId}`);
   } catch (error) {
     console.error('Erro ao enviar solicitação de amizade:', error);
@@ -225,7 +240,7 @@ export const acceptDenormalizedFriendRequest = async (userId: string, friendId: 
         transaction.get(userFriendshipRef),
         transaction.get(friendFriendshipRef)
       ]);
-      
+
       if (!userFriendshipDoc.exists() || !friendFriendshipDoc.exists() || userFriendshipDoc.data().status !== 'pending') {
         throw new Error('Solicitação de amizade não encontrada ou não está mais pendente.');
       }
@@ -233,6 +248,22 @@ export const acceptDenormalizedFriendRequest = async (userId: string, friendId: 
       const friendshipDate = new Date();
       transaction.update(userFriendshipRef, { status: 'accepted', friendshipDate, updatedAt: new Date() });
       transaction.update(friendFriendshipRef, { status: 'accepted', friendshipDate, updatedAt: new Date() });
+
+      // ✅ Incrementar contadores de amigos e decrementar contadores de solicitações
+      const userRef = doc(db, 'users', userId);
+      const friendRef = doc(db, 'users', friendId);
+
+      transaction.update(userRef, {
+        friendsCount: increment(1),
+        pendingRequestsCount: increment(-1),
+        updatedAt: friendshipDate
+      });
+
+      transaction.update(friendRef, {
+        friendsCount: increment(1),
+        sentRequestsCount: increment(-1),
+        updatedAt: friendshipDate
+      });
     });
 
     await createNotification({
@@ -259,12 +290,37 @@ export const rejectDenormalizedFriendRequest = async (userId: string, friendId: 
     await runTransaction(db, async (transaction) => {
       const friendshipRef1 = doc(db, 'friendships', `${userId}_${friendId}`);
       const friendshipRef2 = doc(db, 'friendships', `${friendId}_${userId}`);
-      
+
+      const friendshipDoc = await transaction.get(friendshipRef1);
+
+      if (friendshipDoc.exists()) {
+        const data = friendshipDoc.data();
+        const requestedBy = data.requestedBy;
+
+        if (requestedBy === userId) {
+          // userId cancelou sua própria solicitação
+          transaction.update(doc(db, 'users', userId), {
+            sentRequestsCount: increment(-1)
+          });
+          transaction.update(doc(db, 'users', friendId), {
+            pendingRequestsCount: increment(-1)
+          });
+        } else {
+          // userId rejeitou solicitação recebida
+          transaction.update(doc(db, 'users', userId), {
+            pendingRequestsCount: increment(-1)
+          });
+          transaction.update(doc(db, 'users', friendId), {
+            sentRequestsCount: increment(-1)
+          });
+        }
+      }
+
       // A transação garante que a exclusão só aconteça se os documentos existirem.
       transaction.delete(friendshipRef1);
       transaction.delete(friendshipRef2);
     });
-    
+
     console.log(`✅ Solicitação rejeitada/cancelada: ${userId} ✗ ${friendId}`);
   } catch (error) {
     console.error('Erro ao rejeitar/cancelar solicitação:', error);
@@ -280,11 +336,19 @@ export const removeDenormalizedFriend = async (userId: string, friendId: string)
     await runTransaction(db, async (transaction) => {
       const friendshipRef1 = doc(db, 'friendships', `${userId}_${friendId}`);
       const friendshipRef2 = doc(db, 'friendships', `${friendId}_${userId}`);
-      
+
       transaction.delete(friendshipRef1);
       transaction.delete(friendshipRef2);
+
+      // ✅ Decrementar amigos de ambos
+      transaction.update(doc(db, 'users', userId), {
+        friendsCount: increment(-1)
+      });
+      transaction.update(doc(db, 'users', friendId), {
+        friendsCount: increment(-1)
+      });
     });
-    
+
     console.log(`✅ Amizade removida: ${userId} ✗ ${friendId}`);
   } catch (error) {
     console.error('Erro ao remover amizade:', error);
@@ -310,23 +374,23 @@ export const getDenormalizedFriends = async (
       orderBy('friendshipDate', 'desc'),
       limit(limitCount)
     );
-    
+
     if (lastDoc) {
       q = query(q, startAfter(lastDoc));
     }
-    
+
     const snapshot = await getDocs(q);
     const friends: DenormalizedFriendship[] = [];
     const seenIds = new Set(); // Para evitar duplicatas
-    
+
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       const friendData = data.friend || {};
-      
+
       // Evitar duplicatas por ID
       if (!seenIds.has(doc.id)) {
         seenIds.add(doc.id);
-        
+
         friends.push({
           id: doc.id,
           userId: data.userId,
@@ -350,7 +414,7 @@ export const getDenormalizedFriends = async (
         } as DenormalizedFriendship);
       }
     });
-    
+
     return {
       friends,
       lastDoc: snapshot.docs[snapshot.docs.length - 1],
@@ -374,14 +438,14 @@ export const getDenormalizedFriendRequests = async (userId: string) => {
       where('requestedBy', '!=', userId),
       orderBy('createdAt', 'desc')
     );
-    
+
     const snapshot = await getDocs(q);
     const requests: DenormalizedFriendship[] = [];
-    
+
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       const friendData = data.friend || {};
-      
+
       requests.push({
         id: doc.id,
         userId: data.userId,
@@ -404,7 +468,7 @@ export const getDenormalizedFriendRequests = async (userId: string) => {
         }
       } as DenormalizedFriendship);
     });
-    
+
     return requests;
   } catch (error) {
     console.error('Erro ao buscar solicitações recebidas:', error);
@@ -424,14 +488,14 @@ export const getDenormalizedSentRequests = async (userId: string) => {
       where('requestedBy', '==', userId),
       orderBy('createdAt', 'desc')
     );
-    
+
     const snapshot = await getDocs(q);
     const sentRequests: DenormalizedFriendship[] = [];
-    
+
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       const friendData = data.friend || {};
-      
+
       sentRequests.push({
         id: doc.id,
         userId: data.userId,
@@ -454,7 +518,7 @@ export const getDenormalizedSentRequests = async (userId: string) => {
         }
       } as DenormalizedFriendship);
     });
-    
+
     return sentRequests;
   } catch (error) {
     console.error('Erro ao buscar solicitações enviadas:', error);
@@ -479,14 +543,14 @@ export const subscribeToDenormalizedFriends = (
     orderBy('friendshipDate', 'desc'),
     limit(limitCount)
   );
-  
+
   return onSnapshot(q, (snapshot) => {
     const friends: DenormalizedFriendship[] = [];
-    
+
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       const friendData = data.friend || {};
-      
+
       friends.push({
         id: doc.id,
         userId: data.userId,
@@ -509,7 +573,7 @@ export const subscribeToDenormalizedFriends = (
         }
       } as DenormalizedFriendship);
     });
-    
+
     callback(friends);
   });
 };
@@ -528,14 +592,14 @@ export const subscribeToDenormalizedRequests = (
     where('requestedBy', '!=', userId),
     orderBy('createdAt', 'desc')
   );
-  
+
   return onSnapshot(q, (snapshot) => {
     const requests: DenormalizedFriendship[] = [];
-    
+
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       const friendData = data.friend || {};
-      
+
       requests.push({
         id: doc.id,
         userId: data.userId,
@@ -558,7 +622,7 @@ export const subscribeToDenormalizedRequests = (
         }
       } as DenormalizedFriendship);
     });
-    
+
     callback(requests);
   });
 };
@@ -577,14 +641,14 @@ export const subscribeToDenormalizedSentRequests = (
     where('requestedBy', '==', userId),
     orderBy('createdAt', 'desc')
   );
-  
+
   return onSnapshot(q, (snapshot) => {
     const sentRequests: DenormalizedFriendship[] = [];
-    
+
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       const friendData = data.friend || {};
-      
+
       sentRequests.push({
         id: doc.id,
         userId: data.userId,
@@ -607,7 +671,7 @@ export const subscribeToDenormalizedSentRequests = (
         }
       } as DenormalizedFriendship);
     });
-    
+
     callback(sentRequests);
   });
 };
@@ -624,7 +688,7 @@ export const searchFriends = async (userId: string, searchTerm: string): Promise
   try {
     const searchFriendsFunction = httpsCallable(functions, 'searchFriends');
     const result: any = await searchFriendsFunction({ userId, searchTerm });
-    
+
     // As datas virão como timestamps, então precisamos convertê-las
     return result.data.friends.map((friend: any) => ({
       ...friend,

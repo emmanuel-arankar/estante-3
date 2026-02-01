@@ -4,27 +4,28 @@ import {
   getIdTokenResult,
   User as FirebaseUser
 } from 'firebase/auth';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
-import { auth } from '@/services/firebase';
+import { auth, database } from '@/services/firebase';
+import { ref, set, serverTimestamp, onDisconnect } from 'firebase/database';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
  * Envia o ID token para o backend para criar um cookie de sessão.
  * @param idToken O ID token do usuário.
  */
-export const setSessionCookie = async (idToken: string) => {
+export const setSessionCookie = async (idToken: string, rememberMe: boolean = false) => {
   try {
-    // # atualizado - Usa o caminho relativo da API
+    // # atualizado - Envia rememberMe para o backend
     const response = await fetch('/api/sessionLogin', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ idToken, rememberMe }),
     });
 
     if (!response.ok) {
@@ -54,32 +55,76 @@ export const logout = async () => {
   try {
     console.log('🚪 Iniciando logout...');
 
-    // Chama a função de logout do backend para limpar o cookie
-    await fetch('/api/sessionLogout', { method: 'POST' });
-
-    // Limpa o estado local
-    await signOut(auth);
-    localStorage.removeItem('session');
+    // 1. Limpeza VISUAL imediata (Optimistic Logout)
+    // Garante que o Header mude para "Entrar" instantaneamente
     useAuthStore.getState().clearAuth();
+
+    // 2. Operações de rede em background
+    const logoutPromises: Promise<any>[] = [
+      fetch('/api/sessionLogout', { method: 'POST' }).catch(err => console.error("Session logout error", err)),
+      signOut(auth).catch(err => console.error("Firebase signOut error", err))
+    ];
+
+    // 2.1 Limpeza de Presença (Offline imediato)
+    if (auth.currentUser && database) {
+      const userStatusRef = ref(database, `/status/${auth.currentUser.uid}`);
+      logoutPromises.push(
+        set(userStatusRef, { online: false, lastSeen: serverTimestamp() })
+          .then(() => onDisconnect(userStatusRef).cancel())
+          .catch(err => console.error("Presence logout error", err))
+      );
+    }
+
+    await Promise.all(logoutPromises);
+
+    // 3. Limpeza final (localStorage e cache de dados)
+    localStorage.removeItem('session');
+    localStorage.removeItem('rememberMe');
     queryClient.clear();
 
     console.log('✅ Logout realizado com sucesso');
     toastSuccessClickable('Logout realizado com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao fazer logout:', error);
-    toastErrorClickable('Erro ao fazer logout. Tente novamente.');
-    throw error;
+    // Mesmo com erro, forçamos a limpeza visual para não prender o usuário
+    useAuthStore.getState().clearAuth();
+    toastErrorClickable('Erro ao fazer logout, mas sua sessão local foi encerrada.');
   }
 };
+
+let authReadyResolved = false;
 
 const authReadyPromise = new Promise<FirebaseUser | null>(resolve => {
   const unsubscribe = onAuthStateChanged(auth, user => {
     unsubscribe();
+    authReadyResolved = true;
     resolve(user);
   });
 });
 
-export const awaitAuthReady = () => authReadyPromise;
+/**
+ * Aguarda o Firebase Auth estar pronto.
+ * Primeiro verifica se já temos um usuário em cache,
+ * depois aguarda a promise inicial ou verifica auth.currentUser.
+ */
+export const awaitAuthReady = async (): Promise<FirebaseUser | null> => {
+  // Se já resolvemos a promise inicial, verificar o estado atual
+  if (authReadyResolved) {
+    // Se o auth.currentUser já existe, retornamos ele
+    if (auth.currentUser) {
+      return auth.currentUser;
+    }
+    // Se não há usuário atual mas temos cache, algo mudou - aguardar um ciclo
+    return new Promise(resolve => {
+      const unsubscribe = onAuthStateChanged(auth, user => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
+  }
+  // Primeira vez - aguardar a promise original
+  return authReadyPromise;
+};
 
 export const getCurrentUser = (): FirebaseUser | null => {
   return auth.currentUser;

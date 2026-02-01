@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Form, Link, useNavigation, useNavigate, useLocation } from 'react-router-dom'; 
-import { 
-  GoogleAuthProvider, 
+import { Form, Link, useNavigation, useNavigate, useLocation } from 'react-router-dom';
+import {
+  GoogleAuthProvider,
   signInWithPopup,
-  getAdditionalUserInfo 
-} from 'firebase/auth'; 
+  getAdditionalUserInfo,
+  updateProfile as updateAuthProfile
+} from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { Eye, EyeOff, Mail, Lock, Chrome } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   CardDescription
 } from '@/components/ui/card';
@@ -20,13 +21,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Separator } from '@/components/ui/separator';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from '@/components/ui/toast';
-import { auth, db } from '@/services/firebase'; 
+import { auth, db } from '@/services/firebase';
 import { PATHS } from '@/router/paths';
-import { generateUniqueNickname } from '@/utils/nickname'; 
+import { generateUniqueNickname } from '@/utils/nickname';
 import { User } from '@estante/common-types';
 
 export const LoginForm = () => {
@@ -54,9 +55,10 @@ export const LoginForm = () => {
       if (additionalInfo?.isNewUser) {
         const userDocRef = doc(db, 'users', user.uid);
         const nickname = await generateUniqueNickname(user.displayName || 'Leitor');
+        const finalDisplayName = user.displayName || 'Novo Leitor';
 
         const newProfileData: Omit<User, 'id'> = {
-          displayName: user.displayName || 'Novo Leitor',
+          displayName: finalDisplayName,
           nickname,
           email: user.email!,
           photoURL: user.photoURL || '',
@@ -70,10 +72,15 @@ export const LoginForm = () => {
           following: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
+          role: 'user',
         };
 
-        await setDoc(userDocRef, newProfileData);
-        toastSuccessClickable(`Bem-vindo(a), ${user.displayName}! Sua conta foi criada.`);
+        await Promise.all([
+          setDoc(userDocRef, newProfileData),
+          updateAuthProfile(user, { displayName: finalDisplayName })
+        ]);
+
+        toastSuccessClickable(`Bem-vindo(a), ${finalDisplayName}! Sua conta foi criada.`);
       } else {
         toastSuccessClickable(`Bem-vindo(a) de volta, ${user.displayName}!`);
       }
@@ -99,8 +106,9 @@ export const LoginForm = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <Form method="post" action={PATHS.LOGIN} className="space-y-4">
-          {/* # atualizado: Adicionado campo oculto para enviar a URL de redirecionamento */}
+          {/* # atualizado: Redirecionamento e Lembrar de mim */}
           <input type="hidden" name="redirectTo" value={from} />
+          <input type="hidden" name="rememberMe" value={rememberMe ? 'true' : 'false'} />
 
           <div className="space-y-2">
             <div className="relative">

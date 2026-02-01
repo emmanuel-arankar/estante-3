@@ -4,7 +4,7 @@ import { PATHS } from '@/router/paths';
 
 // Layout e Utilitários
 import { Layout } from '@/components/layout/Layout';
-import { ContainedLayout } from '@/components/layout/ContainedLayout'; 
+import { ContainedLayout } from '@/components/layout/ContainedLayout';
 import { ProtectedRoute } from '@/router/ProtectedRoute';
 import { withSuspense } from '@/router/RouteSuspense';
 import { NotFound } from '@/pages/NotFound';
@@ -14,12 +14,12 @@ import { ErrorElement } from '@/router/ErrorElement';
 import { layoutLoader } from '@/router/loaders';
 
 // Módulos de Rota
-import { 
-  authRoutes, 
-  profileRoutes, 
-  protectedProfileRoutes, 
-  friendsRoutes, 
-  protectedChatRoutes, 
+import {
+  authRoutes,
+  profileRoutes,
+  protectedProfileRoutes,
+  friendsRoutes,
+  protectedChatRoutes,
   notificationRoutes,
 } from '@/features/routes';
 
@@ -47,26 +47,29 @@ export const routes: RouteObject[] = [
       },
       ...authRoutes,
 
-      // --- Rotas Contidas (com container e breadcrumbs) ---
+      // --- Rotas de Gestão (Perfil Protegido, Admin, etc.) ---
       {
-        element: <ContainedLayout />,
+        element: <ProtectedRoute />,
         children: [
-          ...profileRoutes, // Perfil público
           {
-            element: <ProtectedRoute />,
+            element: <ContainedLayout />,
             children: [
               ...protectedProfileRoutes,
-              ...friendsRoutes,
               ...notificationRoutes,
-              ...protectedChatRoutes,
               {
                 path: PATHS.ADMIN_DASHBOARD,
                 lazy: () => import('@/features/admin/admin.routes'),
               },
             ],
           },
+          // Chat e Friends fora do ContainedLayout para ocupar tela cheia
+          ...friendsRoutes,
+          ...protectedChatRoutes,
         ],
       },
+
+      // Perfil público (se houver routes não protegidas)
+      ...profileRoutes,
     ],
   },
   {

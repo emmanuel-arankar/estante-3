@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { uploadImage } from '@/services/storage';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from './toast';
 
 interface ImageUploadProps {
   onUpload: (url: string) => void;
+  onFileSelect?: (file: File) => void;
   path: string;
   maxFiles?: number;
   accept?: Record<string, string[]>;
@@ -21,6 +22,7 @@ interface ImageUploadProps {
 
 export const ImageUpload = ({
   onUpload,
+  onFileSelect,
   path,
   maxFiles = 1,
   accept = {
@@ -36,7 +38,7 @@ export const ImageUpload = ({
     if (acceptedFiles.length === 0) return;
 
     setUploading(true);
-    
+
     try {
       const uploadPromises = acceptedFiles.map(async (file) => {
         const url = await uploadImage(file, path);
@@ -44,7 +46,7 @@ export const ImageUpload = ({
       });
 
       const urls = await Promise.all(uploadPromises);
-      
+
       if (maxFiles === 1) {
         onUpload(urls[0]);
         setUploadedImages([urls[0]]);
@@ -60,7 +62,7 @@ export const ImageUpload = ({
     } finally {
       setUploading(false);
     }
-  }, [onUpload, path, maxFiles]);
+  }, [onUpload, onFileSelect, path, maxFiles]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -79,12 +81,11 @@ export const ImageUpload = ({
         <CardContent className="p-6">
           <div
             {...getRootProps()}
-            className={`cursor-pointer text-center ${
-              isDragActive ? 'bg-blue-50 border-blue-300' : ''
-            }`}
+            className={`cursor-pointer text-center ${isDragActive ? 'bg-blue-50 border-blue-300' : ''
+              }`}
           >
             <input {...getInputProps()} />
-            
+
             {uploading ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <LoadingSpinner size="lg" />

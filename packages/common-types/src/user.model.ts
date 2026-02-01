@@ -16,6 +16,9 @@ export interface User {
   currentlyReading: number;
   followers: number;
   following: number;
+  friendsCount?: number;
+  pendingRequestsCount?: number;
+  sentRequestsCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

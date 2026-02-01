@@ -1,7 +1,7 @@
-import { 
-  useRouteError, 
-  isRouteErrorResponse, 
-  Link 
+import {
+  useRouteError,
+  isRouteErrorResponse,
+  Link
 } from 'react-router-dom';
 import { AlertTriangle, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';

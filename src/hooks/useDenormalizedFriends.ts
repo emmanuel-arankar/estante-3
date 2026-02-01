@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMemo } from 'react';
-import { DocumentData, DocumentSnapshot } from 'firebase/firestore';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import { DocumentData, DocumentSnapshot, doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/services/firebase';
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -19,11 +20,11 @@ import {
   removeDenormalizedFriend,
   searchFriends
 } from '@/services/denormalizedFriendships';
-import type { 
-  UseFriendsResult, 
-  FriendshipActions, 
-  SortOption, 
-  SortDirection 
+import type {
+  UseFriendsResult,
+  FriendshipActions,
+  SortOption,
+  SortDirection
 } from '@/hooks/types/friendship.types';
 import {
   DenormalizedFriendship,
@@ -63,6 +64,14 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
   const [allFriends, setAllFriends] = useState<DenormalizedFriendship[]>([]);
   const [requests, setRequests] = useState<DenormalizedFriendship[]>([]);
   const [sentRequests, setSentRequests] = useState<DenormalizedFriendship[]>([]);
+
+  // ✅ Buscar contadores do user doc
+  const [userStats, setUserStats] = useState<FriendshipStats>({
+    totalFriends: 0,
+    pendingRequests: 0,
+    sentRequests: 0
+  });
+
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,11 +80,43 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [searchedFriends, setSearchedFriends] = useState<DenormalizedFriendship[] | null>(null);
   const [hasMoreFriends, setHasMoreFriends] = useState(true);
-  
+
   const lastFriendDoc = useRef<DocumentSnapshot<DocumentData> | null>(null);
   const unsubscribeFriends = useRef<(() => void) | null>(null);
   const unsubscribeRequests = useRef<(() => void) | null>(null);
   const unsubscribeSentRequests = useRef<(() => void) | null>(null);
+
+  // ==================== LISTENER DE CONTADORES ====================
+  // Listener para contadores no documento do usuário
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const userDocRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setUserStats({
+          // Fallback para length se o contador não existir (migração gradual)
+          totalFriends: data.friendsCount !== undefined ? data.friendsCount : allFriends.length,
+          pendingRequests: data.pendingRequestsCount !== undefined ? data.pendingRequestsCount : requests.length,
+          sentRequests: data.sentRequestsCount !== undefined ? data.sentRequestsCount : sentRequests.length
+        });
+      }
+    });
+
+    // Atualizar stats baseado em lengths como fallback inicial ou se denormalização falhar
+    if (userStats.totalFriends === 0 && allFriends.length > 0) {
+      setUserStats(prev => ({ ...prev, totalFriends: allFriends.length }));
+    }
+    if (userStats.pendingRequests === 0 && requests.length > 0) {
+      setUserStats(prev => ({ ...prev, pendingRequests: requests.length }));
+    }
+    if (userStats.sentRequests === 0 && sentRequests.length > 0) {
+      setUserStats(prev => ({ ...prev, sentRequests: sentRequests.length }));
+    }
+
+    return unsubscribe;
+  }, [user?.uid, allFriends.length, requests.length, sentRequests.length]);
 
   // ==================== BUSCA NO SERVIDOR ====================
 
@@ -101,32 +142,32 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
   const sortFriends = useCallback((friendsToSort: DenormalizedFriendship[]) => {
     if (sortField === 'default') {
-        return [...friendsToSort].sort((a, b) => {
-            const dateA = a.friendshipDate?.getTime() || a.createdAt.getTime();
-            const dateB = b.friendshipDate?.getTime() || b.createdAt.getTime();
-            return dateB - dateA;
-        });
+      return [...friendsToSort].sort((a, b) => {
+        const dateA = a.friendshipDate?.getTime() || a.createdAt.getTime();
+        const dateB = b.friendshipDate?.getTime() || b.createdAt.getTime();
+        return dateB - dateA;
+      });
     }
     return [...friendsToSort].sort((a, b) => {
-        let valueA: any, valueB: any;
-        switch (sortField) {
-            case 'name':
-                valueA = a.friend.displayName.toLowerCase();
-                valueB = b.friend.displayName.toLowerCase();
-                break;
-            case 'nickname':
-                valueA = a.friend.nickname.toLowerCase();
-                valueB = b.friend.nickname.toLowerCase();
-                break;
-            case 'friendshipDate':
-                valueA = a.friendshipDate?.getTime() || a.createdAt.getTime();
-                valueB = b.friendshipDate?.getTime() || b.createdAt.getTime();
-                break;
-            default: return 0;
-        }
-        if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
-        if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
+      let valueA: any, valueB: any;
+      switch (sortField) {
+        case 'name':
+          valueA = a.friend.displayName.toLowerCase();
+          valueB = b.friend.displayName.toLowerCase();
+          break;
+        case 'nickname':
+          valueA = a.friend.nickname.toLowerCase();
+          valueB = b.friend.nickname.toLowerCase();
+          break;
+        case 'friendshipDate':
+          valueA = a.friendshipDate?.getTime() || a.createdAt.getTime();
+          valueB = b.friendshipDate?.getTime() || b.createdAt.getTime();
+          break;
+        default: return 0;
+      }
+      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [sortField, sortDirection]);
 
@@ -146,7 +187,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
   }, [sentRequests]);
 
   // ==================== CARREGAMENTO E LISTENERS ====================
-  
+
   const loadAllFriends = useCallback(async (refresh = false) => {
     if (!user?.uid) return;
     const cacheKey = getCacheKey(user.uid, 'friends');
@@ -190,7 +231,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       setLoading(false);
     }
   }, [user?.uid]);
-  
+
   useEffect(() => {
     if (!user?.uid) { setLoading(false); return; }
     setLoading(true);
@@ -261,7 +302,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       setLoading(false);
     }
   }, [user?.uid, loadAllFriends]);
-  
+
   // ==================== AÇÕES DE AMIZADE ====================
 
   const sendFriendRequest = useCallback(async (targetUserId: string) => {
@@ -334,7 +375,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       throw err;
     }
   }, [user?.uid, sentRequests]);
-  
+
   const cancelSentRequest = useCallback(async (friendshipId: string) => {
     if (!user?.uid) { toastErrorClickable('Você precisa estar logado'); return; }
     const sentRequest = sentRequests.find(s => s.id === friendshipId);
@@ -350,11 +391,13 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
   }, [user?.uid, sentRequests]);
 
   // ==================== ESTATÍSTICAS E RETORNO ====================
-  
-  const stats: FriendshipStats = { totalFriends: allFriends.length, pendingRequests: requests.length, sentRequests: sentRequests.length };
-  
+
+  // ==================== ESTATÍSTICAS E RETORNO ====================
+
+  // const stats: FriendshipStats = { totalFriends: allFriends.length, pendingRequests: requests.length, sentRequests: sentRequests.length };
+
   return {
-    friends: filteredAndSortedFriends, allFriends, requests: filteredAndSortedRequests, sentRequests: filteredAndSortedSentRequests, stats, loading, loadingMore, error, hasMoreFriends, searchQuery, setSearchQuery, sortField, setSortField, sortDirection, setSortDirection, loadAllFriends, loadMoreFriends, refreshData, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, cancelSentRequest, cancelAllSentRequests,
+    friends: filteredAndSortedFriends, allFriends, requests: filteredAndSortedRequests, sentRequests: filteredAndSortedSentRequests, stats: userStats, loading, loadingMore, error, hasMoreFriends, searchQuery, setSearchQuery, sortField, setSortField, sortDirection, setSortDirection, loadAllFriends, loadMoreFriends, refreshData, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, cancelSentRequest, cancelAllSentRequests,
   };
 };
 
@@ -371,13 +414,13 @@ export const useFriendshipStats = () => {
  */
 export const useFriendshipStatus = (targetUserId: string) => {
   const { friends, requests, sentRequests } = useDenormalizedFriends();
-  
+
   const status = (() => {
     if (friends.some(f => f.friendId === targetUserId)) return 'friends';
     if (requests.some(r => r.friendId === targetUserId)) return 'request_received';
     if (sentRequests.some(s => s.friendId === targetUserId)) return 'request_sent';
     return 'none';
   })();
-  
+
   return status;
 };

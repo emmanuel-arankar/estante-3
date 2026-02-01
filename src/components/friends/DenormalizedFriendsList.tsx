@@ -5,22 +5,22 @@ import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Users, UserPlus, Clock, RefreshCw } from 'lucide-react';
 import { SortDropdown } from '@/components/friends/SortDropdown';
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -35,7 +35,7 @@ import { DenormalizedFriendship } from '@estante/common-types';
 const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; onAction: (id: string) => void }>(
   ({ friendship, onAction }, ref) => {
     const { friend } = friendship;
-    
+
     return (
       <motion.div
         ref={ref}
@@ -53,7 +53,7 @@ const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFr
             size="md"
             className="flex-shrink-0"
           />
-          
+
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 truncate">
               <PrefetchLink
@@ -67,13 +67,13 @@ const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFr
             <p className="text-sm text-gray-600 truncate">@{friend.nickname}</p>
           </div>
         </div>
-        
+
         {friendship.friendshipDate && (
           <p className="text-xs text-gray-500 mt-auto mb-3">
             Amigos desde {formatDistanceToNow(friendship.friendshipDate, { addSuffix: true, locale: ptBR })}
           </p>
         )}
-        
+
         <Button variant="outline" size="sm" onClick={() => onAction(friendship.id)} className="w-full mt-auto">
           Remover
         </Button>
@@ -86,7 +86,7 @@ const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFr
 const RequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; onAccept: (id: string) => void; onReject: (id: string) => void }>(
   ({ friendship, onAccept, onReject }, ref) => {
     const { friend } = friendship;
-    
+
     return (
       <motion.div ref={ref} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow flex flex-col h-full">
         <div className="flex items-start space-x-3 mb-3">
@@ -118,7 +118,7 @@ const RequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedF
 const SentRequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; onCancel: (id: string) => void }>(
   ({ friendship, onCancel }, ref) => {
     const { friend } = friendship;
-    
+
     return (
       <motion.div ref={ref} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow flex flex-col h-full">
         <div className="flex items-start space-x-3 mb-3">
@@ -211,12 +211,12 @@ const BulkActions = ({ onAction, actionLabel, count, variant = 'default', loadin
 };
 
 const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, count, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, count: number, loading: boolean }) => (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent>
-        <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir todas as {count} solicitações enviadas? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-        <AlertDialogFooter><AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onConfirm} disabled={loading} className="bg-red-600 hover:bg-red-700">{loading ? 'Excluindo...' : 'Excluir Todos'}</AlertDialogAction></AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+  <AlertDialog open={isOpen} onOpenChange={onClose}>
+    <AlertDialogContent>
+      <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir todas as {count} solicitações enviadas? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+      <AlertDialogFooter><AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onConfirm} disabled={loading} className="bg-red-600 hover:bg-red-700">{loading ? 'Excluindo...' : 'Excluir Todos'}</AlertDialogAction></AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
 );
 
 // Componente Principal
@@ -227,23 +227,23 @@ export const DenormalizedFriendsList: React.FC = () => {
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const {
-    friends, 
-    requests, 
-    sentRequests, 
-    stats, 
-    loading, 
-    loadingMore, 
+    friends,
+    requests,
+    sentRequests,
+    stats,
+    loading,
+    loadingMore,
     error,
-    hasMoreFriends, 
-    searchQuery, setSearchQuery, 
+    hasMoreFriends,
+    searchQuery, setSearchQuery,
     sortField, setSortField,
-    sortDirection, setSortDirection, 
-    loadMoreFriends, 
-    refreshData, 
+    sortDirection, setSortDirection,
+    loadMoreFriends,
+    refreshData,
     acceptFriendRequest,
-    rejectFriendRequest, 
-    removeFriend, 
-    cancelSentRequest, 
+    rejectFriendRequest,
+    removeFriend,
+    cancelSentRequest,
     cancelAllSentRequests
   } = useDenormalizedFriends();
 
@@ -254,15 +254,15 @@ export const DenormalizedFriendsList: React.FC = () => {
 
   const handleDeleteAllSentRequests = async () => {
     setShowDeleteConfirm(false); setIsDeletingAll(true);
-    try { await cancelAllSentRequests(); } 
-    catch (error) { console.error('Erro ao excluir todas as solicitações:', error); } 
+    try { await cancelAllSentRequests(); }
+    catch (error) { console.error('Erro ao excluir todas as solicitações:', error); }
     finally { setIsDeletingAll(false); }
   };
 
   if (loading && friends.length === 0 && requests.length === 0 && sentRequests.length === 0) {
     return <div className="min-h-[400px] flex flex-col items-center justify-center"><LoadingSpinner size="lg" /><p className="mt-4 text-gray-600">Carregando...</p></div>;
   }
-  
+
   if (error) {
     return <div className="min-h-[400px] flex flex-col items-center justify-center"><p className="text-red-600 mb-4">{error}</p><Button onClick={refreshData}>Tentar novamente</Button></div>;
   }
@@ -277,7 +277,7 @@ export const DenormalizedFriendsList: React.FC = () => {
       {activeTab === 'friends' && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg">{searchQuery ? 'Amigos encontrados' : 'Todos os amigos'}<span className="text-sm font-normal text-gray-500 ml-2">({friends.length})</span></CardTitle>
+            <CardTitle className="text-lg">{searchQuery ? 'Amigos encontrados' : 'Todos os amigos'}<span className="text-sm font-normal text-gray-500 ml-2">({searchQuery ? friends.length : stats.totalFriends})</span></CardTitle>
             <div className="flex items-center space-x-2 flex-shrink-0">
               <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={(field, direction) => { setSortField(field); setSortDirection(direction); }} />
               <Button onClick={refreshData} variant="outline" size="icon" className="h-8 w-8" title="Recarregar amigos"><RefreshCw className="h-4 w-4" /></Button>
@@ -289,7 +289,7 @@ export const DenormalizedFriendsList: React.FC = () => {
                 <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
                   <AnimatePresence>
                     {friends.map((friendship) => (
-                      viewMode === 'grid' 
+                      viewMode === 'grid'
                         ? <FriendCard key={friendship.id} friendship={friendship} onAction={removeFriend} />
                         : <FriendListItem key={friendship.id} friendship={friendship} onAction={removeFriend} />
                     ))}
@@ -338,7 +338,7 @@ export const DenormalizedFriendsList: React.FC = () => {
               <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
                 <AnimatePresence>
                   {sentRequests.map((friendship) => (
-                     viewMode === 'grid'
+                    viewMode === 'grid'
                       ? <SentRequestCard key={friendship.id} friendship={friendship} onCancel={cancelSentRequest} />
                       : <SentRequestListItem key={friendship.id} friendship={friendship} onCancel={cancelSentRequest} />
                   ))}

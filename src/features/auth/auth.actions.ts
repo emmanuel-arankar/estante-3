@@ -5,24 +5,34 @@ import {
   updateProfile as updateFirebaseAuthProfile,
   deleteUser,
 } from 'firebase/auth';
-import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
+import { doc, runTransaction } from 'firebase/firestore';
 import {
   toastErrorClickable,
-  toastSuccessClickable
 } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
 import { auth, db } from '@/services/firebase';
 import { useAuthStore } from '@/stores/authStore';
-import { generateNickname, generateUniqueNickname } from '@/utils/nickname';
+import { generateNickname } from '@/utils/nickname';
 import { User } from '@estante/common-types';
+import { userQuery } from '@/features/users/user.queries'; // Adicionado import que faltava
 
 export const loginAction = async ({ request }: any) => {
   const formData = await request.formData();
-  const { email, password, redirectTo } = Object.fromEntries(formData);
+  const { email, password, redirectTo, rememberMe } = Object.fromEntries(formData);
+  const isRememberMe = rememberMe === 'true';
 
   try {
     useAuthStore.getState().setIsLoadingProfile(true, 'Autenticando...');
+
+    // Salvar preferência de "Lembrar de mim" no localStorage para o useAuth hook usar
+    if (isRememberMe) {
+      localStorage.setItem('rememberMe', 'true');
+    } else {
+      localStorage.removeItem('rememberMe');
+    }
+
+    // 1. Autenticar no Firebase (necessário)
     const userCredential = await signInWithEmailAndPassword(
       auth,
       email as string,
@@ -30,44 +40,18 @@ export const loginAction = async ({ request }: any) => {
     );
     const user = userCredential.user;
 
-    // # atualizado: Verifica se o perfil existe no Firestore
-    const userDocRef = doc(db, 'users', user.uid);
-    const docSnap = await getDoc(userDocRef);
-    let profileData;
+    // 2. Atualizar store imediatamente com o user do Firebase
+    //    Isso permite que o Header saiba que está autenticado
+    useAuthStore.getState().setUser(user);
 
-    if (!docSnap.exists()) {
-      // Se não existir, cria o perfil (recuperação de falha no registro)
-      console.warn(`Documento não encontrado para o usuário ${user.uid}. Criando agora...`);
-      const nickname = await generateUniqueNickname(user.displayName || 'Leitor');
-      const newProfileData: Omit<User, 'id'> = {
-        displayName: user.displayName || 'Novo Leitor',
-        nickname,
-        email: user.email!,
-        photoURL: user.photoURL || '',
-        bio: '',
-        location: '',
-        website: '',
-        joinedAt: new Date(),
-        booksRead: 0,
-        currentlyReading: 0,
-        followers: 0,
-        following: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        role: 'user', // # atualizado
-      };
+    // 3. Iniciar prefetch do perfil em BACKGROUND (não bloqueia redirect!)
+    //    O perfil será carregado pelo layoutLoader ou pelo useAuth hook
+    queryClient.prefetchQuery(userQuery(user.uid)).catch(console.error);
 
-      await setDoc(userDocRef, newProfileData);
-      profileData = { id: user.uid, ...newProfileData };
-      toastSuccessClickable(`Finalizamos a criação da sua conta, ${user.displayName}!`);
-    } else {
-      // Se existir, apenas carrega os dados
-      profileData = { id: docSnap.id, ...docSnap.data() } as User;
-    }
+    // 4. Guardar mensagem de sucesso para mostrar após redirect
+    sessionStorage.setItem('showLoginSuccessToast', `Bem-vindo(a) de volta!`);
 
-    queryClient.setQueryData(['users', user.uid], profileData);
-    sessionStorage.setItem('showLoginSuccessToast', `Bem-vindo(a) de volta, ${profileData.displayName}!`);
-
+    // 5. REDIRECT IMEDIATO! Não espera o perfil carregar
     const finalRedirectTo = (redirectTo as string) === '/' ? PATHS.PROFILE_ME : (redirectTo as string);
     return redirect(finalRedirectTo);
   } catch (error: any) {

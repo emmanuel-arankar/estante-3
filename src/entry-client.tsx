@@ -2,12 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { 
-  QueryClientProvider, 
-  HydrationBoundary 
-} from '@tanstack/react-query'; 
+import {
+  QueryClientProvider,
+  HydrationBoundary
+} from '@tanstack/react-query';
 import { appRouter } from '@/router';
 import { queryClient } from '@/lib/queryClient';
+import { PresenceManager } from '@/components/common/PresenceManager';
+import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import './index.css';
 
 ReactDOM.hydrateRoot(
@@ -16,7 +18,11 @@ ReactDOM.hydrateRoot(
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <HydrationBoundary state={(window as any).__DEHYDRATED_STATE__}>
-          <RouterProvider router={appRouter} />
+          <AudioPlayerProvider>
+            <PresenceManager>
+              <RouterProvider router={appRouter} />
+            </PresenceManager>
+          </AudioPlayerProvider>
         </HydrationBoundary>
       </QueryClientProvider>
     </HelmetProvider>
