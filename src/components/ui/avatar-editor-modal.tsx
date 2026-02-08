@@ -6,24 +6,23 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Upload, Save, RotateCcw, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
 } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Slider } from '@/components/ui/slider';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
 import { syncProfileAPI } from '@/services/friendshipsApi';
 import { db } from '@/services/firebase';
-import { 
-  saveUserAvatar, 
-  getUserAvatars, 
-  createAvatarPost 
+import {
+  saveUserAvatar,
+  getUserAvatars
 } from '@/services/firestore';
 import { uploadProfileImage } from '@/services/storage';
 
@@ -74,7 +73,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
 
   const loadPreviousAvatars = async () => {
     if (!user) return;
-    
+
     setLoadingPrevious(true);
     try {
       const avatars = await getUserAvatars(user.uid);
@@ -129,7 +128,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
     pixelCrop: CropArea
   ): Promise<{ croppedBlob: Blob; originalBlob: Blob }> => {
     const image = await createImage(imageSrc);
-    
+
     const croppedCanvas = document.createElement('canvas');
     const croppedCtx = croppedCanvas.getContext('2d');
     const originalCanvas = document.createElement('canvas');
@@ -172,19 +171,19 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
 
   const handleSaveNewImage = async () => {
     if (!selectedImage || !croppedAreaPixels || !user) return;
-  
+
     setIsUploading(true);
     try {
       const { croppedBlob, originalBlob } = await getCroppedImg(selectedImage, croppedAreaPixels);
-      
+
       const croppedFile = new File([croppedBlob], 'avatar-cropped.jpg', { type: 'image/jpeg' });
       const originalFile = new File([originalBlob], 'avatar-original.jpg', { type: 'image/jpeg' });
-  
+
       const [croppedUrl, originalUrl] = await Promise.all([
-        uploadProfileImage( croppedFile, user.uid), 
+        uploadProfileImage(croppedFile, user.uid),
         uploadProfileImage(originalFile, user.uid),
       ]);
-  
+
       await saveUserAvatar(user.uid, {
         originalUrl,
         croppedUrl,
@@ -196,9 +195,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
           croppedArea: croppedAreaPixels
         }
       });
-  
-      await createAvatarPost(user.uid, croppedUrl);
-  
+
       await updateProfile(user, { photoURL: croppedUrl });
       await updateDoc(doc(db, 'users', user.uid), {
         photoURL: croppedUrl,
@@ -377,7 +374,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
           }}
         />
       </div>
-  
+
       {/* Barra de controles fixa na parte inferior */}
       <div className="p-4 sm:p-6 bg-gray-50 border-t space-y-4">
         <div>
@@ -398,12 +395,12 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
             className="w-full"
           />
         </div>
-        
+
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-          <Button 
+          <Button
             type="button"
-            variant="outline" 
-            size="sm" 
+            variant="outline"
+            size="sm"
             onClick={handleReset}
             disabled={zoom === 1 && crop.x === 0 && crop.y === 0}
             className="w-full sm:w-auto"
@@ -411,11 +408,11 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
             <RotateCcw className="h-4 w-4 mr-2" />
             Resetar
           </Button>
-  
+
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button 
+            <Button
               type="button"
-              variant="outline" 
+              variant="outline"
               onClick={handleBack}
               className="w-full sm:w-auto"
             >
@@ -468,8 +465,8 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
                 key={avatar.id}
                 className={`
                   relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all
-                  ${selectedPreviousAvatar === avatar.croppedUrl 
-                    ? 'border-emerald-500 ring-2 ring-emerald-200' 
+                  ${selectedPreviousAvatar === avatar.croppedUrl
+                    ? 'border-emerald-500 ring-2 ring-emerald-200'
                     : 'border-gray-200 hover:border-gray-300'
                   }
                 `}
@@ -481,8 +478,8 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/50">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     className="text-white hover:bg-white/20"
                     onClick={(e) => {
@@ -492,8 +489,8 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
                   >
                     Editar
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     className="text-white hover:bg-white/20"
                     onClick={(e) => {
@@ -514,9 +511,9 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end gap-3">
-            <Button 
+            <Button
               type="button"
-              variant="outline" 
+              variant="outline"
               onClick={handleBack}
               className="w-full sm:w-auto"
             >
@@ -562,7 +559,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
           className="flex flex-col"
         >
           {renderHeader()}
-          
+
           <div className="overflow-y-auto">
             <AnimatePresence mode="wait">
               {step === 'selection' && (
@@ -575,7 +572,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
                   {renderSelectionStep()}
                 </motion.div>
               )}
-              
+
               {step === 'upload' && (
                 <motion.div
                   key="upload"
@@ -586,7 +583,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
                   {renderUploadStep()}
                 </motion.div>
               )}
-              
+
               {step === 'crop' && (
                 <motion.div
                   key="crop"
@@ -597,7 +594,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
                   {renderCropStep()}
                 </motion.div>
               )}
-              
+
               {step === 'previous' && (
                 <motion.div
                   key="previous"

@@ -603,16 +603,6 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
       });
     });
 
-    // Criar notificação (fora da transação)
-    await db.collection('notifications').add({
-      userId: targetUserId,
-      type: 'friend_request',
-      fromUserId,
-      message: 'enviou uma solicitação de amizade',
-      read: false,
-      createdAt: admin.firestore.Timestamp.now(),
-    });
-
     logger.info(`Solicitação de amizade enviada: ${fromUserId} → ${targetUserId}`);
     return res.status(201).json({ message: 'Solicitação enviada com sucesso' });
   } catch (error: any) {
@@ -714,15 +704,6 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
       }
     });
 
-    // Criar notificação
-    await db.collection('notifications').add({
-      userId: friendId,
-      type: 'friend_accept',
-      fromUserId: userId,
-      message: 'aceitou sua solicitação de amizade',
-      read: false,
-      createdAt: admin.firestore.Timestamp.now(),
-    });
 
 
     // Atualizar mutualFriendsCount para amizades afetadas (wait for completion)
@@ -986,18 +967,7 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
       });
     });
 
-    // 5. Criar notificações fora da transação
-    const notificationPromises = results.accepted.map((friendId) =>
-      db.collection('notifications').add({
-        userId: friendId,
-        type: 'friend_accept',
-        fromUserId: userId,
-        message: 'aceitou sua solicitação de amizade',
-        read: false,
-        createdAt: admin.firestore.Timestamp.now(),
-      })
-    );
-    await Promise.allSettled(notificationPromises);
+
 
     logger.info(`Bulk accept: ${userId} aceitou ${results.accepted.length}/${friendIds.length} solicitações`);
     return res.status(200).json({

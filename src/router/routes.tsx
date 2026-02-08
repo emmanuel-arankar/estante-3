@@ -20,7 +20,6 @@ import {
   protectedProfileRoutes,
   friendsRoutes,
   protectedChatRoutes,
-  notificationRoutes,
 } from '@/features/routes';
 
 const Home = lazy(() => import('@/pages/Home').then(module => ({ default: module.Home })));
@@ -55,7 +54,6 @@ export const routes: RouteObject[] = [
             element: <ContainedLayout />,
             children: [
               ...protectedProfileRoutes,
-              ...notificationRoutes,
               {
                 path: PATHS.ADMIN_DASHBOARD,
                 lazy: () => import('@/features/admin/admin.routes'),

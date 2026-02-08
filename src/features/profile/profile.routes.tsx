@@ -8,9 +8,9 @@ import {
 } from '@/features/profile/profile.loaders';
 import { editProfileAction } from '@/features/profile/profile.actions';
 import { ErrorElement } from '@/router/ErrorElement';
-import { 
+import {
   PATHS,
-  ROUTE_PATTERNS 
+  ROUTE_PATTERNS
 } from '@/router/paths';
 import { withSuspense } from '@/router/RouteSuspense';
 
@@ -20,7 +20,6 @@ const EditProfile = lazy(() => import('@/pages/EditProfile').then(module => ({ d
 const ProfileLayout = () => <Outlet />;
 
 // Componentes placeholder
-const ProfilePosts = () => <div className="text-center py-8 text-gray-500"><p>Nenhum post ainda.</p></div>;
 const ProfileBooks = () => <div className="text-center py-8 text-gray-500"><p>Nenhum livro na estante ainda.</p></div>;
 const ProfileReviews = () => <div className="text-center py-8 text-gray-500"><p>Nenhuma resenha ainda.</p></div>;
 const ProfileFriends = () => <div className="text-center py-8 text-gray-500"><p>A lista de amigos aparecerá aqui.</p></div>;
@@ -28,12 +27,11 @@ const ProfileActivity = () => <div className="text-center py-8 text-gray-500"><p
 
 // Rotas de abas
 const profileTabRoutes: RouteObject[] = [
-  { index: true, element: <ProfilePosts /> },
-  { path: PATHS.PROFILE_POSTS, element: <ProfilePosts /> },
+  { index: true, element: <ProfileActivity /> },
+  { path: PATHS.PROFILE_ACTIVITY, element: <ProfileActivity /> },
   { path: PATHS.PROFILE_BOOKS, element: <ProfileBooks /> },
   { path: PATHS.PROFILE_REVIEWS, element: <ProfileReviews /> },
   { path: PATHS.PROFILE_FRIENDS, element: <ProfileFriends /> },
-  { path: PATHS.PROFILE_ACTIVITY, element: <ProfileActivity /> },
 ];
 
 // Rota de perfis públicos
@@ -76,7 +74,7 @@ export const protectedProfileRoutes: RouteObject[] = [
           id: 'profile-edit',
           title: () => 'Meu Perfil | Estante de Bolso',
         },
-        children: profileTabRoutes, 
+        children: profileTabRoutes,
       },
       {
         path: 'edit',

@@ -215,12 +215,12 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
   const getCurrentTab = () => {
     const pathSegments = location.pathname.split('/');
     const lastSegment = pathSegments[pathSegments.length - 1];
-    const tabs = ['posts', 'books', 'reviews', 'friends', 'activity'];
+    const tabs = ['activity', 'books', 'reviews', 'friends'];
 
     if (tabs.includes(lastSegment)) {
       return lastSegment;
     }
-    return 'posts';
+    return 'activity';
   };
 
   const { status: friendshipStatus, loading: friendshipLoading } = useFriendshipStatus(profileUser?.id || '');
@@ -597,12 +597,11 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
             className="w-full"
             onValueChange={(tab) => navigate(tab, { replace: true })}
           >
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="activity">Atividade</TabsTrigger>
               <TabsTrigger value="books">Livros</TabsTrigger>
               <TabsTrigger value="reviews">Resenhas</TabsTrigger>
               <TabsTrigger value="friends">Amigos</TabsTrigger>
-              <TabsTrigger value="activity">Atividade</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
