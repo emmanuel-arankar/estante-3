@@ -9,7 +9,6 @@ import {
   where,
   orderBy,
   limit,
-  startAfter,
   onSnapshot,
   serverTimestamp,
   increment,
@@ -18,16 +17,12 @@ import {
   writeBatch,
   setDoc,
   getCountFromServer,
-  DocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import {
-  Post,
   User,
   Book,
   UserBook,
-  Comment,
-  Notification,
   Friendship,
   FriendshipWithUser
 } from '@estante/common-types';
@@ -35,10 +30,8 @@ import {
 // Collections
 export const COLLECTIONS = {
   USERS: 'users',
-  POSTS: 'posts',
   BOOKS: 'books',
   USER_BOOKS: 'userBooks',
-  NOTIFICATIONS: 'notifications',
   COMMENTS: 'comments',
   FRIENDSHIPS: 'friendships',
   USER_AVATARS: 'userAvatars',
@@ -129,215 +122,7 @@ export const sendFriendRequest = async (fromUserId: string, toUserId: string) =>
 
   await batch.commit();
 
-  // Create notification
-  await createNotification({
-    userId: toUserId,
-    type: 'friend_request',
-    fromUserId,
-    message: 'enviou uma solicitação de amizade',
-    read: false,
-    createdAt: new Date(),
-  });
-};
 
-export const acceptFriendRequest = async (userId: string, friendId: string) => {
-  const batch = writeBatch(db);
-  const friendshipDate = serverTimestamp();
-
-  // Update both friendship documents
-  const friendshipId1 = `${userId}_${friendId}`;
-  const friendshipRef1 = doc(db, COLLECTIONS.FRIENDSHIPS, friendshipId1);
-  batch.update(friendshipRef1, {
-    status: 'accepted',
-    friendshipDate,
-    updatedAt: serverTimestamp()
-  });
-
-  const friendshipId2 = `${friendId}_${userId}`;
-  const friendshipRef2 = doc(db, COLLECTIONS.FRIENDSHIPS, friendshipId2);
-  batch.update(friendshipRef2, {
-    status: 'accepted',
-    friendshipDate,
-    updatedAt: serverTimestamp()
-  });
-
-  await batch.commit();
-
-  // Create notification
-  await createNotification({
-    userId: friendId,
-    type: 'friend_accept',
-    fromUserId: userId,
-    message: 'aceitou sua solicitação de amizade',
-    read: false,
-    createdAt: new Date(),
-  });
-};
-
-export const rejectFriendRequest = async (userId: string, friendId: string) => {
-  const batch = writeBatch(db);
-
-  // Update status to rejected
-  const friendshipId1 = `${userId}_${friendId}`;
-  const friendshipRef1 = doc(db, COLLECTIONS.FRIENDSHIPS, friendshipId1);
-  batch.update(friendshipRef1, {
-    status: 'rejected',
-    updatedAt: serverTimestamp()
-  });
-
-  const friendshipId2 = `${friendId}_${userId}`;
-  const friendshipRef2 = doc(db, COLLECTIONS.FRIENDSHIPS, friendshipId2);
-  batch.update(friendshipRef2, {
-    status: 'rejected',
-    updatedAt: serverTimestamp()
-  });
-
-  await batch.commit();
-};
-
-export const removeFriend = async (userId: string, friendId: string) => {
-  const batch = writeBatch(db);
-
-  // Delete both friendship documents
-  const friendshipId1 = `${userId}_${friendId}`;
-  const friendshipRef1 = doc(db, COLLECTIONS.FRIENDSHIPS, friendshipId1);
-  batch.delete(friendshipRef1);
-
-  const friendshipId2 = `${friendId}_${userId}`;
-  const friendshipRef2 = doc(db, COLLECTIONS.FRIENDSHIPS, friendshipId2);
-  batch.delete(friendshipRef2);
-
-  await batch.commit();
-};
-
-// ==================== FRIENDSHIP QUERIES ====================
-export const getUserFriendsPaginated = async (
-  userId: string,
-  limitCount: number = 30,
-  lastDoc?: DocumentSnapshot
-): Promise<{
-  friends: FriendshipWithUser[];
-  lastDoc?: DocumentSnapshot;
-  hasMore: boolean;
-}> => {
-  console.log('Função chamada com:', { userId, limitCount, lastDoc });
-
-  let q = query(
-    collection(db, 'friendships'),
-    where('userId', '==', userId),
-    where('status', '==', 'accepted'),
-    orderBy('friendshipDate', 'desc'),
-    limit(limitCount)
-  );
-
-  if (lastDoc) {
-    q = query(q, startAfter(lastDoc));
-  }
-
-  const snapshot = await getDocs(q);
-  const newLastDoc = snapshot.docs[snapshot.docs.length - 1];
-
-  // Get all friend IDs
-  const friendIds = snapshot.docs.map(doc => doc.data().friendId);
-
-  // Batch fetch friend user data
-  const users = await getUsersBatch(friendIds);
-
-  const friendsWithUsers = snapshot.docs.map(doc => {
-    const friendship = doc.data() as Friendship;
-    const friend = users.find(u => u.id === friendship.friendId);
-
-    if (!friend) {
-      console.error('Friend data not found for ID:', friendship.friendId);
-      return null;
-    }
-
-    return {
-      ...friendship,
-      id: doc.id,
-      friend
-    } as FriendshipWithUser;
-  }).filter((f): f is FriendshipWithUser => f !== null);
-
-  return {
-    friends: friendsWithUsers,
-    lastDoc: newLastDoc,
-    hasMore: snapshot.docs.length === limitCount
-  };
-};
-
-export const getFriendRequests = async (userId: string): Promise<FriendshipWithUser[]> => {
-  const q = query(
-    collection(db, COLLECTIONS.FRIENDSHIPS),
-    where('userId', '==', userId),
-    where('status', '==', 'pending'),
-    where('requestedBy', '!=', userId), // Requests received (not sent)
-    orderBy('createdAt', 'desc')
-  );
-
-  const snapshot = await getDocs(q);
-  const friendships: Friendship[] = [];
-  snapshot.forEach(doc => {
-    friendships.push({ id: doc.id, ...doc.data() } as Friendship);
-  });
-
-  // Get requester user data
-  const requesterIds = friendships.map(f => f.requestedBy);
-  const users = await getUsersBatch(requesterIds);
-
-  return friendships.map(friendship => ({
-    ...friendship,
-    friend: users.find(u => u.id === friendship.requestedBy)!
-  }));
-};
-
-export const getSentFriendRequests = async (userId: string): Promise<FriendshipWithUser[]> => {
-  const q = query(
-    collection(db, COLLECTIONS.FRIENDSHIPS),
-    where('userId', '==', userId),
-    where('status', '==', 'pending'),
-    where('requestedBy', '==', userId), // Requests sent
-    orderBy('createdAt', 'desc')
-  );
-
-  const snapshot = await getDocs(q);
-  const friendships: Friendship[] = [];
-  snapshot.forEach(doc => {
-    friendships.push({ id: doc.id, ...doc.data() } as Friendship);
-  });
-
-  // Get recipient user data
-  const recipientIds = friendships.map(f => f.friendId);
-  const users = await getUsersBatch(recipientIds);
-
-  return friendships.map(friendship => ({
-    ...friendship,
-    friend: users.find(u => u.id === friendship.friendId)!
-  }));
-};
-
-export const getFriendshipStatus = async (
-  currentUserId: string,
-  targetUserId: string
-): Promise<'none' | 'friend' | 'pending' | 'received' | 'following'> => {
-  try {
-    const friendshipRef = doc(db, COLLECTIONS.FRIENDSHIPS, `${currentUserId}_${targetUserId}`);
-    const friendshipSnap = await getDoc(friendshipRef);
-
-    if (!friendshipSnap.exists()) return 'none';
-
-    const friendship = friendshipSnap.data() as Friendship;
-
-    if (friendship.status === 'accepted') return 'friend';
-    if (friendship.status === 'pending') {
-      return friendship.requestedBy === currentUserId ? 'pending' : 'received';
-    }
-
-    return 'none';
-  } catch (error) {
-    console.error('Error checking friendship status:', error);
-    return 'none';
-  }
 };
 
 // ==================== REAL-TIME LISTENERS ====================
@@ -395,35 +180,78 @@ export const subscribeToFriendships = (
   };
 };
 
+/**
+ * Inscreve-se em solicitações de amizade RECEBIDAS (não enviadas)
+ * Filtra apenas onde requestedBy !== userId para mostrar apenas pedidos recebidos
+ * Nota: Filtragem feita no client-side para evitar necessidade de índice composto
+ */
 export const subscribeToFriendRequests = (
   userId: string,
   callback: (requests: FriendshipWithUser[]) => void
 ) => {
-  return subscribeToFriendships(userId, 'pending', callback);
-};
-
-// ==================== COUNT QUERIES ====================
-export const getFriendCount = async (userId: string): Promise<number> => {
-  const q = query(
-    collection(db, COLLECTIONS.FRIENDSHIPS),
-    where('userId', '==', userId),
-    where('status', '==', 'accepted')
-  );
-
-  const snapshot = await getCountFromServer(q);
-  return snapshot.data().count;
-};
-
-export const getPendingRequestCount = async (userId: string): Promise<number> => {
   const q = query(
     collection(db, COLLECTIONS.FRIENDSHIPS),
     where('userId', '==', userId),
     where('status', '==', 'pending'),
-    where('requestedBy', '!=', userId)
+    orderBy('createdAt', 'desc')
   );
 
-  const snapshot = await getCountFromServer(q);
-  return snapshot.data().count;
+  let active = true;
+  let userCache = new Map<string, User>();
+
+  const unsubscribe = onSnapshot(q, async (snapshot) => {
+    if (!active) return;
+
+    // Filtrar apenas solicitações RECEBIDAS (onde requestedBy !== userId)
+    const friendships: Friendship[] = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Friendship))
+      .filter(f => f.requestedBy !== userId);
+
+    // Batch fetch user data only for new users (who sent the request)
+    const newUserIds = friendships
+      .map(f => f.requestedBy)
+      .filter(id => !userCache.has(id));
+
+    if (newUserIds.length > 0) {
+      const users = await getUsersBatch(newUserIds);
+      users.forEach(user => userCache.set(user.id, user));
+    }
+
+    const friendshipsWithUsers: FriendshipWithUser[] = friendships.map(friendship => ({
+      ...friendship,
+      friend: userCache.get(friendship.requestedBy)!
+    }));
+
+    callback(friendshipsWithUsers);
+  });
+
+  return () => {
+    active = false;
+    unsubscribe();
+    userCache.clear();
+  };
+};
+
+// ==================== COUNT QUERIES ====================
+/**
+ * Conta solicitações RECEBIDAS (não enviadas)
+ * Nota: Como não podemos usar != com getCountFromServer sem índice composto,
+ * buscamos os docs e filtramos no client-side
+ */
+export const getPendingRequestCount = async (userId: string): Promise<number> => {
+  const q = query(
+    collection(db, COLLECTIONS.FRIENDSHIPS),
+    where('userId', '==', userId),
+    where('status', '==', 'pending')
+  );
+
+  const snapshot = await getDocs(q);
+  // Filtrar apenas solicitações RECEBIDAS (onde requestedBy !== userId)
+  const receivedRequests = snapshot.docs.filter(doc => doc.data().requestedBy !== userId);
+  return receivedRequests.length;
 };
 
 // ==================== FOLLOW SYSTEM ====================
@@ -446,14 +274,7 @@ export const followUser = async (followerId: string, followedId: string) => {
 
   await batch.commit();
 
-  await createNotification({
-    userId: followedId,
-    type: 'follow',
-    fromUserId: followerId,
-    message: 'começou a seguir você',
-    read: false,
-    createdAt: new Date(),
-  });
+
 };
 
 export const unfollowUser = async (followerId: string, followedId: string) => {
@@ -476,70 +297,7 @@ export const unfollowUser = async (followerId: string, followedId: string) => {
   await batch.commit();
 };
 
-// ==================== POST OPERATIONS ====================
-export const createPost = async (postData: Omit<Post, 'id'>) => {
-  const docRef = await addDoc(collection(db, COLLECTIONS.POSTS), {
-    ...postData,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return docRef.id;
-};
 
-export const getPosts = async (lastDoc?: any, limitCount = 10) => {
-  let q = query(
-    collection(db, COLLECTIONS.POSTS),
-    orderBy('createdAt', 'desc'),
-    limit(limitCount)
-  );
-
-  if (lastDoc) {
-    q = query(q, startAfter(lastDoc));
-  }
-
-  const querySnapshot = await getDocs(q);
-  const posts: Post[] = [];
-
-  querySnapshot.forEach((doc) => {
-    posts.push({ id: doc.id, ...doc.data() } as Post);
-  });
-
-  return {
-    posts,
-    lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1],
-    hasMore: querySnapshot.docs.length === limitCount,
-  };
-};
-
-export const likePost = async (postId: string, userId: string) => {
-  const postRef = doc(db, COLLECTIONS.POSTS, postId);
-  await updateDoc(postRef, {
-    likes: arrayUnion(userId),
-    updatedAt: serverTimestamp(),
-  });
-};
-
-export const unlikePost = async (postId: string, userId: string) => {
-  const postRef = doc(db, COLLECTIONS.POSTS, postId);
-  await updateDoc(postRef, {
-    likes: arrayRemove(userId),
-    updatedAt: serverTimestamp(),
-  });
-};
-
-export const addComment = async (postId: string, comment: Omit<Comment, 'id'>) => {
-  const postRef = doc(db, COLLECTIONS.POSTS, postId);
-  const commentData = {
-    ...comment,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-
-  await updateDoc(postRef, {
-    comments: arrayUnion(commentData),
-    updatedAt: serverTimestamp(),
-  });
-};
 
 // ==================== BOOK OPERATIONS ====================
 export const createBook = async (bookData: Omit<Book, 'id'>) => {
@@ -608,59 +366,7 @@ export const updateUserBook = async (userBookId: string, updates: Partial<UserBo
   });
 };
 
-// ==================== NOTIFICATION OPERATIONS ====================
-export const createNotification = async (notificationData: Omit<Notification, 'id'>) => {
-  const docRef = await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), {
-    ...notificationData,
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
-};
 
-export const getUserNotifications = async (userId: string, limitCount = 20) => {
-  const q = query(
-    collection(db, COLLECTIONS.NOTIFICATIONS),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc'),
-    limit(limitCount)
-  );
-
-  const querySnapshot = await getDocs(q);
-  const notifications: Notification[] = [];
-
-  querySnapshot.forEach((doc) => {
-    notifications.push({ id: doc.id, ...doc.data() } as Notification);
-  });
-
-  return notifications;
-};
-
-export const markNotificationAsRead = async (notificationId: string) => {
-  const docRef = doc(db, COLLECTIONS.NOTIFICATIONS, notificationId);
-  await updateDoc(docRef, {
-    read: true,
-  });
-};
-
-export const subscribeToUserNotifications = (
-  userId: string,
-  callback: (notifications: Notification[]) => void
-) => {
-  const q = query(
-    collection(db, COLLECTIONS.NOTIFICATIONS),
-    where('userId', '==', userId),
-    where('read', '==', false),
-    orderBy('createdAt', 'desc')
-  );
-
-  return onSnapshot(q, (querySnapshot) => {
-    const notifications: Notification[] = [];
-    querySnapshot.forEach((doc) => {
-      notifications.push({ id: doc.id, ...doc.data() } as Notification);
-    });
-    callback(notifications);
-  });
-};
 
 // ==================== AVATAR OPERATIONS ====================
 export const saveUserAvatar = async (
@@ -730,19 +436,7 @@ export const getUserAvatars = async (userId: string) => {
   return avatars;
 };
 
-export const createAvatarPost = async (userId: string, avatarUrl: string) => {
-  const postRef = await addDoc(collection(db, COLLECTIONS.POSTS), {
-    userId,
-    content: 'Atualizou a foto do perfil',
-    type: 'avatar_update',
-    mediaUrls: [avatarUrl],
-    likes: [],
-    comments: [],
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return postRef.id;
-};
+
 
 export const likeAvatar = async (avatarId: string, userId: string) => {
   const avatarRef = doc(db, COLLECTIONS.USER_AVATARS, avatarId);
@@ -780,25 +474,7 @@ export const commentOnAvatar = async (avatarId: string, comment: Omit<Comment, '
   });
 };
 
-// ==================== FEED SUBSCRIPTIONS ====================
-export const subscribeToFeedPosts = (
-  callback: (posts: Post[]) => void,
-  limitCount = 10
-) => {
-  const q = query(
-    collection(db, COLLECTIONS.POSTS),
-    orderBy('createdAt', 'desc'),
-    limit(limitCount)
-  );
 
-  return onSnapshot(q, (querySnapshot) => {
-    const posts: Post[] = [];
-    querySnapshot.forEach((doc) => {
-      posts.push({ id: doc.id, ...doc.data() } as Post);
-    });
-    callback(posts);
-  });
-};
 
 // ==================== MENTIONS OPERATIONS ====================
 export const searchUsersForMention = async (

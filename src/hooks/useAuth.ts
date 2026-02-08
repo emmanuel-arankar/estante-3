@@ -6,6 +6,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { queryClient } from '@/lib/queryClient';
 import { userQuery } from '@/features/users/user.queries';
 
+// Rastreia o último UID para o qual criamos cookie de sessão
+// Evita chamadas repetidas ao /api/sessionLogin
+let lastSessionUid: string | null = null;
+let sessionCookieInProgress = false; // Evita race condition entre múltiplos listeners
+
 export const useAuth = () => {
   const {
     user,
@@ -36,14 +41,19 @@ export const useAuth = () => {
           // Iniciar prefetch do perfil ANTES de esperar o cookie (em paralelo!)
           queryClient.prefetchQuery(userQuery(firebaseUser.uid)).catch(console.error);
 
-          try {
-            // Criar cookie de sessão (necessário para API calls)
-            const idToken = await firebaseUser.getIdToken(true);
-            const rememberMe = localStorage.getItem('rememberMe') === 'true';
-            await setSessionCookie(idToken, rememberMe);
-          } catch (cookieErr) {
-            console.error("Erro ao definir cookie de sessão:", cookieErr);
-            // Não bloqueamos a UI por erro de cookie, apenas logamos
+          // Criar cookie de sessão apenas se for um novo login (UID diferente)
+          // Evita chamadas repetidas ao /api/sessionLogin a cada disparo do listener
+          // sessionCookieInProgress evita race condition entre múltiplos listeners
+          if (lastSessionUid !== firebaseUser.uid && !sessionCookieInProgress) {
+            sessionCookieInProgress = true;
+            try {
+              const idToken = await firebaseUser.getIdToken(true);
+              const rememberMe = localStorage.getItem('rememberMe') === 'true';
+              await setSessionCookie(idToken, rememberMe);
+              lastSessionUid = firebaseUser.uid;
+            } finally {
+              sessionCookieInProgress = false;
+            }
           }
 
           // Definir usuário no store
@@ -66,6 +76,7 @@ export const useAuth = () => {
           });
         } else {
           // Usuário está nulo (deslogado)
+          lastSessionUid = null; // Permite criar novo cookie no próximo login
           clearAuth();
           // Logout do backend de forma resiliente
           fetch('/api/sessionLogout', { method: 'POST' }).catch(() => { });

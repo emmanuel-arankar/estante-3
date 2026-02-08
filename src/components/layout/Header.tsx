@@ -77,26 +77,33 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
   // Apenas mostra loading se NÃO estivermos em modo de segurança
   const effectiveIsAuthLoading = isAuthLoading && !forceGuestMode;
 
+  // Sincroniza contagem quando o usuário muda (evita dados do usuário anterior)
   useEffect(() => {
-    if (!userProfile?.id) { // # atualizado
+    if (!userProfile?.id) {
       setFriendRequestsCount(0);
       return;
-    };
+    }
 
-    const unsubscribe = subscribeToFriendRequests(userProfile.id, (requests) => { // # atualizado
+    // Reseta contador ao trocar de usuário antes de se inscrever
+    setFriendRequestsCount(0);
+
+    const unsubscribe = subscribeToFriendRequests(userProfile.id, (requests) => {
       setFriendRequestsCount(requests.length);
     });
 
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [userProfile?.id]); // # atualizado
+  }, [userProfile?.id]);
 
   useEffect(() => {
     if (!userProfile?.id) {
       setUnreadMessagesCount(0);
       return;
     }
+
+    // Reseta contador ao trocar de usuário antes de se inscrever
+    setUnreadMessagesCount(0);
 
     const unsubscribe = subscribeToTotalUnreadMessages(userProfile.id, (count) => {
       setUnreadMessagesCount(count);
@@ -151,14 +158,15 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                 </div>
               </form>
 
+
               <div className="hidden md:flex items-center space-x-4">
-                {/* # atualizado: Removido o Button asChild e aplicado estilos no Link */}
-                <Link
+                {/* TODO: Descomentar quando implementar notificações */}
+                {/* <Link
                   to={PATHS.NOTIFICATIONS}
                   className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'relative rounded-full' })}
                 >
                   <Bell className="h-5 w-5" />
-                </Link>
+                </Link> */}
 
                 <Link
                   to={PATHS.MESSAGES}
@@ -319,7 +327,8 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                         <Separator />
                         <nav className="flex flex-col space-y-2">
                           <SheetClose asChild><Link to={PATHS.FRIENDS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Users className="mr-3 h-5 w-5" />Amigos</Link></SheetClose>
-                          <SheetClose asChild><Link to={PATHS.NOTIFICATIONS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Bell className="mr-3 h-5 w-5" />Notificações</Link></SheetClose>
+                          {/* TODO: Descomentar quando implementar notificações */}
+                          {/* <SheetClose asChild><Link to={PATHS.NOTIFICATIONS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Bell className="mr-3 h-5 w-5" />Notificações</Link></SheetClose> */}
                           <SheetClose asChild>
                             <Link to={PATHS.MESSAGES} className="flex items-center p-2 rounded-md hover:bg-gray-100 flex-grow">
                               <div className="relative">

@@ -3,7 +3,7 @@ import { useLoaderData, useNavigate, Outlet, useLocation } from 'react-router-do
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, UserCheck, MessageCircle, Camera } from 'lucide-react';
+import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, UserCheck, MessageCircle, Camera, Users, UserMinus, X, Check, MoreVertical } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
 import { PhotoViewer } from '@/components/profile/PhotoViewer';
@@ -21,16 +21,36 @@ import {
   TabsTrigger
 } from '@/components/ui/tabs';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
 import { useFriendshipStatus } from '@/hooks/useDenormalizedFriends';
 import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations';
 import { PATHS } from '@/router/paths';
-import { sendDenormalizedFriendRequest } from '@/services/denormalizedFriendships';
+import {
+  sendFriendRequestAPI,
+  getMutualFriendsAPI,
+  acceptFriendRequestAPI,
+  removeFriendshipAPI,
+} from '@/services/friendshipsApi';
+import { fetchMutualFriendsDeduped } from '@/hooks/useMutualFriendsCache';
 import { getUserAvatars } from '@/services/firestore';
 import { useAuthStore } from '@/stores/authStore';
 import { User as UserModel } from '@estante/common-types';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Função para converter datas do Firestore com segurança
 const convertFirestoreDate = (date: any): Date | null => {
@@ -48,11 +68,130 @@ const convertFirestoreDate = (date: any): Date | null => {
   return null;
 };
 
+// Componente para exibir amigos em comum no perfil com avatar group
+const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count: number }> = ({ userId, friendId, count }) => {
+  const [avatarFriends, setAvatarFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
+  const [allFriends, setAllFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [avatarsLoading, setAvatarsLoading] = useState(true);
+
+  useEffect(() => {
+    // Carregar os primeiros 3 avatares imediatamente usando função deduplicada
+    const loadAvatars = async () => {
+      try {
+        const result = await fetchMutualFriendsDeduped(
+          userId,
+          friendId,
+          () => getMutualFriendsAPI(friendId)
+        );
+        setAvatarFriends(result.friends.slice(0, 3));
+      } catch (error) {
+        console.error('Erro ao carregar avatares:', error);
+      } finally {
+        setAvatarsLoading(false);
+      }
+    };
+    loadAvatars();
+  }, [userId, friendId, count]);
+
+  const loadAllFriends = async () => {
+    if (loaded || loading) return;
+    setLoading(true);
+    try {
+      // Usar função deduplicada
+      const result = await fetchMutualFriendsDeduped(
+        userId,
+        friendId,
+        () => getMutualFriendsAPI(friendId)
+      );
+      setAllFriends(result.friends);
+      setLoaded(true);
+    } catch (error) {
+      console.error('Erro ao carregar amigos em comum:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayText = count === 1 ? 'amigo em comum' : 'amigos em comum';
+  const remaining = count - 3;
+
+  return (
+    <TooltipProvider>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <div
+            className="flex items-center cursor-help hover:opacity-80 transition-opacity"
+            onMouseEnter={loadAllFriends}
+          >
+            {/* Avatar Group - primeiros 3 avatares sobrepostos */}
+            <div className="flex items-center -space-x-2 mr-2">
+              {avatarsLoading ? (
+                // Skeleton para avatares carregando
+                <>
+                  {[...Array(Math.min(count, 3))].map((_, index) => (
+                    <div
+                      key={index}
+                      className="relative w-8 h-8 rounded-full bg-gray-200 animate-pulse ring-2 ring-white"
+                      style={{ zIndex: 3 - index }}
+                    />
+                  ))}
+                </>
+              ) : (
+                <>
+                  {avatarFriends.map((friend, index) => (
+                    <div key={index} className="relative" style={{ zIndex: 3 - index }}>
+                      <OptimizedAvatar
+                        src={friend.photoURL || undefined}
+                        alt={friend.displayName}
+                        fallback={friend.displayName}
+                        size="sm"
+                        className="ring-2 ring-white"
+                      />
+                    </div>
+                  ))}
+                  {/* Indicador +X se houver mais de 3 */}
+                  {remaining > 0 && (
+                    <div
+                      className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 ring-2 ring-white text-xs font-semibold text-gray-700"
+                      style={{ zIndex: 0 }}
+                    >
+                      +{remaining}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <span className="text-sm text-gray-500">
+              {count} {displayText}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          {loading ? (
+            <p className="text-sm">Carregando...</p>
+          ) : allFriends.length > 0 ? (
+            <ul className="text-sm space-y-1">
+              {allFriends.map((friend, index) => (
+                <li key={index}>{friend.displayName}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm">{count} {displayText}</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
 // # atualizado: Componente interno para renderizar o perfil real
 const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel }) => {
   const { user: currentUser } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const personSchema = {
     '@context': 'https://schema.org',
@@ -69,6 +208,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentAvatarData, setCurrentAvatarData] = useState<{ uploadedAt?: Date; id?: string; }>({});
+  const [mutualFriendsCount, setMutualFriendsCount] = useState<number | null>(null);
 
   const outletKey = location.pathname;
 
@@ -83,7 +223,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     return 'posts';
   };
 
-  const friendshipStatus = useFriendshipStatus(profileUser?.id || '');
+  const { status: friendshipStatus, loading: friendshipLoading } = useFriendshipStatus(profileUser?.id || '');
 
   useEffect(() => {
     setProfileUser(initialProfileUser);
@@ -109,6 +249,31 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     fetchAvatarData();
   }, [profileUser?.id]);
 
+  // Calcular amigos em comum quando não for o próprio perfil
+  useEffect(() => {
+    const loadMutualFriends = async () => {
+      if (!currentUser || !profileUser || isOwnProfile) {
+        setMutualFriendsCount(null);
+        return;
+      }
+
+      try {
+        // Usar função deduplicada para evitar chamadas paralelas duplicadas
+        const result = await fetchMutualFriendsDeduped(
+          currentUser.uid,
+          profileUser.id,
+          () => getMutualFriendsAPI(profileUser.id)
+        );
+        setMutualFriendsCount(result.count > 0 ? result.count : null);
+      } catch (error) {
+        console.error('Erro ao calcular amigos em comum:', error);
+        setMutualFriendsCount(null);
+      }
+    };
+
+    loadMutualFriends();
+  }, [currentUser, profileUser, isOwnProfile]);
+
   const handleEditProfile = () => {
     navigate(PATHS.PROFILE_EDIT);
   };
@@ -117,8 +282,10 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     if (!currentUser || !profileUser) return;
     setActionLoading(true);
     try {
-      await sendDenormalizedFriendRequest(currentUser.uid, profileUser.id);
+      await sendFriendRequestAPI(profileUser.id);
       toastSuccessClickable('Solicitação de amizade enviada!');
+      // Invalida cache para atualizar o botão
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
     } catch (error) {
       console.error('Erro ao enviar solicitação:', error);
       toastErrorClickable('Erro ao enviar solicitação de amizade');
@@ -127,11 +294,96 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     }
   };
 
-  const handlePhotoUpdate = (newPhotoURL: string) => {
+  const handleCancelRequest = async () => {
+    if (!currentUser || !profileUser) return;
+    setActionLoading(true);
+    try {
+      await removeFriendshipAPI(`${currentUser.uid}_${profileUser.id}`);
+      toastSuccessClickable('Solicitação cancelada');
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+    } catch (error) {
+      console.error('Erro ao cancelar solicitação:', error);
+      toastErrorClickable('Erro ao cancelar solicitação');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAcceptRequest = async () => {
+    if (!currentUser || !profileUser) return;
+    setActionLoading(true);
+    try {
+      await acceptFriendRequestAPI(`${currentUser.uid}_${profileUser.id}`);
+      toastSuccessClickable('Solicitação aceita!');
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+    } catch (error) {
+      console.error('Erro ao aceitar solicitação:', error);
+      toastErrorClickable('Erro ao aceitar solicitação');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectRequest = async () => {
+    if (!currentUser || !profileUser) return;
+    setActionLoading(true);
+    try {
+      await removeFriendshipAPI(`${currentUser.uid}_${profileUser.id}`);
+      toastSuccessClickable('Solicitação recusada');
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+    } catch (error) {
+      console.error('Erro ao recusar solicitação:', error);
+      toastErrorClickable('Erro ao recusar solicitação');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    if (!currentUser || !profileUser) return;
+    setActionLoading(true);
+    try {
+      await removeFriendshipAPI(`${currentUser.uid}_${profileUser.id}`);
+      toastSuccessClickable('Amizade desfeita');
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+    } catch (error) {
+      console.error('Erro ao desfazer amizade:', error);
+      toastErrorClickable('Erro ao desfazer amizade');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePhotoUpdate = async (newPhotoURL: string) => {
+    console.log('🔵 handlePhotoUpdate called with:', newPhotoURL);
+
     setProfileUser(prev => ({ ...prev!, photoURL: newPhotoURL }));
     setShowPhotoEditor(false);
-    if (isOwnProfile) {
-      window.location.reload();
+
+    if (isOwnProfile && currentUser) {
+      console.log('🔵 Refetching complete profile from Firestore...');
+
+      try {
+        // Importar userQuery para buscar perfil completo
+        const { userQuery } = await import('@/features/users/user.queries');
+
+        // Refetch perfil completo do Firestore
+        const updatedProfile = await queryClient.fetchQuery(userQuery(currentUser.uid));
+
+        console.log('🔵 Fetched profile from Firestore:', updatedProfile);
+
+        if (updatedProfile) {
+          // Atualizar auth store com perfil completo
+          useAuthStore.getState().setUserProfile(updatedProfile);
+          console.log('🔵 Auth store updated with complete profile');
+        }
+
+        // Invalidate queries to refresh avatar across app
+        queryClient.invalidateQueries({ queryKey: ['user', currentUser.uid] });
+        console.log('🔵 Queries invalidated successfully');
+      } catch (error) {
+        console.error('🔴 Error updating profile:', error);
+      }
     }
   };
 
@@ -199,6 +451,13 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                       {profileUser.displayName}
                     </h1>
                     <p className="text-gray-600 mb-2">@{profileUser.nickname}</p>
+                    {!isOwnProfile && mutualFriendsCount && mutualFriendsCount > 0 && currentUser && (
+                      <MutualFriendsIndicator
+                        userId={currentUser.uid}
+                        friendId={profileUser.id}
+                        count={mutualFriendsCount}
+                      />
+                    )}
                   </div>
                   {isOwnProfile ? (
                     <Button
@@ -211,42 +470,85 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                     </Button>
                   ) : (
                     <div className="flex space-x-2 mt-4 md:mt-0">
-                      {friendshipStatus === 'friends' ? (
-                        <>
-                          <Button variant="outline" className="rounded-full" disabled={actionLoading}>
-                            <UserCheck className="h-4 w-4 mr-2" />
-                            Amigos
-                          </Button>
-                          <Button
-                            className="rounded-full bg-emerald-600 hover:bg-emerald-700"
-                            onClick={() => navigate(PATHS.CHAT({ receiverId: profileUser.id }))}
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            Mensagem
-                          </Button>
-                        </>
-                      ) : friendshipStatus === 'request_sent' ? (
+                      {friendshipLoading ? (
                         <Button variant="outline" className="rounded-full" disabled>
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Solicitação Enviada
+                          <LoadingSpinner size="sm" className="mr-2" />
+                          Verificando...
                         </Button>
-                      ) : friendshipStatus === 'request_received' ? (
-                        <Button variant="outline" className="rounded-full" onClick={() => { }} disabled={actionLoading}>
-                          <UserCheck className="h-4 w-4 mr-2" />
-                          Responder Solicitação
-                        </Button>
-                      ) : (
-                        <Button className="rounded-full bg-emerald-600 hover:bg-emerald-700" onClick={handleSendFriendRequest} disabled={actionLoading}>
+                      ) : friendshipStatus === 'none' ? (
+                        <Button
+                          className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                          onClick={handleSendFriendRequest}
+                          disabled={actionLoading}
+                        >
                           <UserPlus className="h-4 w-4 mr-2" />
                           Adicionar Amigo
                         </Button>
+                      ) : (
+                        <>
+                          {friendshipStatus === 'friends' && (
+                            <Button
+                              className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                              onClick={() => navigate(PATHS.CHAT({ receiverId: profileUser.id }))}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              Mensagem
+                            </Button>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="rounded-full"
+                                disabled={actionLoading}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                              {friendshipStatus === 'friends' ? (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={handleRemoveFriend}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <UserMinus className="h-4 w-4 mr-2" />
+                                    Desfazer Amizade
+                                  </DropdownMenuItem>
+                                </>
+                              ) : friendshipStatus === 'request_sent' ? (
+                                <>
+                                  <DropdownMenuItem onClick={handleCancelRequest}>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cancelar Solicitação
+                                  </DropdownMenuItem>
+                                </>
+                              ) : friendshipStatus === 'request_received' ? (
+                                <>
+                                  <DropdownMenuItem onClick={handleAcceptRequest}>
+                                    <Check className="h-4 w-4 mr-2" />
+                                    Aceitar Solicitação
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={handleRejectRequest}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Recusar Solicitação
+                                  </DropdownMenuItem>
+                                </>
+                              ) : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </>
                       )}
                     </div>
                   )}
                 </div>
                 {profileUser.bio && (
                   <div
-                    className="text-gray-700 mb-4 prose prose-sm max-w-none"
+                    className="text-gray-700 mb-4 [&_p]:mb-1/2 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6"
                     dangerouslySetInnerHTML={{ __html: profileUser.bio }}
                   />
                 )}
@@ -254,7 +556,11 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                   {profileUser.location && (
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 mr-3 text-gray-400" />
-                      <span>{profileUser.location}</span>
+                      <span>
+                        {typeof profileUser.location === 'string'
+                          ? profileUser.location
+                          : `${profileUser.location.city}, ${profileUser.location.stateCode}`}
+                      </span>
                     </div>
                   )}
                   {profileUser.website && (

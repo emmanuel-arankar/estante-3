@@ -38,4 +38,6 @@ export interface FriendshipActions {
   removeFriend: (friendshipId: string) => Promise<void>;
   cancelSentRequest: (friendshipId: string) => Promise<void>;
   cancelAllSentRequests: () => Promise<void>;
+  acceptAllRequests: () => Promise<void>;
+  rejectAllRequests: () => Promise<void>;
 }

@@ -33,14 +33,17 @@ export interface DenormalizedFriendship {
   id: string;
   userId: string;           // Código do proprietário do documento
   friendId: string;         // Código do amigo
-  status: FriendshipStatus; 
+  status: FriendshipStatus;
   requestedBy: string;      // Quem fez a solicitação de amizade
   friendshipDate?: Date;    // Quando foi aceita a amizade
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Dados denormalizados do amigo
   friend: DenormalizedUser;
+
+  // Amigos em comum (calculado ao criar solicitação)
+  mutualFriendsCount?: number;
 }
 
 export interface FriendshipStats {

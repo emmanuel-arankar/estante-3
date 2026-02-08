@@ -13,12 +13,16 @@
     "build": "npm run build:common && npm run build:client && npm run build:server && npm run build:api && npm run build:functions",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "serve": "npm run build && firebase emulators:start"
+    "serve": "npm run build && firebase emulators:start",
+    "migrate:friendships": "npx tsx scripts/migrate-friendships-to-composite-ids.ts",
+    "migrate:counters": "npx tsx scripts/initialize-user-counters.ts",
+    "migrate:mutual-friends": "npx tsx scripts/add-mutual-friends-to-pending.ts"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
     "@hookform/resolvers": "^3.10.0",
+    "@opentelemetry/api": "^1.9.0",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",

@@ -9,20 +9,21 @@ interface OptimizedAvatarProps {
   alt: string;
   fallback: string;
   className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export const OptimizedAvatar = ({ 
-  src, 
-  alt, 
-  fallback, 
-  className = '', 
-  size = 'md' 
+export const OptimizedAvatar = ({
+  src,
+  alt,
+  fallback,
+  className = '',
+  size = 'md'
 }: OptimizedAvatarProps) => {
   const { isLoaded, hasError } = useImageCache(src);
   const [showImage, setShowImage] = useState(false);
 
   const sizeClasses = {
+    xs: 'h-6 w-6',
     sm: 'h-8 w-8',
     md: 'h-12 w-12',
     lg: 'h-16 w-16',
@@ -38,7 +39,7 @@ export const OptimizedAvatar = ({
   }, [isLoaded]);
 
   return (
-    <div className={`relative ${sizeClasses[size]} ${className}`}>
+    <div className={`relative rounded-full ${sizeClasses[size]} ${className}`}>
       {/* Skeleton durante o carregamento */}
       <AnimatePresence>
         {!isLoaded && (

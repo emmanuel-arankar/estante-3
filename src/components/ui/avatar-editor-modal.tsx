@@ -18,7 +18,7 @@ import {
   toastErrorClickable 
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
-import { syncDenormalizedUserData } from '@/services/denormalizedFriendships';
+import { syncProfileAPI } from '@/services/friendshipsApi';
 import { db } from '@/services/firebase';
 import { 
   saveUserAvatar, 
@@ -206,7 +206,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
       });
 
       // ✅ Sincronizar dados denormalizados
-      await syncDenormalizedUserData(user.uid);
+      await syncProfileAPI();
 
       onSave(croppedUrl);
       toastSuccessClickable('Avatar atualizado com sucesso!');
@@ -230,7 +230,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
       });
 
       // ✅ Sincronizar dados denormalizados
-      await syncDenormalizedUserData(user.uid);
+      await syncProfileAPI();
 
       onSave(selectedPreviousAvatar);
       toastSuccessClickable('Avatar atualizado com sucesso!');

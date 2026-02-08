@@ -1,4 +1,6 @@
-import * as admin from 'firebase-admin';
+// Importa configuração centralizada do Firebase ANTES de tudo
+import './firebase';
+
 import * as logger from 'firebase-functions/logger';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
@@ -10,45 +12,34 @@ import healthRouter from './health';
 import { errorHandler } from './middleware/error.middleware';
 import rateLimit from 'express-rate-limit';
 
-// Inicializa o Firebase Admin antes de qualquer lógica
-if (admin.apps.length === 0) {
-  admin.initializeApp();
-}
-
-if (process.env.FUNCTIONS_EMULATOR === 'true') {
-  //process.env['FIREBASE_AUTH_EMULATOR_HOST'] = '127.0.0.1:9099';
-  logger.info('Emulator detectado, removendo variáveis de ambiente do emulador para backend-api');
-
-  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
-  delete process.env.FIRESTORE_EMULATOR_HOST;
-  delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
-
-  logger.info('Variáveis de ambiente do emulador removidas.');
-} else {
-  logger.info('Rodando em ambiente de produção ou sem emuladores definidos para backend-api.');
-}
-
 const app = express();
 // Confia no primeiro proxy (Firebase Functions/Emulator)
 app.set('trust proxy', 1);
 
-// Configuração do CORS
-const allowedOrigins = process.env.FUNCTIONS_EMULATOR === 'true'
-  ? [
-      'http://127.0.0.1:5000', 
-      'http://localhost:5000', 
-      'http://localhost:5173'
-    ] // Desenvolvimento
-  : [
-      'https://estante-virtual-805ef.web.app'
-    ]; // Produção
 
-logger.info(`Configurando CORS`, { isEmulator: process.env.FUNCTIONS_EMULATOR === 'true', allowedOrigins });
+
+// Configuração do CORS
+// Detecta se está em desenvolvimento (não está em produção do Firebase Functions)
+const isDevelopment = process.env.FUNCTIONS_EMULATOR === 'true' || !process.env.FIREBASE_CONFIG;
+
+const allowedOrigins = isDevelopment
+  ? [
+    'http://127.0.0.1:5000',
+    'http://localhost:5000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173', // Adiciona suporte para 127.0.0.1
+    'http://localhost:4000'
+  ] // Desenvolvimento
+  : [
+    'https://estante-virtual-805ef.web.app'
+  ]; // Produção
+
+logger.info(`Configurando CORS`, { isDevelopment, isEmulator: process.env.FUNCTIONS_EMULATOR === 'true', allowedOrigins });
 
 const corsOptions: CorsOptions = {
   // A propriedade 'origin' pode receber a lista diretamente.
   // O middleware 'cors' fará a verificação interna.
-  origin: allowedOrigins, 
+  origin: allowedOrigins,
   credentials: true, // Manter para cookies de sessão
 };
 
@@ -59,12 +50,13 @@ logger.info('Configurando CORS', {
 // Middlewares
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use(cookieParser());
+app.use(cookieParser() as unknown as express.RequestHandler);
 
 // Define um limite geral para a maioria das rotas API
+// Em desenvolvimento, limite maior para não bloquear testes
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,                 // Janela de 15 minutos
-  max: 100,                                 // Limita cada IP a 100 requisições por janela (windowMs)
+  max: isDevelopment ? 1000 : 100,          // 1000 em dev, 100 em prod
   standardHeaders: true,                    // Retorna informações do limite nos cabeçalhos `RateLimit-*`
   legacyHeaders: false,                     // Desabilita os cabeçalhos legados `X-RateLimit-*`
   message: { error: 'Muitas requisições enviadas deste IP, por favor tente novamente após 15 minutos.' },
@@ -80,11 +72,11 @@ const apiLimiter = rateLimit({
   }
 });
 
-// Aplica o limiter GERAL a TODAS as rotas /api ANTES das rotas específicas
-app.use('/api', apiLimiter);
+// Aplica o limiter GERAL a TODAS as rotas ANTES das rotas específicas
+app.use(apiLimiter as unknown as express.RequestHandler);
 
-// Rotas da API
-app.use('/api', authRouter);                // Rotas de autenticação (agora com /sessionLogin tendo limite duplo)
+// Rotas da API (sem prefixo /api porque Firebase já remove ao redirecionar)
+app.use('/api', authRouter);                // Rotas de autenticação
 app.use('/api', friendsRouter);             // Rotas de amizades
 app.use('/api', healthRouter);              // Health check
 

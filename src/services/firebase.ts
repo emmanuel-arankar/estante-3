@@ -30,28 +30,35 @@ export const database = getDatabase(app);
 export const functions = getFunctions(app);
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
-// Conecta aos emuladores locais em ambiente de desenvolvimento
-if (import.meta.env.DEV && !import.meta.env.VITE_USE_PROD_AUTH) {
+// Conecta aos emuladores locais APENAS se VITE_USE_FIREBASE_EMULATORS=true
+const useFirebaseEmulators = import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
+const useProdApi = import.meta.env.VITE_USE_PROD_API === 'true';
+
+if (import.meta.env.DEV && useFirebaseEmulators) {
     try {
-        console.log("Conectando aos emuladores locais do Firebase...");
+        console.log("🛠️ Ambiente de DEV: Conectando aos emuladores locais do Firebase...");
 
-        // # ATUALIZADO:
-        // A documentação do Firebase v9+ mostra que, para o Auth, não é necessário
-        // incluir o protocolo 'http://'. Vamos remover para garantir compatibilidade.
-        // E garantir que a conexão com o Realtime Database também seja feita.
-        //connectAuthEmulator(auth, "http://127.0.0.1:9099");
-        //connectFirestoreEmulator(db, "127.0.0.1", 8080);
+        connectAuthEmulator(auth, "http://127.0.0.1:9099");
+        connectFirestoreEmulator(db, "127.0.0.1", 8080);
         connectStorageEmulator(storage, "127.0.0.1", 9199);
-        connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
-        // # ATUALIZADO: Adicionar a conexão com o Realtime Database Emulator, já que você o utiliza.
-        // Verifique no seu terminal se a porta é 9000.
+        // Functions: Atencao - Geralmente usamos o proxy do Vite para /api
+        // Mas se usar a funcao .httpsCallable() do Firebase SDK, precisa disso:
+        // connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+
         if (database) {
             connectDatabaseEmulator(database, "127.0.0.1", 9000);
         }
 
-        console.log("✅ Conectado aos emuladores.");
+        console.log("✅ Conectado aos emuladores locais do Firebase.");
     } catch (error) {
         console.error("Falha ao conectar aos emuladores:", error);
+    }
+} else if (import.meta.env.DEV) {
+    // Modo híbrido ou produção
+    if (!useProdApi) {
+        console.log("🔧 Ambiente de DEV: Modo HÍBRIDO (Backend API Local + Firebase Produção)");
+    } else {
+        console.log("🚀 Ambiente de DEV: Usando serviços de PRODUÇÃO (Nuvem)");
     }
 }

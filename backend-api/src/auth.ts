@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import * as admin from 'firebase-admin';
+import { Router, RequestHandler } from 'express';
+import { admin, auth } from './firebase'; // Importa do nosso módulo centralizado
 import * as logger from 'firebase-functions/logger';
 import { FirebaseError } from 'firebase-admin/app';
 import { sessionLoginBodySchema } from './schemas/auth.schema';
@@ -54,7 +54,11 @@ const loginLimiter = rateLimit({
     res.status(options.statusCode).send(options.message);
   },
   // Opcional: Adicionar skip para requisições bem-sucedidas não contarem (se desejar)
-  // skipSuccessfulRequests: true
+  // skipSuccessfulRequests: true,
+  validate: {
+    ip: false,
+    trustProxy: false
+  }
 });
 
 const SESSION_COOKIE_DURATION_MS = parseInt(process.env.SESSION_COOKIE_DURATION_MS || '', 10) || 14 * 24 * 60 * 60 * 1000;
@@ -63,7 +67,7 @@ logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS
 /**
  * Cria um cookie de sessão a partir de um ID token do Firebase.
  */
-router.post('/sessionLogin', loginLimiter, async (req, res, next) => {
+router.post('/sessionLogin', loginLimiter as unknown as RequestHandler, async (req, res, next) => {
   // Valida req.body usando o schema
   const validationResult = sessionLoginBodySchema.safeParse(req.body);
 
@@ -87,7 +91,7 @@ router.post('/sessionLogin', loginLimiter, async (req, res, next) => {
     : 24 * 60 * 60 * 1000;
 
   try {
-    const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
+    const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
 
     const isProd = process.env.FUNCTIONS_EMULATOR !== 'true';
     const options = {

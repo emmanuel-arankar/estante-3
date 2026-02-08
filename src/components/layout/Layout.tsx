@@ -51,6 +51,14 @@ export const Layout = () => {
 
   usePageTitle();
 
+  // Limpa headerData quando o usuário muda ou desloga
+  // Isso evita que dados do usuário anterior apareçam para o novo usuário
+  useEffect(() => {
+    if (!authUser) {
+      setHeaderData({ userProfile: null, initialFriendRequests: 0 });
+    }
+  }, [authUser?.uid]);
+
   const pageKey = useMemo(() => {
     const routeMatch = [...matches]
       .reverse()
@@ -98,7 +106,15 @@ export const Layout = () => {
 
   // Construir perfil efetivo com estratégia de fallback (Optimistic UI)
   // CRITICAL: Se não há authUser, o perfil DEVE ser nulo para evitar dados fantasmas no Header
-  let effectiveProfile = authUser ? (headerData.userProfile || storedUserProfile) : null;
+  // PRIORITY: storedUserProfile (Zustand) > headerData.userProfile (loader) para reflexão em tempo real
+  let effectiveProfile = authUser ? (storedUserProfile || headerData.userProfile) : null;
+
+  console.log('🟢 [Layout] Render with:', {
+    hasAuthUser: !!authUser,
+    storedPhotoURL: storedUserProfile?.photoURL,
+    headerPhotoURL: headerData.userProfile?.photoURL,
+    effectivePhotoURL: effectiveProfile?.photoURL
+  });
 
   if (authUser && !effectiveProfile) {
     // Perfil temporário para exibição imediata (apenas se estiver logado)

@@ -1,5 +1,11 @@
 export type UserRole = 'user' | 'librarian' | 'manager' | 'assistant' | 'admin'
 
+export interface UserLocation {
+  state: string;      // Nome do estado (ex: "São Paulo")
+  stateCode: string;  // Código do estado (ex: "SP")
+  city: string;       // Nome da cidade (ex: "São Paulo")
+}
+
 export interface User {
   id: string;
   email: string;
@@ -8,7 +14,7 @@ export interface User {
   photoURL?: string;
   role?: UserRole;
   bio?: string;
-  location?: string;
+  location?: string | UserLocation;  // Suporta string (legado) ou objeto estruturado
   website?: string;
   birthDate?: Date;
   joinedAt: Date;

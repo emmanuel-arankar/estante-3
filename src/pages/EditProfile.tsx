@@ -6,7 +6,7 @@ import {
   where, 
   getDocs 
 } from 'firebase/firestore';
-import { ArrowLeft, Save, User, MapPin, Link as LinkIcon, Check, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, User, Link as LinkIcon, Check, X, Loader2 } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,10 +25,11 @@ import {
 } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LocationSelector } from '@/components/ui/location-selector';
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/services/firebase';
 import { PATHS } from '@/router/paths';
-import { User as UserModel } from '@estante/common-types';
+import { User as UserModel, UserLocation } from '@estante/common-types';
 
 const convertFirestoreDate = (date: any): Date | null => {
   if (!date) return null;
@@ -56,6 +57,11 @@ export const EditProfile = () => {
   const defaultBirthDay = date ? date.getDate().toString() : '';
   const defaultBirthMonth = date ? (date.getMonth() + 1).toString() : '';
   const defaultBirthYear = date ? date.getFullYear().toString() : '';
+
+  // Parsear localização existente
+  const locationData = profile.location;
+  const defaultState = typeof locationData === 'object' ? locationData.state : undefined;
+  const defaultCity = typeof locationData === 'object' ? locationData.city : undefined;
 
   const checkNicknameAvailability = async (newNickname: string): Promise<boolean> => {
     if (!newNickname || newNickname.length < 3) {
@@ -206,11 +212,13 @@ export const EditProfile = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="location" className="text-sm font-medium text-gray-700">Localização</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input id="location" name="location" type="text" defaultValue={profile.location} className="pl-10" />
-                  </div>
+                  <LocationSelector
+                    defaultState={defaultState}
+                    defaultCity={defaultCity}
+                    stateFieldName="locationState"
+                    stateCodeFieldName="locationStateCode"
+                    cityFieldName="locationCity"
+                  />
                 </div>
               </div>
 

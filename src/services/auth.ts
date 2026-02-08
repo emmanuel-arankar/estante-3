@@ -25,6 +25,7 @@ export const setSessionCookie = async (idToken: string, rememberMe: boolean = fa
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Essencial para cookies serem enviados/recebidos
       body: JSON.stringify({ idToken, rememberMe }),
     });
 
@@ -45,7 +46,10 @@ export const setSessionCookie = async (idToken: string, rememberMe: boolean = fa
 export const clearSessionCookie = async () => {
   try {
     // # atualizado - Usa o caminho relativo da API
-    await fetch('/api/sessionLogout', { method: 'POST' });
+    await fetch('/api/sessionLogout', {
+      method: 'POST',
+      credentials: 'include' // Essencial para enviar o cookie de sessão
+    });
   } catch (error) {
     console.error('Falha ao limpar o cookie de sessão:', error);
   }
@@ -61,7 +65,10 @@ export const logout = async () => {
 
     // 2. Operações de rede em background
     const logoutPromises: Promise<any>[] = [
-      fetch('/api/sessionLogout', { method: 'POST' }).catch(err => console.error("Session logout error", err)),
+      fetch('/api/sessionLogout', {
+        method: 'POST',
+        credentials: 'include'
+      }).catch(err => console.error("Session logout error", err)),
       signOut(auth).catch(err => console.error("Firebase signOut error", err))
     ];
 

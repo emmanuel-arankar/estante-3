@@ -7,9 +7,10 @@ import {
 } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
-import { syncDenormalizedUserData } from '@/services/denormalizedFriendships';
+import { syncProfileAPI } from '@/services/friendshipsApi';
 import { auth, db } from '@/services/firebase';
 import { useAuthStore } from '@/stores/authStore';
+import { UserLocation } from '@estante/common-types';
 
 export const editProfileAction = async ({ request }: any) => {
   const formData = await request.formData();
@@ -28,11 +29,21 @@ export const editProfileAction = async ({ request }: any) => {
     );
   }
 
+  // Preparar localização
+  let location: string | UserLocation = '';
+  if (data.locationState && data.locationStateCode && data.locationCity) {
+    location = {
+      state: data.locationState as string,
+      stateCode: data.locationStateCode as string,
+      city: data.locationCity as string,
+    };
+  }
+
   const updatedFields = {
     displayName: data.displayName as string,
     nickname: data.nickname as string,
     bio: (data.bio as string) || '',
-    location: (data.location as string) || '',
+    location: location,
     website: (data.website as string) || '',
     birthDate: birthDate,
     updatedAt: new Date(),
@@ -72,7 +83,7 @@ export const editProfileAction = async ({ request }: any) => {
     Promise.all(savePromises)
       .then(() => {
         // Sincronização de amizades em background (não bloqueia nada)
-        syncDenormalizedUserData(user.uid).catch(console.error);
+        syncProfileAPI().catch(console.error);
       })
       .catch((error) => {
         console.error('Erro ao salvar perfil no backend:', error);

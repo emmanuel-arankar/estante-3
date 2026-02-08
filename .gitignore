@@ -11,7 +11,19 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Package tarballs (use workspaces instead)
+*.tgz
+*.tar.gz
+
+# Service Account Keys (NEVER commit these!)
+*serviceAccountKey*.json
+*firebase-adminsdk*.json
 
 # Editor directories and files
 .vscode/*
