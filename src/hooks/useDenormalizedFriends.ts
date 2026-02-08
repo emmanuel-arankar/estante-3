@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, query, collection, where, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import {
   toastSuccessClickable,
@@ -37,7 +37,6 @@ import {
 } from '@tanstack/react-query';
 
 const PAGE_SIZE = 100;
-const STALE_TIME = 5 * 60 * 1000; // 5 minutos
 
 /**
  * Atualiza mutualFriendsCount no cache do React Query para todos os amigos afetados
@@ -151,7 +150,202 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     return unsubscribe;
   }, [user?.uid]);
 
+  // ==================== FIRESTORE REALTIME LISTENERS ====================
+  // ✅ SOLUÇÃO: Listeners em tempo real para sincronização instantânea entre clientes
+
+  // 1️⃣ Listener para AMIGOS (status: accepted)
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const friendsRef = query(
+      collection(db, 'friendships'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'accepted'),
+      orderBy('friendshipDate', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(friendsRef, (snapshot) => {
+      const friendsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          userId: data.userId,
+          friendId: data.friendId,
+          status: data.status,
+          requestedBy: data.requestedBy,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+          friendshipDate: data.friendshipDate instanceof Timestamp ? data.friendshipDate.toDate() : new Date(data.friendshipDate),
+          friend: {
+            id: data.friend?.id || data.friendId,
+            displayName: data.friend?.displayName || '',
+            nickname: data.friend?.nickname || '',
+            photoURL: data.friend?.photoURL || undefined,
+            email: data.friend?.email || '',
+            bio: data.friend?.bio || '',
+            location: data.friend?.location || '',
+            joinedAt: data.friend?.joinedAt instanceof Timestamp ? data.friend.joinedAt.toDate() : new Date(),
+            lastActive: data.friend?.lastActive instanceof Timestamp ? data.friend.lastActive.toDate() : undefined,
+          },
+          mutualFriendsCount: data.mutualFriendsCount || 0,
+        };
+      });
+
+      // ✅ Atualizar cache do React Query para TODAS as queries de amigos
+      queryClient.setQueriesData(
+        { queryKey: ['friends', 'list', user.uid] },
+        (old: any) => {
+          if (!old || !old.pages) {
+            // Primeira carga - criar estrutura inicial
+            return {
+              pages: [{
+                data: friendsData,
+                pagination: {
+                  page: 1,
+                  limit: PAGE_SIZE,
+                  total: friendsData.length,
+                  totalPages: Math.ceil(friendsData.length / PAGE_SIZE),
+                  hasMore: false,
+                }
+              }],
+              pageParams: [1]
+            };
+          }
+
+          // Atualizar todas as páginas existentes
+          return {
+            ...old,
+            pages: [{
+              ...old.pages[0],
+              data: friendsData,
+              pagination: {
+                ...old.pages[0].pagination,
+                total: friendsData.length,
+                totalPages: Math.ceil(friendsData.length / PAGE_SIZE),
+              }
+            }]
+          };
+        }
+      );
+    });
+
+    return unsubscribe;
+  }, [user?.uid, queryClient]);
+
+  // 2️⃣ Listener para SOLICITAÇÕES RECEBIDAS (status: pending, requestedBy !== userId)
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const requestsRef = query(
+      collection(db, 'friendships'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribe = onSnapshot(requestsRef, (snapshot) => {
+      // Filtrar apenas solicitações onde requestedBy !== userId (recebidas)
+      const requestsData = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId,
+            friendId: data.friendId,
+            status: data.status,
+            requestedBy: data.requestedBy,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+            friendshipDate: data.friendshipDate instanceof Timestamp ? data.friendshipDate.toDate() : undefined,
+            friend: {
+              id: data.friend?.id || data.friendId,
+              displayName: data.friend?.displayName || '',
+              nickname: data.friend?.nickname || '',
+              photoURL: data.friend?.photoURL || undefined,
+              email: data.friend?.email || '',
+              bio: data.friend?.bio || '',
+              location: data.friend?.location || '',
+              joinedAt: data.friend?.joinedAt instanceof Timestamp ? data.friend.joinedAt.toDate() : new Date(),
+              lastActive: data.friend?.lastActive instanceof Timestamp ? data.friend.lastActive.toDate() : undefined,
+            },
+            mutualFriendsCount: data.mutualFriendsCount || 0,
+          };
+        })
+        .filter(req => req.requestedBy !== user.uid); // ✅ Filtrar apenas recebidas
+
+      // ✅ Atualizar cache do React Query
+      queryClient.setQueryData(queryKeys.requests, {
+        data: requestsData,
+        pagination: {
+          page: 1,
+          limit: PAGE_SIZE,
+          total: requestsData.length,
+          totalPages: Math.ceil(requestsData.length / PAGE_SIZE),
+          hasMore: false,
+        }
+      });
+    });
+
+    return unsubscribe;
+  }, [user?.uid, queryClient, queryKeys.requests]);
+
+  // 3️⃣ Listener para SOLICITAÇÕES ENVIADAS (status: pending, requestedBy === userId)
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const sentRef = query(
+      collection(db, 'friendships'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribe = onSnapshot(sentRef, (snapshot) => {
+      // Filtrar apenas solicitações onde requestedBy === userId (enviadas)
+      const sentData = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: data.userId,
+            friendId: data.friendId,
+            status: data.status,
+            requestedBy: data.requestedBy,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+            friendshipDate: data.friendshipDate instanceof Timestamp ? data.friendshipDate.toDate() : undefined,
+            friend: {
+              id: data.friend?.id || data.friendId,
+              displayName: data.friend?.displayName || '',
+              nickname: data.friend?.nickname || '',
+              photoURL: data.friend?.photoURL || undefined,
+              email: data.friend?.email || '',
+              bio: data.friend?.bio || '',
+              location: data.friend?.location || '',
+              joinedAt: data.friend?.joinedAt instanceof Timestamp ? data.friend.joinedAt.toDate() : new Date(),
+              lastActive: data.friend?.lastActive instanceof Timestamp ? data.friend.lastActive.toDate() : undefined,
+            },
+            mutualFriendsCount: data.mutualFriendsCount || 0,
+          };
+        })
+        .filter(req => req.requestedBy === user.uid); // ✅ Filtrar apenas enviadas
+
+      // ✅ Atualizar cache do React Query
+      queryClient.setQueryData(queryKeys.sentRequests, {
+        data: sentData,
+        pagination: {
+          page: 1,
+          limit: PAGE_SIZE,
+          total: sentData.length,
+          totalPages: Math.ceil(sentData.length / PAGE_SIZE),
+          hasMore: false,
+        }
+      });
+    });
+
+    return unsubscribe;
+  }, [user?.uid, queryClient, queryKeys.sentRequests]);
+
   // ==================== FETCHING QUERIES ====================
+  // ✅ HÍBRIDO: React Query carrega dados iniciais, Firestore Listeners mantêm sincronizado
 
   // 1. Amigos (Infinite Query) - usa debouncedSearch
   const friendsQuery = useInfiniteQuery({
@@ -167,7 +361,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     initialPageParam: 1,
     getNextPageParam: (lastPage) => lastPage.pagination.hasMore ? lastPage.pagination.page + 1 : undefined,
     enabled: !!user?.uid,
-    staleTime: STALE_TIME,
+    staleTime: Infinity, // ✅ Listeners mantêm cache atualizado
   });
 
   // 2. Solicitações Recebidas
@@ -175,8 +369,8 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     queryKey: queryKeys.requests,
     queryFn: () => listRequestsAPI({ page: 1, limit: PAGE_SIZE }),
     enabled: !!user?.uid,
-    staleTime: STALE_TIME,
-    refetchOnWindowFocus: true, // ✅ Fix bug #5: refetch ao voltar para aba
+    staleTime: Infinity, // ✅ Listeners mantêm cache atualizado
+    refetchOnWindowFocus: false, // ❌ Desabilitado - listeners fazem isso
   });
 
   // 3. Solicitações Enviadas
@@ -184,8 +378,8 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     queryKey: queryKeys.sentRequests,
     queryFn: () => listSentRequestsAPI({ page: 1, limit: PAGE_SIZE }),
     enabled: !!user?.uid,
-    staleTime: STALE_TIME,
-    refetchOnWindowFocus: true, // ✅ Fix bug #5: refetch ao voltar para aba
+    staleTime: Infinity, // ✅ Listeners mantêm cache atualizado
+    refetchOnWindowFocus: false, // ❌ Desabilitado - listeners fazem isso
   });
 
   // ==================== PROCESSAMENTO DE DADOS ====================
