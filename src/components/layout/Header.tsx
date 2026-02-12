@@ -40,6 +40,7 @@ import { useImageLoad } from '@/hooks/useImageLoad';
 import { logout } from '@/services/auth';
 import { subscribeToFriendRequests } from '@/services/firestore';
 import { subscribeToTotalUnreadMessages } from '@/services/realtime';
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
 
@@ -160,13 +161,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
 
 
               <div className="hidden md:flex items-center space-x-4">
-                {/* TODO: Descomentar quando implementar notificações */}
-                {/* <Link
-                  to={PATHS.NOTIFICATIONS}
-                  className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'relative rounded-full' })}
-                >
-                  <Bell className="h-5 w-5" />
-                </Link> */}
+                <NotificationDropdown />
 
                 <Link
                   to={PATHS.MESSAGES}
@@ -327,8 +322,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                         <Separator />
                         <nav className="flex flex-col space-y-2">
                           <SheetClose asChild><Link to={PATHS.FRIENDS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Users className="mr-3 h-5 w-5" />Amigos</Link></SheetClose>
-                          {/* TODO: Descomentar quando implementar notificações */}
-                          {/* <SheetClose asChild><Link to={PATHS.NOTIFICATIONS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Bell className="mr-3 h-5 w-5" />Notificações</Link></SheetClose> */}
+                          <SheetClose asChild><Link to={PATHS.NOTIFICATIONS} className="flex items-center p-2 rounded-md hover:bg-gray-100"><Bell className="mr-3 h-5 w-5" />Notificações</Link></SheetClose>
                           <SheetClose asChild>
                             <Link to={PATHS.MESSAGES} className="flex items-center p-2 rounded-md hover:bg-gray-100 flex-grow">
                               <div className="relative">

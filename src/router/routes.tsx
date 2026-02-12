@@ -58,6 +58,10 @@ export const routes: RouteObject[] = [
                 path: PATHS.ADMIN_DASHBOARD,
                 lazy: () => import('@/features/admin/admin.routes'),
               },
+              {
+                path: PATHS.NOTIFICATIONS,
+                lazy: () => import('@/pages/Notifications').then(module => ({ Component: module.NotificationsPage })),
+              },
             ],
           },
           // Chat e Friends fora do ContainedLayout para ocupar tela cheia

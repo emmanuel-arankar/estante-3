@@ -11,6 +11,7 @@ import {
   listRequestsQuerySchema,
   bulkFriendshipSchema
 } from './schemas/friends.schema';
+import { getCached, setCache, invalidatePattern, CacheKeys } from './lib/cache';
 
 const router = Router();
 
@@ -284,6 +285,17 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
 
     const { page, limit, search, sortBy, sortDirection } = validationResult.data;
 
+    const cacheKey = CacheKeys.friends(userId, page);
+
+    // Tentar buscar do cache
+    const cachedData = await getCached<any>(cacheKey);
+    if (cachedData && !search) { // Não usamos cache se houver busca (para simplicidade inicial)
+      logger.info(`✅ [Cache] HIT: ${cacheKey}`);
+      return res.status(200).json(cachedData);
+    }
+
+    logger.info(`❌ [Cache] MISS: ${cacheKey}`);
+
     // Buscar todas as amizades aceitas do usuário
     const snapshot = await db.collection('friendships')
       .where('userId', '==', userId)
@@ -334,8 +346,7 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
     const offset = (page - 1) * limit;
     const paginated = friends.slice(offset, offset + limit);
 
-    logger.info(`Listagem de amigos: ${userId}, página ${page}, ${paginated.length}/${total} resultados`);
-    return res.status(200).json({
+    const response = {
       data: paginated,
       pagination: {
         page,
@@ -344,7 +355,15 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
         totalPages,
         hasMore: page < totalPages,
       },
-    });
+    };
+
+    // Salvar no cache se não for busca
+    if (!search) {
+      await setCache(cacheKey, response, 300); // 5 min
+    }
+
+    logger.info(`Listagem de amigos: ${userId}, página ${page}, ${paginated.length}/${total} resultados`);
+    return res.status(200).json(response);
   } catch (error) {
     logger.error('Erro ao listar amigos:', error);
     return next(error);
@@ -369,6 +388,17 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
     }
 
     const { page, limit, search } = validationResult.data;
+
+    const cacheKey = CacheKeys.requests(userId);
+
+    // Tentar buscar do cache
+    const cachedData = await getCached<any>(cacheKey);
+    if (cachedData && !search) {
+      logger.info(`✅ [Cache] HIT: ${cacheKey}`);
+      return res.status(200).json(cachedData);
+    }
+
+    logger.info(`❌ [Cache] MISS: ${cacheKey}`);
 
     // Buscar pedidos pendentes onde o usuário NÃO é quem solicitou
     const snapshot = await db.collection('friendships')
@@ -404,8 +434,7 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
     const offset = (page - 1) * limit;
     const paginated = requests.slice(offset, offset + limit);
 
-    logger.info(`Pedidos recebidos: ${userId}, página ${page}, ${paginated.length}/${total} resultados`);
-    return res.status(200).json({
+    const response = {
       data: paginated,
       pagination: {
         page,
@@ -414,7 +443,15 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
         totalPages,
         hasMore: page < totalPages,
       },
-    });
+    };
+
+    // Salvar no cache se não for busca
+    if (!search) {
+      await setCache(cacheKey, response, 300);
+    }
+
+    logger.info(`Pedidos recebidos: ${userId}, página ${page}, ${paginated.length}/${total} resultados`);
+    return res.status(200).json(response);
   } catch (error) {
     logger.error('Erro ao listar pedidos recebidos:', error);
     return next(error);
@@ -439,6 +476,17 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
     }
 
     const { page, limit, search } = validationResult.data;
+
+    const cacheKey = CacheKeys.sentRequests(userId);
+
+    // Tentar buscar do cache
+    const cachedData = await getCached<any>(cacheKey);
+    if (cachedData && !search) {
+      logger.info(`✅ [Cache] HIT: ${cacheKey}`);
+      return res.status(200).json(cachedData);
+    }
+
+    logger.info(`❌ [Cache] MISS: ${cacheKey}`);
 
     // Buscar pedidos pendentes onde o usuário É quem solicitou
     const snapshot = await db.collection('friendships')
@@ -604,6 +652,13 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
     });
 
     logger.info(`Solicitação de amizade enviada: ${fromUserId} → ${targetUserId}`);
+
+    // Invalidar cache de AMBOS
+    await Promise.all([
+      invalidatePattern(CacheKeys.allUserPattern(fromUserId)),
+      invalidatePattern(CacheKeys.allUserPattern(targetUserId))
+    ]);
+
     return res.status(201).json({ message: 'Solicitação enviada com sucesso' });
   } catch (error: any) {
     logger.error('Erro ao enviar solicitação de amizade:', error);
@@ -688,17 +743,23 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
       });
 
       if (userSnapshot.exists) {
+        const currentUserData = userSnapshot.data();
+        const currentPending = currentUserData?.pendingRequestsCount || 0;
+
         transaction.update(userRef, {
           friendsCount: admin.firestore.FieldValue.increment(1),
-          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+          pendingRequestsCount: currentPending > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
           updatedAt: timestamp,
         });
       }
 
       if (friendSnapshot.exists) {
+        const currentFriendData = friendSnapshot.data();
+        const currentSent = currentFriendData?.sentRequestsCount || 0;
+
         transaction.update(friendRef, {
           friendsCount: admin.firestore.FieldValue.increment(1),
-          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          sentRequestsCount: currentSent > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
           updatedAt: timestamp,
         });
       }
@@ -715,6 +776,13 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
     }
 
     logger.info(`Amizade aceita: ${userId} ↔ ${friendId}`);
+
+    // Invalidar cache de AMBOS
+    await Promise.all([
+      invalidatePattern(CacheKeys.allUserPattern(userId)),
+      invalidatePattern(CacheKeys.allUserPattern(friendId))
+    ]);
+
     return res.status(200).json({ message: 'Solicitação aceita com sucesso' });
   } catch (error: any) {
     logger.error('Erro ao aceitar solicitação:', error);
@@ -808,14 +876,20 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
         // Cancelar solicitação enviada
         logger.info(`[DELETE] Cancelando solicitação enviada de ${userId} para ${friendId}`);
         if (userDoc.exists) {
+          const userData = userDoc.data();
+          const currentSent = userData?.sentRequestsCount || 0;
+
           batch.update(userRef, {
-            sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+            sentRequestsCount: currentSent > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
             updatedAt: timestamp,
           });
         }
         if (friendDoc.exists) {
+          const friendData = friendDoc.data();
+          const currentPending = friendData?.pendingRequestsCount || 0;
+
           batch.update(friendRef, {
-            pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+            pendingRequestsCount: currentPending > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
             updatedAt: timestamp,
           });
         }
@@ -823,14 +897,20 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
         // Rejeitar solicitação recebida
         logger.info(`[DELETE] Rejeitando solicitação recebida de ${friendId} por ${userId}`);
         if (userDoc.exists) {
+          const userData = userDoc.data();
+          const currentPending = userData?.pendingRequestsCount || 0;
+
           batch.update(userRef, {
-            pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+            pendingRequestsCount: currentPending > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
             updatedAt: timestamp,
           });
         }
         if (friendDoc.exists) {
+          const friendData = friendDoc.data();
+          const currentSent = friendData?.sentRequestsCount || 0;
+
           batch.update(friendRef, {
-            sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+            sentRequestsCount: currentSent > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
             updatedAt: timestamp,
           });
         }
@@ -864,6 +944,13 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
     }
 
     logger.info(`Relação de amizade removida: ${userId} - ${friendId}`);
+
+    // Invalidar cache de AMBOS
+    await Promise.all([
+      invalidatePattern(CacheKeys.allUserPattern(userId)),
+      invalidatePattern(CacheKeys.allUserPattern(friendId))
+    ]);
+
     return res.status(200).json({ message: 'Relação removida com sucesso' });
   } catch (error: any) {
     logger.error('Erro ao remover relação:', error);
@@ -949,27 +1036,51 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
           updatedAt: timestamp,
         });
 
-        // Contador do amigo (cada um é um doc diferente)
-        transaction.update(db.collection('users').doc(item.friendId), {
-          friendsCount: admin.firestore.FieldValue.increment(1),
-          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
-          updatedAt: timestamp,
-        });
-
         results.accepted.push(item.friendId);
       }
 
-      // 4. Contador do usuário atual (uma só operação agregada)
-      transaction.update(db.collection('users').doc(userId), {
-        friendsCount: admin.firestore.FieldValue.increment(valid.length),
-        pendingRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
-        updatedAt: timestamp,
-      });
+      // 4. Atualizar contadores do usuário atual e dos amigos
+      const currentUserDoc = await transaction.get(db.collection('users').doc(userId));
+      if (currentUserDoc.exists) {
+        const userData = currentUserDoc.data();
+        const currentPending = userData?.pendingRequestsCount || 0;
+        const validCount = valid.length;
+
+        transaction.update(db.collection('users').doc(userId), {
+          friendsCount: admin.firestore.FieldValue.increment(validCount),
+          pendingRequestsCount: currentPending >= validCount
+            ? admin.firestore.FieldValue.increment(-validCount)
+            : 0,
+          updatedAt: timestamp,
+        });
+      }
+
+      for (const item of valid) {
+        const friendDoc = await transaction.get(db.collection('users').doc(item.friendId));
+        if (friendDoc.exists) {
+          const friendData = friendDoc.data();
+          const currentSent = friendData?.sentRequestsCount || 0;
+
+          transaction.update(db.collection('users').doc(item.friendId), {
+            friendsCount: admin.firestore.FieldValue.increment(1),
+            sentRequestsCount: currentSent > 0
+              ? admin.firestore.FieldValue.increment(-1)
+              : 0,
+            updatedAt: timestamp,
+          });
+        }
+      }
     });
 
 
 
     logger.info(`Bulk accept: ${userId} aceitou ${results.accepted.length}/${friendIds.length} solicitações`);
+
+    // Invalidar cache do usuário atual e de todos os amigos aceitos
+    const invalidations = [invalidatePattern(CacheKeys.allUserPattern(userId))];
+    results.accepted.forEach(fId => invalidations.push(invalidatePattern(CacheKeys.allUserPattern(fId))));
+    await Promise.all(invalidations);
+
     return res.status(200).json({
       message: `${results.accepted.length} solicitações aceitas`,
       ...results,
@@ -1035,25 +1146,52 @@ router.post('/friendships/bulk-reject', checkAuth, async (req: Request, res: Res
 
       const timestamp = admin.firestore.Timestamp.now();
 
-      for (const item of valid) {
+      // Buscar dados do usuário atual e dos amigos
+      const currentUserDoc = await transaction.get(db.collection('users').doc(userId));
+      const friendDocs = await Promise.all(
+        valid.map(item => transaction.get(db.collection('users').doc(item.friendId)))
+      );
+
+      for (let i = 0; i < valid.length; i++) {
+        const item = valid[i];
         transaction.delete(item.userDocRef);
         transaction.delete(item.friendDocRef);
 
-        transaction.update(db.collection('users').doc(item.friendId), {
-          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
-          updatedAt: timestamp,
-        });
+        const friendDoc = friendDocs[i];
+        if (friendDoc.exists) {
+          const friendData = friendDoc.data();
+          const currentSent = friendData?.sentRequestsCount || 0;
+
+          transaction.update(db.collection('users').doc(item.friendId), {
+            sentRequestsCount: currentSent > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
+            updatedAt: timestamp,
+          });
+        }
 
         results.rejected.push(item.friendId);
       }
 
-      transaction.update(db.collection('users').doc(userId), {
-        pendingRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
-        updatedAt: timestamp,
-      });
+      // Atualizar contador do usuário atual
+      if (currentUserDoc.exists) {
+        const userData = currentUserDoc.data();
+        const currentPending = userData?.pendingRequestsCount || 0;
+
+        transaction.update(db.collection('users').doc(userId), {
+          pendingRequestsCount: currentPending >= valid.length
+            ? admin.firestore.FieldValue.increment(-valid.length)
+            : 0,
+          updatedAt: timestamp,
+        });
+      }
     });
 
     logger.info(`Bulk reject: ${userId} rejeitou ${results.rejected.length}/${friendIds.length} solicitações`);
+
+    // Invalidar cache do usuário atual e de todos os amigos rejeitados
+    const invalidations = [invalidatePattern(CacheKeys.allUserPattern(userId))];
+    results.rejected.forEach(fId => invalidations.push(invalidatePattern(CacheKeys.allUserPattern(fId))));
+    await Promise.all(invalidations);
+
     return res.status(200).json({
       message: `${results.rejected.length} solicitações rejeitadas`,
       ...results,
@@ -1119,25 +1257,51 @@ router.post('/friendships/bulk-cancel', checkAuth, async (req: Request, res: Res
 
       const timestamp = admin.firestore.Timestamp.now();
 
-      for (const item of valid) {
+      // Buscar dados do usuário atual e dos amigos
+      const currentUserDoc = await transaction.get(db.collection('users').doc(userId));
+      const friendDocs = await Promise.all(
+        valid.map(item => transaction.get(db.collection('users').doc(item.friendId)))
+      );
+
+      for (let i = 0; i < valid.length; i++) {
+        const item = valid[i];
         transaction.delete(item.userDocRef);
         transaction.delete(item.friendDocRef);
 
-        transaction.update(db.collection('users').doc(item.friendId), {
-          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
-          updatedAt: timestamp,
-        });
+        const friendDoc = friendDocs[i];
+        if (friendDoc.exists) {
+          const friendData = friendDoc.data();
+          const currentPending = friendData?.pendingRequestsCount || 0;
+
+          transaction.update(db.collection('users').doc(item.friendId), {
+            pendingRequestsCount: currentPending > 0 ? admin.firestore.FieldValue.increment(-1) : 0,
+            updatedAt: timestamp,
+          });
+        }
 
         results.cancelled.push(item.friendId);
       }
 
-      transaction.update(db.collection('users').doc(userId), {
-        sentRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
-        updatedAt: timestamp,
-      });
-    });
+      // Atualizar contador do usuário atual
+      if (currentUserDoc.exists) {
+        const userData = currentUserDoc.data();
+        const currentSent = userData?.sentRequestsCount || 0;
 
+        transaction.update(db.collection('users').doc(userId), {
+          sentRequestsCount: currentSent >= valid.length
+            ? admin.firestore.FieldValue.increment(-valid.length)
+            : 0,
+          updatedAt: timestamp,
+        });
+      }
+    });
     logger.info(`Bulk cancel: ${userId} cancelou ${results.cancelled.length}/${friendIds.length} solicitações`);
+
+    // Invalidar cache do usuário atual e de todos os amigos cancelados
+    const invalidations = [invalidatePattern(CacheKeys.allUserPattern(userId))];
+    results.cancelled.forEach(fId => invalidations.push(invalidatePattern(CacheKeys.allUserPattern(fId))));
+    await Promise.all(invalidations);
+
     return res.status(200).json({
       message: `${results.cancelled.length} solicitações canceladas`,
       ...results,

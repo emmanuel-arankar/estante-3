@@ -11,7 +11,10 @@ if (getApps().length === 0) {
 
 const speech = new SpeechClient();
 
-export const requestTranscription = onCall(async (request) => {
+export const requestTranscription = onCall({
+    vpcConnector: 'estante-connector',
+    vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
+}, async (request) => {
     // 1. Verificação de Autenticação
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'O usuário precisa estar logado para solicitar transcrição.');

@@ -6,6 +6,7 @@ import {
   toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useCrossTabSync } from '@/hooks/useCrossTabSync';
 import { invalidateMutualFriendsCache } from '@/hooks/useMutualFriendsCache';
 import {
   listFriendsAPI,
@@ -104,6 +105,7 @@ const updateMutualFriendsCountInCache = (
 export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { broadcast } = useCrossTabSync(); // ✅ Cross-tab sync
 
   // Estados de UI
   const [searchQuery, setSearchQuery] = useState('');
@@ -165,6 +167,16 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     );
 
     const unsubscribe = onSnapshot(friendsRef, (snapshot) => {
+      // ✅ Checar se há mutations ativas que podem conflitar
+      const isAccepting = queryClient.isMutating({ mutationKey: ['acceptFriend'] }) > 0;
+      const isRemoving = queryClient.isMutating({ mutationKey: ['removeFriend'] }) > 0;
+
+      // Só atualiza cache se não há mutations ativas (evita sobrescrever optimistic updates)
+      if (isAccepting || isRemoving) {
+        console.log('[Friends Listener] Skipping update - mutation in progress');
+        return;
+      }
+
       const friendsData = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -191,7 +203,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         };
       });
 
-      // ✅ Atualizar cache do React Query para TODAS as queries de amigos
+      // ✅ Atualizar cache do React Query preservando estrutura de paginação
       queryClient.setQueriesData(
         { queryKey: ['friends', 'list', user.uid] },
         (old: any) => {
@@ -212,19 +224,23 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
             };
           }
 
-          // Atualizar todas as páginas existentes
-          return {
-            ...old,
-            pages: [{
-              ...old.pages[0],
-              data: friendsData,
-              pagination: {
-                ...old.pages[0].pagination,
-                total: friendsData.length,
-                totalPages: Math.ceil(friendsData.length / PAGE_SIZE),
-              }
-            }]
-          };
+          // ✅ FIX: Atualizar apenas os dados nas páginas existentes, não reestruturar
+          // Criar um Map para lookup rápido dos novos dados
+          const friendsMap = new Map(friendsData.map(f => [f.id, f]));
+
+          const updatedPages = old.pages.map((page: any) => ({
+            ...page,
+            data: page.data.map((friend: any) => {
+              // Se o amigo existe nos novos dados, atualizar
+              const updated = friendsMap.get(friend.id);
+              return updated || friend;
+            }).filter((friend: any) => {
+              // Remover amigos que não existem mais nos dados do listener
+              return friendsMap.has(friend.id);
+            })
+          }));
+
+          return { ...old, pages: updatedPages };
         }
       );
     });
@@ -243,6 +259,16 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     );
 
     const unsubscribe = onSnapshot(requestsRef, (snapshot) => {
+      // ✅ Checar se há mutations ativas que podem conflitar
+      const isAccepting = queryClient.isMutating({ mutationKey: ['acceptFriend'] }) > 0;
+      const isRejecting = queryClient.isMutating({ mutationKey: ['rejectFriend'] }) > 0;
+
+      // Só atualiza cache se não há mutations ativas (evita sobrescrever optimistic updates)
+      if (isAccepting || isRejecting) {
+        console.log('[Requests Listener] Skipping update - mutation in progress');
+        return;
+      }
+
       // Filtrar apenas solicitações onde requestedBy !== userId (recebidas)
       const requestsData = snapshot.docs
         .map(doc => {
@@ -299,6 +325,15 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     );
 
     const unsubscribe = onSnapshot(sentRef, (snapshot) => {
+      // ✅ Checar se há mutations ativas que podem conflitar
+      const isCanceling = queryClient.isMutating({ mutationKey: ['cancelSentRequest'] }) > 0;
+
+      // Só atualiza cache se não há mutations ativas (evita sobrescrever optimistic updates)
+      if (isCanceling) {
+        console.log('[Sent Requests Listener] Skipping update - mutation in progress');
+        return;
+      }
+
       // Filtrar apenas solicitações onde requestedBy === userId (enviadas)
       const sentData = snapshot.docs
         .map(doc => {
@@ -395,6 +430,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
   // ==================== MUTATIONS COM OPTIMISTIC UPDATES ====================
 
   const acceptMutation = useMutation({
+    mutationKey: ['acceptFriend'],
     mutationFn: (friendshipId: string) => {
       return acceptFriendRequestAPI(friendshipId);
     },
@@ -466,10 +502,14 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       invalidateMutualFriendsCache(userId);
       invalidateMutualFriendsCache(friendId);
       invalidateMutualFriendsCache(); // Invalidar cache global também
+
+      // 4. ✅ Notificar outras abas (cross-tab sync)
+      broadcast('FRIEND_REQUEST_ACCEPTED', { friendshipId, userId, friendId });
     }
   });
 
   const rejectMutation = useMutation({
+    mutationKey: ['rejectFriend'],
     mutationFn: (friendshipId: string) => {
       return removeFriendshipAPI(friendshipId);
     },
@@ -489,7 +529,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       queryClient.setQueryData(queryKeys.requests, context?.previousRequests);
       toastErrorClickable(`Erro ao recusar: ${err?.message || 'Erro desconhecido'}`);
     },
-    onSuccess: async () => {
+    onSuccess: async (_, friendshipId) => {
       toastSuccessClickable('Solicitação rejeitada');
 
       // ✅ SOLUÇÃO #3: Invalidar todas as queries relacionadas
@@ -497,10 +537,14 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'list'], refetchType: 'all' }),
       ]);
+
+      // ✅ Notificar outras abas (cross-tab sync)
+      broadcast('FRIEND_REQUEST_REJECTED', { friendshipId });
     }
   });
 
   const removeMutation = useMutation({
+    mutationKey: ['removeFriend'],
     mutationFn: (friendshipId: string) => {
       return removeFriendshipAPI(friendshipId);
     },
@@ -568,19 +612,26 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       invalidateMutualFriendsCache(userId);
       invalidateMutualFriendsCache(friendId);
       invalidateMutualFriendsCache();
+
+      // 4. ✅ Notificar outras abas (cross-tab sync)
+      broadcast('FRIEND_REMOVED', { friendshipId, userId, friendId });
     }
   });
 
   const sendRequestMutation = useMutation({
     mutationFn: sendFriendRequestAPI,
-    onSuccess: () => {
+    onSuccess: (_, targetUserId) => {
       toastSuccessClickable('Solicitação de amizade enviada!');
       queryClient.invalidateQueries({ queryKey: queryKeys.sentRequests });
+
+      // ✅ Notificar outras abas (cross-tab sync)
+      broadcast('FRIEND_REQUEST_SENT', { friendshipId: `${user?.uid}_${targetUserId}` });
     },
     onError: () => toastErrorClickable('Erro ao enviar solicitação de amizade')
   });
 
   const cancelSentMutation = useMutation({
+    mutationKey: ['cancelSentRequest'],
     mutationFn: (friendshipId: string) => {
       return removeFriendshipAPI(friendshipId);
     },
@@ -600,7 +651,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       queryClient.setQueryData(queryKeys.sentRequests, context?.previousSent);
       toastErrorClickable(`Erro ao cancelar: ${err?.message || 'Erro desconhecido'}`);
     },
-    onSuccess: async () => {
+    onSuccess: async (_, friendshipId) => {
       toastSuccessClickable('Solicitação cancelada');
 
       // ✅ SOLUÇÃO #3: Invalidar todas as queries relacionadas
@@ -608,6 +659,9 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.invalidateQueries({ queryKey: ['friends', 'sent'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'list'], refetchType: 'all' }),
       ]);
+
+      // ✅ Notificar outras abas (cross-tab sync)
+      broadcast('SENT_REQUEST_CANCELLED', { friendshipId });
     }
   });
 

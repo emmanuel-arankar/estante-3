@@ -5,7 +5,7 @@ import * as logger from 'firebase-functions/logger';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { https } from 'firebase-functions';
+import { onRequest } from 'firebase-functions/v2/https';
 import authRouter from './auth';
 import friendsRouter from './friends';
 import healthRouter from './health';
@@ -84,4 +84,26 @@ app.use('/api', healthRouter);              // Health check
 app.use(errorHandler);
 
 export { app };                             // Exportação nomeada para testes
-export const api = https.onRequest(app);    // Exportação default para deploy
+
+// Exportação para deploy usando Cloud Functions v2
+export const api = onRequest({
+  vpcConnector: 'estante-connector',
+  vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
+  region: 'us-central1',
+  memory: '512MiB',
+  timeoutSeconds: 60,
+}, (req, res) => {
+  // Injetar variáveis de ambiente no process.env para Redis
+  if (!process.env.REDIS_HOST) {
+    // Valores virão via firebase functions:secrets ou deploy command
+    const redisHost = process.env.REDIS_HOST || '';
+    const redisPort = process.env.REDIS_PORT || '6379';
+
+    if (redisHost) {
+      process.env.REDIS_HOST = redisHost;
+      process.env.REDIS_PORT = redisPort;
+    }
+  }
+
+  return app(req, res);
+});
