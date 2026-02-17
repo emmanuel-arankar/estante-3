@@ -20,13 +20,16 @@ const AvatarImage = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image> & {
     onImageLoad?: () => void;
     onImageError?: () => void;
+    loading?: 'lazy' | 'eager';
   }
->(({ className, onImageLoad, onImageError, ...props }, ref) => (
+>(({ className, onImageLoad, onImageError, loading = 'lazy', ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
     className={cn("aspect-square h-full w-full", className)}
     onLoad={onImageLoad}
     onError={onImageError}
+    loading={loading}
+    decoding="async"
     {...props}
   />
 ));

@@ -109,12 +109,12 @@ export const Layout = () => {
   // PRIORITY: storedUserProfile (Zustand) > headerData.userProfile (loader) para reflexão em tempo real
   let effectiveProfile = authUser ? (storedUserProfile || headerData.userProfile) : null;
 
-  console.log('🟢 [Layout] Render with:', {
-    hasAuthUser: !!authUser,
-    storedPhotoURL: storedUserProfile?.photoURL,
-    headerPhotoURL: headerData.userProfile?.photoURL,
-    effectivePhotoURL: effectiveProfile?.photoURL
-  });
+  //console.log('🟢 [Layout] Render with:', {
+  //  hasAuthUser: !!authUser,
+  //  storedPhotoURL: storedUserProfile?.photoURL,
+  //  headerPhotoURL: headerData.userProfile?.photoURL,
+  //  effectivePhotoURL: effectiveProfile?.photoURL
+  //});
 
   if (authUser && !effectiveProfile) {
     // Perfil temporário para exibição imediata (apenas se estiver logado)

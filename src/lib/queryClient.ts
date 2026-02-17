@@ -1,14 +1,13 @@
-import { QueryClient } from '@tanstack/react-query';
-
-// Cache mais agressivo: dados ficam "frescos" por apenas 30 segundos
-// Isso garante que mudanças no perfil apareçam rapidamente
-const thirtySeconds = 30 * 1000;
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: thirtySeconds,
-      gcTime: thirtySeconds * 4, // Garbage collect após 2 minutos
-    },
-  },
-});
+/**
+ * Re-exporta o queryClient otimizado de @/config/reactQuery.config
+ * 
+ * MIGRAÇÃO: Configuração anterior tinha staleTime de 30s.
+ * Nova configuração tem staleTime de 5min + retry logic + error handlers.
+ * 
+ * Benefícios:
+ * - Menos refetches desnecessários (5min vs 30s)
+ * - Cache persiste por mais tempo (30min vs 2min)
+ * - Retry inteligente em erros de rede
+ * - Error handling centralizado
+ */
+export { queryClient } from '@/config/reactQuery.config';

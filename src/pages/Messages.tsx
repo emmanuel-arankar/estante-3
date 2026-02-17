@@ -28,10 +28,11 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { PATHS } from '@/router/paths';
 import { deleteChat } from '@/services/realtime';
 import { useQuery } from '@tanstack/react-query';
-import { userQuery } from '@/features/users/user.queries';
+import { userProfileQuery } from '@/features/users/userProfile.queries';
 
 interface ConversationItemProps {
   chat: any;
@@ -40,15 +41,27 @@ interface ConversationItemProps {
 }
 
 const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
-  const { data: otherUser } = useQuery({
-    ...userQuery(chat.otherUserId),
+  const { getAnonymizedUser } = useBlockedUsers();
+
+  // Usar endpoint protegido que verifica bloqueio ANTES de retornar dados
+  const { data: otherUser, error } = useQuery({
+    ...userProfileQuery(chat.otherUserId),
     enabled: !!chat.otherUserId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Use real-time data if available, fallback to denormalized chat data
-  const displayName = otherUser?.displayName || chat.displayName || `Usuário ${chat.otherUserId.slice(0, 8)}`;
-  const photoURL = otherUser?.photoURL || chat.photoURL;
+  // Se erro (403 = bloqueado) ou EU bloqueei ele, mostrar genérico
+  const anonymizedData = getAnonymizedUser(chat.otherUserId);
+  const wasBlockedByUser = error !== null;
+
+  // IMPORTANTE: Não usar dados denormalizados (chat.displayName/photoURL) quando bloqueado
+  // Esses dados contêm informações reais e vazam privacidade
+  const displayName = anonymizedData?.displayName
+    || (wasBlockedByUser ? 'Usuário' : otherUser?.displayName)
+    || 'Usuário';
+
+  const photoURL = (anonymizedData?.isBlocked || wasBlockedByUser)
+    ? undefined
+    : otherUser?.photoURL;
 
   return (
     <Link
@@ -236,8 +249,21 @@ export const Messages = () => {
         <Card className="flex-1 overflow-hidden border-none shadow-sm flex flex-col">
           <CardContent className="p-0 flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex justify-center py-12">
-                <LoadingSpinner size="md" />
+              <div className="divide-y divide-gray-100">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-4 p-4 animate-pulse">
+                    {/* Avatar skeleton */}
+                    <div className="shrink-0 w-14 h-14 rounded-full bg-gray-200" />
+                    <div className="flex-1 space-y-2">
+                      {/* Nome skeleton */}
+                      <div className="h-4 bg-gray-200 rounded-full w-32" />
+                      {/* Mensagem skeleton */}
+                      <div className="h-3 bg-gray-200 rounded-full w-48" />
+                    </div>
+                    {/* Timestamp skeleton */}
+                    <div className="h-3 bg-gray-200 rounded-full w-12" />
+                  </div>
+                ))}
               </div>
             ) : filteredChats.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">

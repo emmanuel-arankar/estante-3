@@ -9,7 +9,8 @@ import {
   LogOut,
   Settings,
   UserCircle,
-  Users
+  Users,
+  Ban
 } from 'lucide-react';
 import {
   Avatar,
@@ -227,6 +228,13 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Configurações</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => navigate(PATHS.SETTINGS_BLOCKED)}
+                      className="cursor-pointer"
+                    >
+                      <Ban className="mr-2 h-4 w-4" />
+                      <span>Usuários Bloqueados</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem

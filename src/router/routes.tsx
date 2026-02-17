@@ -62,6 +62,10 @@ export const routes: RouteObject[] = [
                 path: PATHS.NOTIFICATIONS,
                 lazy: () => import('@/pages/Notifications').then(module => ({ Component: module.NotificationsPage })),
               },
+              {
+                path: PATHS.SETTINGS_BLOCKED,
+                lazy: () => import('@/pages/settings/BlockedUsers').then(module => ({ Component: module.BlockedUsers })),
+              },
             ],
           },
           // Chat e Friends fora do ContainedLayout para ocupar tela cheia

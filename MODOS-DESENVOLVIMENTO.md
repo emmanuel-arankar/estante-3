@@ -110,11 +110,11 @@ npm run dev
 
 ## 📋 Resumo Rápido
 
-| Configuração | Backend API | Firebase | Dados | Uso Recomendado |
-|-------------|-------------|----------|-------|-----------------|
-| **Modo 1: HÍBRIDO** | Local (3000) | Produção | Reais | ✅ Desenvolvimento diário |
-| **Modo 2: EMULADORES** | Emulador (5001) | Emuladores | Teste | Testes isolados |
-| **Modo 3: PRODUÇÃO** | Produção | Produção | Reais | Validação final |
+| Configuração           | Backend API         | Firebase    | Dados | Uso Recomendado            |
+|------------------------|---------------------|-------------|-------|----------------------------|
+| **Modo 1: HÍBRIDO**    | Local (3000)        | Produção    | Reais | ✅ Desenvolvimento diário  |
+| **Modo 2: EMULADORES** | Emulador (5001)     | Emuladores  | Teste | Testes isolados            |
+| **Modo 3: PRODUÇÃO**   | Produção            | Produção    | Reais | Validação final            |
 
 ---
 

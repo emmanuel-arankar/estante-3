@@ -34,6 +34,7 @@ export const listFriendsQuerySchema = z.object({
   search: z.string().trim().optional(),
   sortBy: z.enum(['name', 'nickname', 'friendshipDate']).default('friendshipDate'),
   sortDirection: z.enum(['asc', 'desc']).default('desc'),
+  cursor: z.string().optional(), // Para paginação baseada em cursor (escalável)
 });
 
 // Schema para listagem de pedidos (GET /api/friendships/requests e /sent)
@@ -41,6 +42,7 @@ export const listRequestsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().trim().optional(),
+  cursor: z.string().optional(),
 });
 
 // Schema para ações em lote (bulk-accept, bulk-reject, bulk-cancel)

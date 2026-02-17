@@ -3,6 +3,8 @@ import { appRouter } from '@/router';
 import { useAuth } from '@/hooks/useAuth';
 import { useManageMyPresence } from '@/hooks/useUserPresence';
 import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
+import { PWAInstallBanner } from '@/components/PWAInstallBanner';
+import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt';
 
 function App() {
   // Inicializa o listener de autenticação e atualiza o store
@@ -13,6 +15,8 @@ function App() {
   return (
     <AudioPlayerProvider>
       <RouterProvider router={appRouter} />
+      <PWAInstallBanner />
+      <PWAUpdatePrompt />
     </AudioPlayerProvider>
   );
 }

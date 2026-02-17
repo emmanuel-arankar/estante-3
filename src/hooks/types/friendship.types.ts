@@ -16,7 +16,7 @@ export interface UseFriendsResult {
   loadingMore: boolean;
   error: string | null;
   hasMoreFriends: boolean;
-  
+
   // Controles de busca e ordenação
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -24,11 +24,17 @@ export interface UseFriendsResult {
   setSortField: (field: SortOption) => void;
   sortDirection: SortDirection;
   setSortDirection: (direction: SortDirection) => void;
-  
+
   // Ações de carregamento
   loadAllFriends: (refresh?: boolean) => Promise<void>;
   loadMoreFriends: () => Promise<void>;
   refreshData: () => Promise<void>;
+
+  // Estados otimistas para feedback visual
+  isAccepting: (id: string) => boolean;
+  isRejecting: (id: string) => boolean;
+  isRemoving: (id: string) => boolean;
+  isCanceling: (id: string) => boolean;
 }
 
 export interface FriendshipActions {

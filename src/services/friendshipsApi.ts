@@ -39,6 +39,7 @@ export interface PaginatedResponse<T> {
     total: number;
     totalPages: number;
     hasMore: boolean;
+    nextCursor?: string; // Cursor para próxima página (escalabilidade)
   };
 }
 
@@ -48,12 +49,14 @@ export interface ListFriendsParams {
   search?: string;
   sortBy?: 'name' | 'nickname' | 'friendshipDate';
   sortDirection?: 'asc' | 'desc';
+  cursor?: string; // Paginação via cursor
 }
 
 export interface ListRequestsParams {
   page?: number;
   limit?: number;
   search?: string;
+  cursor?: string; // Paginação via cursor
 }
 
 export interface BulkActionResponse {
@@ -250,6 +253,67 @@ export const getMutualFriendsAPI = async (targetUserId: string): Promise<MutualF
   }
 
   return await response.json() as MutualFriendsResponse;
+};
+
+/**
+ * Bloqueia um usuário
+ */
+export const blockUserAPI = async (targetUserId: string): Promise<void> => {
+  const response = await fetch('/api/friendships/block', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ targetUserId }),
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  // Invalidar caches relevantes
+  const [userId] = (await response.clone().json() as any).blockId?.split('_') || [];
+  if (userId) {
+    invalidateMutualFriendsCache(userId);
+  }
+};
+
+/**
+ * Desbloqueia um usuário
+ */
+export const unblockUserAPI = async (targetUserId: string): Promise<void> => {
+  const response = await fetch('/api/friendships/unblock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ targetUserId }),
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+};
+
+export interface BlockedUser {
+  id: string;
+  displayName: string;
+  nickname: string;
+  photoURL: string | null;
+}
+
+/**
+ * Lista usuários bloqueados
+ */
+export const listBlockedUsersAPI = async (): Promise<BlockedUser[]> => {
+  const response = await fetch('/api/friendships/blocking/list', {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    await handleApiError(response);
+  }
+
+  const json = await response.json();
+  return json.data as BlockedUser[];
 };
 
 // ==================== LISTAGEM ====================

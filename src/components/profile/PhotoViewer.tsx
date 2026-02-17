@@ -3,27 +3,27 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Heart, MessageCircle, Send, MoveVertical as MoreVertical } from 'lucide-react';
-import { 
-  Avatar, 
-  AvatarImage, 
-  AvatarFallback 
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
 } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  toastSuccessClickable, 
-  toastErrorClickable 
+import {
+  toastSuccessClickable,
+  toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
 import { likeAvatar, commentOnAvatar, getUserAvatars } from '@/services/firestore';
- 
+
 interface PhotoViewerProps {
   imageUrl: string;
   onClose: () => void;
@@ -34,11 +34,11 @@ interface PhotoViewerProps {
   avatarId?: string;
 }
 
-export const PhotoViewer = ({ 
-  imageUrl, 
-  onClose, 
-  userAvatar, 
-  userName = "Usuário", 
+export const PhotoViewer = ({
+  imageUrl,
+  onClose,
+  userAvatar,
+  userName = "Usuário",
   postDate = "Data não disponível",
   userId,
   avatarId
@@ -64,7 +64,7 @@ export const PhotoViewer = ({
       try {
         const avatars = await getUserAvatars(userId);
         const avatar = avatars.find(a => a.id === avatarId);
-        
+
         if (avatar) {
           setAvatarData(avatar);
           setLikesCount(avatar.likes?.length || 0);
@@ -87,7 +87,7 @@ export const PhotoViewer = ({
     setIsLiking(true);
     try {
       await likeAvatar(avatarId, user.uid);
-      
+
       if (isLiked) {
         setLikesCount(prev => prev - 1);
         setIsLiked(false);
@@ -105,11 +105,11 @@ export const PhotoViewer = ({
 
   const handleComment = async () => {
     if (!user || !avatarId || !newComment.trim() || isSubmittingComment) return;
-  
+
     setIsSubmittingComment(true);
     try {
       const commentId = Date.now().toString();
-      
+
       const comment = {
         userId: user.uid,
         content: newComment.trim(),
@@ -119,7 +119,7 @@ export const PhotoViewer = ({
       };
 
       await commentOnAvatar(avatarId, comment);
-      
+
       // Adiciona o comentário localmente
       setComments(prev => [...prev, comment]);
       setNewComment('');
@@ -164,6 +164,8 @@ export const PhotoViewer = ({
               <img
                 src={imageUrl}
                 alt="Foto do perfil"
+                loading="lazy"
+                decoding="async"
                 className="max-w-full max-h-full object-contain rounded-lg"
                 style={{ aspectRatio: '1/1' }}
               />
@@ -258,9 +260,9 @@ export const PhotoViewer = ({
                                 {comment.likes?.length || 0}
                               </Button>
                               <span className="text-xs text-gray-500">
-                                {formatDistanceToNow(new Date(comment.createdAt), { 
-                                  addSuffix: true, 
-                                  locale: ptBR 
+                                {formatDistanceToNow(new Date(comment.createdAt), {
+                                  addSuffix: true,
+                                  locale: ptBR
                                 })}
                               </span>
                             </div>

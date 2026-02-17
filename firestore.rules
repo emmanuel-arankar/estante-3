@@ -2,8 +2,111 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    // --- HELPER FUNCTIONS ---
+    
+    // Verifica se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Verifica se o usuário é o dono do documento
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Verifica se existe um bloqueio entre os dois usuários (qualquer direção)
+    // CUSTO: 2 leituras de documento por verificação.
+    function hasBlockRelationship(otherUserId) {
+      let blockedByOther = exists(/databases/$(database)/documents/blocks/$(otherUserId + '_' + request.auth.uid));
+      let blockedByUser = exists(/databases/$(database)/documents/blocks/$(request.auth.uid + '_' + otherUserId));
+      return blockedByOther || blockedByUser;
+    }
+
+    // --- COLLECTIONS ---
+
+    // USERS
+    match /users/{userId} {
+      // Leitura pública (autenticada)
+      // GET (documento único): Verifica bloqueio
+      allow get: if isAuthenticated() && !hasBlockRelationship(userId);
+      // LIST (queries): Permite listar (necessário para buscas where('nickname', '==', ...))
+      // O filtro de bloqueio deve ser feito no client/backend para listas
+      allow list: if isAuthenticated();
+      // Apenas o próprio usuário pode editar seu perfil
+      allow create, update: if isOwner(userId);
+      // Ninguém deleta usuários diretamente (feito via Admin SDK/Functions)
+      allow delete: if false; 
+    }
+
+    // FRIENDSHIPS
+    match /friendships/{friendshipId} {
+      // Leitura: Apenas os envolvidos podem ler
+      // Se o documento existe (resource != null), verificamos os campos userId/friendId.
+      // Se não existe (resource == null), verificamos se o ID do documento segue o padrão "uid_outroId" ou "outroId_uid"
+      allow read: if isAuthenticated() && (
+        (resource != null && (resource.data.userId == request.auth.uid || resource.data.friendId == request.auth.uid)) ||
+        (resource == null && (
+          friendshipId.matches('^' + request.auth.uid + '_.*') || 
+          friendshipId.matches('.*_' + request.auth.uid + '$')
+        ))
+      );
+      
+      // Criação:
+      // 1. Autenticado
+      // 2. userId DEVE ser o próprio usuário (ninguém cria amizade pra outro)
+      // 3. Não pode haver bloqueio com o friendId
+      allow create: if isAuthenticated() 
+                   && request.resource.data.userId == request.auth.uid
+                   && !hasBlockRelationship(request.resource.data.friendId);
+
+      // Atualização (Aceitar/Rejeitar):
+      // Apenas envolvidos participam.
+      // Bloqueio já deleta o documento via backend, então aqui foca em propriedade.
+      allow update: if isAuthenticated() 
+                   && (resource.data.userId == request.auth.uid || resource.data.friendId == request.auth.uid);
+
+      // Deleção: Envolvidos podem deletar (desfazer amizade/cancelar)
+      allow delete: if isAuthenticated() 
+                   && (resource.data.userId == request.auth.uid || resource.data.friendId == request.auth.uid);
+    }
+
+    // BLOCKS
+    // ID do documento: 'blockerId_blockedId'
+    match /blocks/{blockId} {
+      // Apenas o bloqueador pode ler seus bloqueios?
+      // Ou ambos? Geralmente quem bloqueia vê.
+      allow read: if isAuthenticated() && (resource.data.blockerId == request.auth.uid);
+
+      // Criar bloqueio:
+      // ID deve ser composto corretamente? Validamos campos.
+      // O blockerId deve ser o usuário atual.
+      allow create: if isAuthenticated() 
+                   && request.resource.data.blockerId == request.auth.uid
+                   && blockId == (request.resource.data.blockerId + '_' + request.resource.data.blockedId);
+
+      // Deletar (Desbloquear): Apenas quem bloqueou pode desbloquear
+      allow delete: if isAuthenticated() && resource.data.blockerId == request.auth.uid;
+    }
+    
+    // NOTIFICATIONS
+    match /notifications/{notificationId} {
+       allow read: if isOwner(resource.data.userId);
+       // Escrita apenas pelo backend (Cloud Functions), mas se houver lógica client-side (marcar lida):
+       allow update: if isOwner(resource.data.userId);
+       allow create: if false; // Criado apenas pelo backend
+    }
+
+    // USER AVATARS
+    match /userAvatars/{avatarId} {
+      // Leitura pública (autenticada)
+      allow get: if isAuthenticated() && !hasBlockRelationship(resource.data.userId);
+      allow list: if isAuthenticated(); // Listagem permitida (filtro de bloqueio visual)
+
+      // Criação/Edição: Apenas o dono
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }
 }

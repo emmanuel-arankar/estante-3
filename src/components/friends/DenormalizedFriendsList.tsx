@@ -32,6 +32,8 @@ import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
+import { FriendCardSkeletonList } from '@/components/friends/FriendCardSkeleton';
+import { RequestCardSkeletonList } from '@/components/friends/RequestCardSkeleton';
 import { userByNicknameQuery } from '@/features/users/user.queries';
 import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
 import { useAuth } from '@/hooks/useAuth';
@@ -164,7 +166,7 @@ const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count
 };
 
 // Componente auxiliar para calcular amigos em comum dinamicamente
-const DynamicMutualFriendsIndicator: React.FC<{userId: string; friendId: string }> = ({ userId, friendId }) => {
+const DynamicMutualFriendsIndicator: React.FC<{ userId: string; friendId: string }> = ({ userId, friendId }) => {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
@@ -555,8 +557,28 @@ export const DenormalizedFriendsList: React.FC = () => {
     finally { setIsProcessingAll(false); }
   };
 
+  // Loading inicial com skeletons
   if (loading && friends.length === 0 && requests.length === 0 && sentRequests.length === 0) {
-    return <div className="min-h-[400px] flex flex-col items-center justify-center"><LoadingSpinner size="lg" /><p className="mt-4 text-gray-600">Carregando...</p></div>;
+    return (
+      <div className="space-y-6">
+        {/* Barra de busca skeleton */}
+        <div className="h-10 bg-gray-200 rounded animate-pulse" />
+
+        {/* Skeleton list baseado na aba ativa */}
+        <Card>
+          <CardHeader>
+            <div className="h-6 bg-gray-200 rounded w-48 animate-pulse" />
+          </CardHeader>
+          <CardContent>
+            {activeTab === 'requests' ? (
+              <RequestCardSkeletonList count={3} />
+            ) : (
+              <FriendCardSkeletonList count={5} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (error) {
@@ -567,7 +589,7 @@ export const DenormalizedFriendsList: React.FC = () => {
     <div className="space-y-6">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-        <Input type="text" placeholder="Buscar por nome ou alcunha..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-white border-gray-300" />
+        <Input type="text" placeholder="Buscar por nome ou alcunha..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-white border-gray-300 rounded-full" />
       </div>
 
       {activeTab === 'friends' && (

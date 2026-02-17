@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,10 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-
 import { ChatBubble } from '@/components/chat/ChatMessage';
-
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatGallery } from '@/components/chat/ChatGallery';
 import { PageMetadata } from '@/common/PageMetadata';
@@ -32,16 +28,15 @@ import { useUserPresence } from '@/hooks/useUserPresence';
 import { useAudioStore } from '@/hooks/useAudioStore';
 import { markTemporaryAudioAsPlayed } from '@/services/realtime';
 import { PATHS } from '@/router/paths';
-import { ChatMessage, User } from '@estante/common-types';
-import { userQuery } from '@/features/users/user.queries';
+import { ChatMessage } from '@estante/common-types';
+import { userProfileQuery } from '@/features/users/userProfile.queries';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 
 export const Chat = () => {
   const { receiverId } = useParams<{ receiverId: string }>();
   const { user } = useAuth();
-  const { state } = useLocation();
-  const recipient = state?.recipient as User | undefined;
   const navigate = useNavigate();
   const {
     messages,
@@ -61,11 +56,30 @@ export const Chat = () => {
     markMessageAsViewed
   } = useChat(receiverId || '');
 
-  const { data: receiverInfo } = useQuery({
-    ...userQuery(receiverId || ''),
+  const { getAnonymizedUser } = useBlockedUsers();
+
+  // Usar endpoint protegido que verifica bloqueio ANTES de retornar dados
+  const { data: receiverInfo, error: receiverError } = useQuery({
+    ...userProfileQuery(receiverId || ''),
     enabled: !!receiverId,
-    initialData: recipient,
+    // Não usar initialData do state, pois pode conter dados de usuário bloqueado
   });
+
+  // Se erro (403 = bloqueado) ou EU bloqueei ele, mostrar genérico
+  const anonymizedData = receiverId ? getAnonymizedUser(receiverId) : null;
+  const wasBlockedByReceiver = receiverError !== null;
+
+  // Detectar se chat está bloqueado (qualquer direção)
+  const isBlocked = wasBlockedByReceiver || !!anonymizedData?.isBlocked;
+
+  // Não usar dados não verificados - apenas API protegida
+  const displayReceiverName = anonymizedData?.displayName
+    || (wasBlockedByReceiver ? 'Usuário' : receiverInfo?.displayName)
+    || 'Usuário';
+
+  const displayReceiverPhoto = (anonymizedData?.isBlocked || wasBlockedByReceiver)
+    ? undefined
+    : receiverInfo?.photoURL;
 
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -315,8 +329,8 @@ export const Chat = () => {
   return (
     <>
       <PageMetadata
-        title={receiverInfo ? `Chat com ${receiverInfo.displayName}` : 'Chat'}
-        description={`Conversa com ${receiverInfo?.displayName || 'um usuário'}.`}
+        title={`Chat com ${displayReceiverName}`}
+        description={`Conversa com ${displayReceiverName}.`}
         noIndex={true}
       />
 
@@ -425,12 +439,15 @@ export const Chat = () => {
 
                     </Button>
 
-                    <div className="flex items-center space-x-3">
+                    <Link
+                      to={receiverInfo?.nickname ? PATHS.PROFILE({ nickname: receiverInfo.nickname }) : '#'}
+                      className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+                    >
                       <div className="relative">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={receiverInfo?.photoURL} alt={receiverInfo?.displayName} />
+                          <AvatarImage src={displayReceiverPhoto} alt={displayReceiverName} />
                           <AvatarFallback>
-                            {receiverInfo?.displayName?.charAt(0) || 'U'}
+                            {displayReceiverName.charAt(0) || 'U'}
                           </AvatarFallback>
                         </Avatar>
                         <OnlineStatus userId={receiverId} className="absolute -bottom-1 -right-1" />
@@ -438,13 +455,13 @@ export const Chat = () => {
 
                       <div>
                         <h1 className="font-semibold text-gray-900 leading-tight">
-                          {receiverInfo?.displayName || 'Carregando...'}
+                          {displayReceiverName}
                         </h1>
                         <p className={cn("text-[10px] font-medium", isOnline ? "text-emerald-600" : "text-gray-400")}>
                           {isOnline ? 'Online agora' : 'Offline'}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   </div>
 
                   <div className="flex items-center space-x-1">
@@ -508,14 +525,14 @@ export const Chat = () => {
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="bg-gray-100 rounded-full p-6 mb-4">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={receiverInfo?.photoURL} alt={receiverInfo?.displayName} />
+                      <AvatarImage src={displayReceiverPhoto} alt={displayReceiverName} />
                       <AvatarFallback className="text-2xl">
-                        {receiverInfo?.displayName?.charAt(0) || 'U'}
+                        {displayReceiverName.charAt(0) || 'U'}
                       </AvatarFallback>
                     </Avatar>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Comece uma conversa com {receiverInfo?.displayName}
+                    Comece uma conversa com {displayReceiverName}
                   </h3>
                   <p className="text-gray-500">
                     Envie uma mensagem para iniciar o chat
@@ -562,8 +579,8 @@ export const Chat = () => {
                               index === 0 ||
                               group.messages[index - 1].senderId !== message.senderId
                             }
-                            senderName={message.senderId === user.uid ? 'Você' : receiverInfo?.displayName}
-                            senderPhoto={message.senderId === user.uid ? (user.photoURL || undefined) : (receiverInfo?.photoURL || undefined)}
+                            senderName={message.senderId === user.uid ? 'Você' : displayReceiverName}
+                            senderPhoto={message.senderId === user.uid ? (user.photoURL || undefined) : (displayReceiverPhoto || undefined)}
                             onPlayNext={() => handlePlayNext(message.id)}
                             onEdit={() => {
                               setReplyingTo(null);
@@ -597,7 +614,7 @@ export const Chat = () => {
                       >
                         <Mic className="h-4 w-4 fill-current" />
                       </motion.div>
-                      <span>{receiverInfo?.displayName || 'Alguém'} está gravando áudio...</span>
+                      <span>{displayReceiverName} está gravando áudio...</span>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-2">
@@ -618,7 +635,7 @@ export const Chat = () => {
                           className="w-1.5 h-1.5 bg-emerald-500 rounded-full"
                         />
                       </div>
-                      <span>{receiverInfo?.displayName || 'Alguém'} está digitando...</span>
+                      <span>{displayReceiverName} está digitando...</span>
                     </div>
                   )}
                 </motion.div>
@@ -655,7 +672,8 @@ export const Chat = () => {
               editingMessage={editingMessage}
               onCancelEdit={() => setEditingMessage(null)}
               onEditMessage={editMessage}
-              recipientName={receiverInfo?.displayName}
+              recipientName={displayReceiverName}
+              disabled={isBlocked}
             />
           </div>
         </div>

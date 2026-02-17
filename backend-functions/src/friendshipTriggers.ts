@@ -36,6 +36,13 @@ export const onFriendRequestCreated = onDocumentCreated({
 
     try {
         const db = getDb();
+
+        // Buscar dados do solicitante para a notificação
+        const requesterDoc = await db.collection('users').doc(requestedBy).get();
+        const requesterData = requesterDoc.data() || {};
+        const actorName = requesterData.displayName || 'Usuário';
+        const actorPhoto = requesterData.photoURL || '';
+
         const batch = db.batch();
 
         // 1. Criar notificação
@@ -44,8 +51,8 @@ export const onFriendRequestCreated = onDocumentCreated({
             userId,
             type: 'FRIEND_REQUEST',
             actorId: requestedBy,
-            actorName: 'Usuário', // Será preenchido pelo client se necessário ou via func dedicada
-            actorPhoto: '',
+            actorName,
+            actorPhoto,
             read: false,
             createdAt: admin.firestore.Timestamp.now(),
             metadata: {

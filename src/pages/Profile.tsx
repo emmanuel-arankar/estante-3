@@ -3,7 +3,7 @@ import { useLoaderData, useNavigate, Outlet, useLocation } from 'react-router-do
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, UserCheck, MessageCircle, Camera, Users, UserMinus, X, Check, MoreVertical } from 'lucide-react';
+import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, UserCheck, MessageCircle, Camera, Users, UserMinus, X, Check, MoreVertical, Ban } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
 import { PhotoViewer } from '@/components/profile/PhotoViewer';
@@ -34,6 +34,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
@@ -45,6 +55,7 @@ import {
   getMutualFriendsAPI,
   acceptFriendRequestAPI,
   removeFriendshipAPI,
+  blockUserAPI,
 } from '@/services/friendshipsApi';
 import { fetchMutualFriendsDeduped } from '@/hooks/useMutualFriendsCache';
 import { getUserAvatars } from '@/services/firestore';
@@ -209,6 +220,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
   const [actionLoading, setActionLoading] = useState(false);
   const [currentAvatarData, setCurrentAvatarData] = useState<{ uploadedAt?: Date; id?: string; }>({});
   const [mutualFriendsCount, setMutualFriendsCount] = useState<number | null>(null);
+  const [blockDialog, setBlockDialog] = useState(false);
 
   const outletKey = location.pathname;
 
@@ -387,7 +399,37 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     }
   };
 
+  const handleBlockUser = async () => {
+    console.log('handleBlockUser chamado', { currentUser, profileUser });
+
+    if (!currentUser || !profileUser) {
+      console.error('Usuário não autenticado ou perfil inválido');
+      toastErrorClickable('Erro: usuário não autenticado');
+      return;
+    }
+
+    setBlockDialog(false);
+
+    setActionLoading(true);
+    try {
+      console.log('Chamando blockUserAPI para:', profileUser.id);
+      await blockUserAPI(profileUser.id);
+      toastSuccessClickable('Usuário bloqueado com sucesso');
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['blockedUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['userProfile', profileUser.id] });
+      // Opcional: Redirecionar para home ou atualizar UI para mostrar estado bloqueado
+      navigate(PATHS.HOME);
+    } catch (error) {
+      console.error('Erro ao bloquear usuário:', error);
+      toastErrorClickable(`Erro ao bloquear usuário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (!profileUser) {
+    // ... existing null profile check
     return (
       <div className="flex items-center justify-center text-center">
         <div>
@@ -402,6 +444,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
   return (
     <>
       <PageMetadata
+        // ... existing metadata props
         title={`${initialProfileUser.displayName} (@${initialProfileUser.nickname})`}
         description={`Veja o perfil, os livros e as atividades de ${initialProfileUser.displayName} na Estante de Bolso.`}
         ogTitle={initialProfileUser.displayName}
@@ -414,6 +457,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
         <Card className="mb-8">
           <CardContent className="p-8">
             <div className="flex flex-col md:flex-row items-start space-y-6 md:space-y-0 md:space-x-8">
+              {/* ... existing avatar code ... */}
               <div className="relative">
                 {isOwnProfile ? (
                   <ProfilePhotoMenu
@@ -459,6 +503,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                       />
                     )}
                   </div>
+
                   {isOwnProfile ? (
                     <Button
                       variant="outline"
@@ -475,17 +520,20 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                           <LoadingSpinner size="sm" className="mr-2" />
                           Verificando...
                         </Button>
-                      ) : friendshipStatus === 'none' ? (
-                        <Button
-                          className="rounded-full bg-emerald-600 hover:bg-emerald-700"
-                          onClick={handleSendFriendRequest}
-                          disabled={actionLoading}
-                        >
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Adicionar Amigo
-                        </Button>
                       ) : (
                         <>
+                          {/* Botão Principal Variável */}
+                          {friendshipStatus === 'none' && (
+                            <Button
+                              className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                              onClick={handleSendFriendRequest}
+                              disabled={actionLoading}
+                            >
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              Adicionar Amigo
+                            </Button>
+                          )}
+
                           {friendshipStatus === 'friends' && (
                             <Button
                               className="rounded-full bg-emerald-600 hover:bg-emerald-700"
@@ -495,6 +543,8 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                               Mensagem
                             </Button>
                           )}
+
+                          {/* Menu de Ações (Sempre visível para não-dono) */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -506,30 +556,31 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
-                              {friendshipStatus === 'friends' ? (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={handleRemoveFriend}
-                                    className="text-red-600 focus:text-red-600"
-                                  >
-                                    <UserMinus className="h-4 w-4 mr-2" />
-                                    Desfazer Amizade
-                                  </DropdownMenuItem>
-                                </>
-                              ) : friendshipStatus === 'request_sent' ? (
-                                <>
-                                  <DropdownMenuItem onClick={handleCancelRequest}>
-                                    <X className="h-4 w-4 mr-2" />
-                                    Cancelar Solicitação
-                                  </DropdownMenuItem>
-                                </>
-                              ) : friendshipStatus === 'request_received' ? (
+
+                              {/* Ações Específicas de Status */}
+                              {friendshipStatus === 'friends' && (
+                                <DropdownMenuItem
+                                  onClick={handleRemoveFriend}
+                                  className="text-red-600 focus:text-red-600"
+                                >
+                                  <UserMinus className="h-4 w-4 mr-2" />
+                                  Desfazer Amizade
+                                </DropdownMenuItem>
+                              )}
+
+                              {friendshipStatus === 'request_sent' && (
+                                <DropdownMenuItem onClick={handleCancelRequest}>
+                                  <X className="h-4 w-4 mr-2" />
+                                  Cancelar Solicitação
+                                </DropdownMenuItem>
+                              )}
+
+                              {friendshipStatus === 'request_received' && (
                                 <>
                                   <DropdownMenuItem onClick={handleAcceptRequest}>
                                     <Check className="h-4 w-4 mr-2" />
                                     Aceitar Solicitação
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={handleRejectRequest}
                                     className="text-red-600 focus:text-red-600"
@@ -538,7 +589,20 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                                     Recusar Solicitação
                                   </DropdownMenuItem>
                                 </>
-                              ) : null}
+                              )}
+
+                              {/* Separator apenas se houver itens acima */}
+                              {friendshipStatus !== 'none' && <DropdownMenuSeparator />}
+
+                              {/* Ações Globais */}
+                              <DropdownMenuItem
+                                onClick={() => setBlockDialog(true)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Ban className="h-4 w-4 mr-2" />
+                                Bloquear Usuário
+                              </DropdownMenuItem>
+
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </>
@@ -643,6 +707,28 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
             onCancel={() => setShowPhotoEditor(false)}
           />
         )}
+
+        {/* Dialog de confirmação para bloquear */}
+        <AlertDialog open={blockDialog} onOpenChange={setBlockDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Bloquear usuário</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja bloquear {profileUser.displayName}? Vocês deixarão de ser amigos e ele não poderá ver seu perfil.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBlockUser}
+                disabled={actionLoading}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {actionLoading ? 'Bloqueando...' : 'Bloquear'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </>
   );

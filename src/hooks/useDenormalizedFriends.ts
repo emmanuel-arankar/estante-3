@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { doc, onSnapshot, query, collection, where, orderBy, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import {
   toastSuccessClickable,
@@ -27,7 +27,6 @@ import type {
   SortDirection
 } from '@/hooks/types/friendship.types';
 import {
-  DenormalizedFriendship,
   FriendshipStats,
 } from '@estante/common-types';
 import {
@@ -118,6 +117,25 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     sentRequests: 0
   });
 
+  // ✨ NOVO: Estados otimistas para feedback visual por ação
+  const [optimisticActions, setOptimisticActions] = useState<{
+    [friendshipId: string]: 'accepting' | 'rejecting' | 'removing' | 'canceling' | null
+  }>({});
+
+  // Helper para setar ação otimista
+  const setOptimisticAction = (id: string, action: 'accepting' | 'rejecting' | 'removing' | 'canceling' | null) => {
+    setOptimisticActions(prev => ({ ...prev, [id]: action }));
+  };
+
+  // Helper para limpar ação otimista
+  const clearOptimisticAction = (id: string) => {
+    setOptimisticActions(prev => {
+      const newState = { ...prev };
+      delete newState[id];
+      return newState;
+    });
+  };
+
   // Debounce da busca (500ms)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -133,288 +151,89 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     sentRequests: ['friends', 'sent', user?.uid],
   };
 
-  // ==================== LISTENER DE CONTADORES (user doc) ====================
+  // ==================== LISTENER DE CONTADORES (Smart Invalidation) ====================
+  // Em vez de ouvir a coleção inteira de amizades (caro e não escalável),
+  // ouvimos apenas o documento do usuário. Se os contadores mudarem, invalidamos o cache.
   useEffect(() => {
     if (!user?.uid) return;
 
     const userDocRef = doc(db, 'users', user.uid);
+    let previousStats: FriendshipStats | null = null;
+
     const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        setUserStats({
+        const newStats: FriendshipStats = {
           totalFriends: data.friendsCount ?? 0,
           pendingRequests: data.pendingRequestsCount ?? 0,
           sentRequests: data.sentRequestsCount ?? 0
-        });
-      }
-    });
-
-    return unsubscribe;
-  }, [user?.uid]);
-
-  // ==================== FIRESTORE REALTIME LISTENERS ====================
-  // ✅ SOLUÇÃO: Listeners em tempo real para sincronização instantânea entre clientes
-
-  // 1️⃣ Listener para AMIGOS (status: accepted)
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const friendsRef = query(
-      collection(db, 'friendships'),
-      where('userId', '==', user.uid),
-      where('status', '==', 'accepted'),
-      orderBy('friendshipDate', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(friendsRef, (snapshot) => {
-      // ✅ Checar se há mutations ativas que podem conflitar
-      const isAccepting = queryClient.isMutating({ mutationKey: ['acceptFriend'] }) > 0;
-      const isRemoving = queryClient.isMutating({ mutationKey: ['removeFriend'] }) > 0;
-
-      // Só atualiza cache se não há mutations ativas (evita sobrescrever optimistic updates)
-      if (isAccepting || isRemoving) {
-        console.log('[Friends Listener] Skipping update - mutation in progress');
-        return;
-      }
-
-      const friendsData = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          userId: data.userId,
-          friendId: data.friendId,
-          status: data.status,
-          requestedBy: data.requestedBy,
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-          friendshipDate: data.friendshipDate instanceof Timestamp ? data.friendshipDate.toDate() : new Date(data.friendshipDate),
-          friend: {
-            id: data.friend?.id || data.friendId,
-            displayName: data.friend?.displayName || '',
-            nickname: data.friend?.nickname || '',
-            photoURL: data.friend?.photoURL || undefined,
-            email: data.friend?.email || '',
-            bio: data.friend?.bio || '',
-            location: data.friend?.location || '',
-            joinedAt: data.friend?.joinedAt instanceof Timestamp ? data.friend.joinedAt.toDate() : new Date(),
-            lastActive: data.friend?.lastActive instanceof Timestamp ? data.friend.lastActive.toDate() : undefined,
-          },
-          mutualFriendsCount: data.mutualFriendsCount || 0,
         };
-      });
 
-      // ✅ Atualizar cache do React Query preservando estrutura de paginação
-      queryClient.setQueriesData(
-        { queryKey: ['friends', 'list', user.uid] },
-        (old: any) => {
-          if (!old || !old.pages) {
-            // Primeira carga - criar estrutura inicial
-            return {
-              pages: [{
-                data: friendsData,
-                pagination: {
-                  page: 1,
-                  limit: PAGE_SIZE,
-                  total: friendsData.length,
-                  totalPages: Math.ceil(friendsData.length / PAGE_SIZE),
-                  hasMore: false,
-                }
-              }],
-              pageParams: [1]
-            };
-          }
+        setUserStats(newStats);
 
-          // ✅ FIX: Atualizar apenas os dados nas páginas existentes, não reestruturar
-          // Criar um Map para lookup rápido dos novos dados
-          const friendsMap = new Map(friendsData.map(f => [f.id, f]));
-
-          const updatedPages = old.pages.map((page: any) => ({
-            ...page,
-            data: page.data.map((friend: any) => {
-              // Se o amigo existe nos novos dados, atualizar
-              const updated = friendsMap.get(friend.id);
-              return updated || friend;
-            }).filter((friend: any) => {
-              // Remover amigos que não existem mais nos dados do listener
-              return friendsMap.has(friend.id);
-            })
-          }));
-
-          return { ...old, pages: updatedPages };
+        // Se é a primeira carga, apenas armazena
+        if (!previousStats) {
+          previousStats = newStats;
+          return;
         }
-      );
+
+        // Checa mudanças e invalida queries específicas
+        // Nota: Ignoramos se a mudança foi causada por nós mesmos (geralmente optimistic update já lidou com isso)
+        // Mas como invalidação é segura (apenas refaz o fetch), deixamos aqui para garantir consistência
+        // caso a alteração venha de outro dispositivo.
+
+        if (newStats.totalFriends !== previousStats.totalFriends) {
+          queryClient.invalidateQueries({ queryKey: ['friends', 'list'] });
+        }
+
+        if (newStats.pendingRequests !== previousStats.pendingRequests) {
+          queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
+        }
+
+        if (newStats.sentRequests !== previousStats.sentRequests) {
+          queryClient.invalidateQueries({ queryKey: ['friends', 'sent'] });
+        }
+
+        previousStats = newStats;
+      }
     });
 
     return unsubscribe;
   }, [user?.uid, queryClient]);
 
-  // 2️⃣ Listener para SOLICITAÇÕES RECEBIDAS (status: pending, requestedBy !== userId)
-  useEffect(() => {
-    if (!user?.uid) return;
+  // ==================== FETCHING QUERIES (Paginação com Cursor) ====================
 
-    const requestsRef = query(
-      collection(db, 'friendships'),
-      where('userId', '==', user.uid),
-      where('status', '==', 'pending')
-    );
-
-    const unsubscribe = onSnapshot(requestsRef, (snapshot) => {
-      // ✅ Checar se há mutations ativas que podem conflitar
-      const isAccepting = queryClient.isMutating({ mutationKey: ['acceptFriend'] }) > 0;
-      const isRejecting = queryClient.isMutating({ mutationKey: ['rejectFriend'] }) > 0;
-
-      // Só atualiza cache se não há mutations ativas (evita sobrescrever optimistic updates)
-      if (isAccepting || isRejecting) {
-        console.log('[Requests Listener] Skipping update - mutation in progress');
-        return;
-      }
-
-      // Filtrar apenas solicitações onde requestedBy !== userId (recebidas)
-      const requestsData = snapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            userId: data.userId,
-            friendId: data.friendId,
-            status: data.status,
-            requestedBy: data.requestedBy,
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-            friendshipDate: data.friendshipDate instanceof Timestamp ? data.friendshipDate.toDate() : undefined,
-            friend: {
-              id: data.friend?.id || data.friendId,
-              displayName: data.friend?.displayName || '',
-              nickname: data.friend?.nickname || '',
-              photoURL: data.friend?.photoURL || undefined,
-              email: data.friend?.email || '',
-              bio: data.friend?.bio || '',
-              location: data.friend?.location || '',
-              joinedAt: data.friend?.joinedAt instanceof Timestamp ? data.friend.joinedAt.toDate() : new Date(),
-              lastActive: data.friend?.lastActive instanceof Timestamp ? data.friend.lastActive.toDate() : undefined,
-            },
-            mutualFriendsCount: data.mutualFriendsCount || 0,
-          };
-        })
-        .filter(req => req.requestedBy !== user.uid); // ✅ Filtrar apenas recebidas
-
-      // ✅ Atualizar cache do React Query
-      queryClient.setQueryData(queryKeys.requests, {
-        data: requestsData,
-        pagination: {
-          page: 1,
-          limit: PAGE_SIZE,
-          total: requestsData.length,
-          totalPages: Math.ceil(requestsData.length / PAGE_SIZE),
-          hasMore: false,
-        }
-      });
-    });
-
-    return unsubscribe;
-  }, [user?.uid, queryClient, queryKeys.requests]);
-
-  // 3️⃣ Listener para SOLICITAÇÕES ENVIADAS (status: pending, requestedBy === userId)
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const sentRef = query(
-      collection(db, 'friendships'),
-      where('userId', '==', user.uid),
-      where('status', '==', 'pending')
-    );
-
-    const unsubscribe = onSnapshot(sentRef, (snapshot) => {
-      // ✅ Checar se há mutations ativas que podem conflitar
-      const isCanceling = queryClient.isMutating({ mutationKey: ['cancelSentRequest'] }) > 0;
-
-      // Só atualiza cache se não há mutations ativas (evita sobrescrever optimistic updates)
-      if (isCanceling) {
-        console.log('[Sent Requests Listener] Skipping update - mutation in progress');
-        return;
-      }
-
-      // Filtrar apenas solicitações onde requestedBy === userId (enviadas)
-      const sentData = snapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            userId: data.userId,
-            friendId: data.friendId,
-            status: data.status,
-            requestedBy: data.requestedBy,
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-            friendshipDate: data.friendshipDate instanceof Timestamp ? data.friendshipDate.toDate() : undefined,
-            friend: {
-              id: data.friend?.id || data.friendId,
-              displayName: data.friend?.displayName || '',
-              nickname: data.friend?.nickname || '',
-              photoURL: data.friend?.photoURL || undefined,
-              email: data.friend?.email || '',
-              bio: data.friend?.bio || '',
-              location: data.friend?.location || '',
-              joinedAt: data.friend?.joinedAt instanceof Timestamp ? data.friend.joinedAt.toDate() : new Date(),
-              lastActive: data.friend?.lastActive instanceof Timestamp ? data.friend.lastActive.toDate() : undefined,
-            },
-            mutualFriendsCount: data.mutualFriendsCount || 0,
-          };
-        })
-        .filter(req => req.requestedBy === user.uid); // ✅ Filtrar apenas enviadas
-
-      // ✅ Atualizar cache do React Query
-      queryClient.setQueryData(queryKeys.sentRequests, {
-        data: sentData,
-        pagination: {
-          page: 1,
-          limit: PAGE_SIZE,
-          total: sentData.length,
-          totalPages: Math.ceil(sentData.length / PAGE_SIZE),
-          hasMore: false,
-        }
-      });
-    });
-
-    return unsubscribe;
-  }, [user?.uid, queryClient, queryKeys.sentRequests]);
-
-  // ==================== FETCHING QUERIES ====================
-  // ✅ HÍBRIDO: React Query carrega dados iniciais, Firestore Listeners mantêm sincronizado
-
-  // 1. Amigos (Infinite Query) - usa debouncedSearch
+  // 1. Amigos (Infinite Query)
   const friendsQuery = useInfiniteQuery({
     queryKey: queryKeys.friends({ sortBy: sortField as any, sortDirection, search: debouncedSearch }),
-    queryFn: ({ pageParam = 1 }) =>
+    queryFn: ({ pageParam }) =>
       listFriendsAPI({
-        page: pageParam,
         limit: PAGE_SIZE,
         sortBy: sortField === 'default' ? 'friendshipDate' : sortField as any,
         sortDirection,
-        search: debouncedSearch
+        search: debouncedSearch,
+        cursor: pageParam as string | undefined
       }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => lastPage.pagination.hasMore ? lastPage.pagination.page + 1 : undefined,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage: any) => lastPage.pagination.nextCursor,
     enabled: !!user?.uid,
-    staleTime: Infinity, // ✅ Listeners mantêm cache atualizado
+    staleTime: 1000 * 60 * 5, // 5 minutos (agora confiamos na invalidação inteligente)
   });
 
-  // 2. Solicitações Recebidas
+  // 2. Solicitações Recebidas (Query Simples por enquanto, mas com suporte a cursor na API)
   const requestsQuery = useQuery({
     queryKey: queryKeys.requests,
-    queryFn: () => listRequestsAPI({ page: 1, limit: PAGE_SIZE }),
+    queryFn: () => listRequestsAPI({ limit: PAGE_SIZE }),
     enabled: !!user?.uid,
-    staleTime: Infinity, // ✅ Listeners mantêm cache atualizado
-    refetchOnWindowFocus: false, // ❌ Desabilitado - listeners fazem isso
+    staleTime: 1000 * 60 * 5,
   });
 
   // 3. Solicitações Enviadas
   const sentRequestsQuery = useQuery({
     queryKey: queryKeys.sentRequests,
-    queryFn: () => listSentRequestsAPI({ page: 1, limit: PAGE_SIZE }),
+    queryFn: () => listSentRequestsAPI({ limit: PAGE_SIZE }),
     enabled: !!user?.uid,
-    staleTime: Infinity, // ✅ Listeners mantêm cache atualizado
-    refetchOnWindowFocus: false, // ❌ Desabilitado - listeners fazem isso
+    staleTime: 1000 * 60 * 5,
   });
 
   // ==================== PROCESSAMENTO DE DADOS ====================
@@ -432,6 +251,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
   const acceptMutation = useMutation({
     mutationKey: ['acceptFriend'],
     mutationFn: (friendshipId: string) => {
+      setOptimisticAction(friendshipId, 'accepting'); // ✨ Feedback visual instantâneo
       return acceptFriendRequestAPI(friendshipId);
     },
     onMutate: async (friendshipId) => {
@@ -454,9 +274,18 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.setQueryData(queryKeys.friends({ sortBy: sortField as any, sortDirection, search: debouncedSearch }), (old: any) => {
           if (!old) return old;
           const newPages = [...old.pages];
+
+          // ✨ Cria objeto otimista com status e data corretos para aparecer imediatamente na lista
+          const optimisticFriend = {
+            ...acceptedRequest,
+            status: 'accepted',
+            friendshipDate: new Date(),
+            updatedAt: new Date()
+          };
+
           newPages[0] = {
             ...newPages[0],
-            data: [acceptedRequest, ...newPages[0].data]
+            data: [optimisticFriend, ...newPages[0].data]
           };
           return { ...old, pages: newPages };
         });
@@ -505,12 +334,16 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
       // 4. ✅ Notificar outras abas (cross-tab sync)
       broadcast('FRIEND_REQUEST_ACCEPTED', { friendshipId, userId, friendId });
+    },
+    onSettled: (_, __, friendshipId) => {
+      clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
     }
   });
 
   const rejectMutation = useMutation({
     mutationKey: ['rejectFriend'],
     mutationFn: (friendshipId: string) => {
+      setOptimisticAction(friendshipId, 'rejecting'); // ✨ Feedback visual instantâneo
       return removeFriendshipAPI(friendshipId);
     },
     onMutate: async (friendshipId) => {
@@ -540,12 +373,16 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
       // ✅ Notificar outras abas (cross-tab sync)
       broadcast('FRIEND_REQUEST_REJECTED', { friendshipId });
+    },
+    onSettled: (_, __, friendshipId) => {
+      clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
     }
   });
 
   const removeMutation = useMutation({
     mutationKey: ['removeFriend'],
     mutationFn: (friendshipId: string) => {
+      setOptimisticAction(friendshipId, 'removing'); // ✨ Feedback visual instantâneo
       return removeFriendshipAPI(friendshipId);
     },
     onMutate: async (friendshipId) => {
@@ -615,6 +452,9 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
       // 4. ✅ Notificar outras abas (cross-tab sync)
       broadcast('FRIEND_REMOVED', { friendshipId, userId, friendId });
+    },
+    onSettled: (_, __, friendshipId) => {
+      clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
     }
   });
 
@@ -633,6 +473,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
   const cancelSentMutation = useMutation({
     mutationKey: ['cancelSentRequest'],
     mutationFn: (friendshipId: string) => {
+      setOptimisticAction(friendshipId, 'canceling'); // ✨ Feedback visual instantâneo
       return removeFriendshipAPI(friendshipId);
     },
     onMutate: async (friendshipId) => {
@@ -662,6 +503,9 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
       // ✅ Notificar outras abas (cross-tab sync)
       broadcast('SENT_REQUEST_CANCELLED', { friendshipId });
+    },
+    onSettled: (_, __, friendshipId) => {
+      clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
     }
   });
 
@@ -754,6 +598,11 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     cancelAllSentRequests: async () => { await bulkMutation.mutateAsync({ action: 'cancel', friendIds: sentRequests.map(s => s.friendId) }); },
     acceptAllRequests: async () => { await bulkMutation.mutateAsync({ action: 'accept', friendIds: requests.map(r => r.friendId) }); },
     rejectAllRequests: async () => { await bulkMutation.mutateAsync({ action: 'reject', friendIds: requests.map(r => r.friendId) }); },
+    // ✨ NOVO: Helpers para verificar estados otimistas
+    isAccepting: (id: string) => optimisticActions[id] === 'accepting',
+    isRejecting: (id: string) => optimisticActions[id] === 'rejecting',
+    isRemoving: (id: string) => optimisticActions[id] === 'removing',
+    isCanceling: (id: string) => optimisticActions[id] === 'canceling',
   };
 };
 
@@ -763,14 +612,50 @@ export const useFriendshipStats = () => {
 };
 
 export const useFriendshipStatus = (targetUserId: string) => {
-  const { friends, requests, sentRequests, loading } = useDenormalizedFriends();
+  const { user } = useAuth();
+  const [status, setStatus] = useState<'none' | 'friends' | 'request_sent' | 'request_received' | 'self'>('none');
+  const [loading, setLoading] = useState(true);
 
-  const status = (() => {
-    if (friends.some(f => f.friendId === targetUserId)) return 'friends';
-    if (requests.some(r => r.friendId === targetUserId)) return 'request_received';
-    if (sentRequests.some(s => s.friendId === targetUserId)) return 'request_sent';
-    return 'none';
-  })();
+  useEffect(() => {
+    if (!user || !targetUserId) {
+      setStatus('none');
+      setLoading(false);
+      return;
+    }
+
+    if (user.uid === targetUserId) {
+      setStatus('self');
+      setLoading(false);
+      return;
+    }
+
+    // Escutar diretamente o documento de amizade específico
+    // Isso evita problemas de paginação onde o amigo não está na lista carregada
+    const friendshipId = `${user.uid}_${targetUserId}`;
+    const docRef = doc(db, 'friendships', friendshipId);
+
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.status === 'accepted') {
+          setStatus('friends');
+        } else if (data.status === 'pending') {
+          setStatus(data.requestedBy === user.uid ? 'request_sent' : 'request_received');
+        } else {
+          setStatus('none');
+        }
+      } else {
+        setStatus('none');
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error('Erro ao verificar status de amizade:', error);
+      setStatus('none');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user, targetUserId]);
 
   return { status, loading };
 };

@@ -57,9 +57,11 @@ export const OptimizedAvatar = ({
       {/* Avatar real - sempre renderizado mas invisível até carregar */}
       <Avatar className={`h-full w-full ${showImage ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}>
         {src && !hasError ? (
-          <AvatarImage 
-            src={src} 
+          <AvatarImage
+            src={src}
             alt={alt}
+            loading="lazy"
+            decoding="async"
             className="object-cover"
           />
         ) : null}

@@ -34,6 +34,7 @@ export const PATHS = {
   ADMIN_DASHBOARD: '/admin',
 
   // Funções construtoras para rotas dinâmicas
+  SETTINGS_BLOCKED: '/settings/blocked',
   PROFILE: (params: RouteParams['profile']) => `/profile/${params.nickname}`,
   CHAT: (params: RouteParams['chat']) => `/chat/${params.receiverId}`,
 };

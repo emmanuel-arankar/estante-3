@@ -36,7 +36,12 @@ export const useChat = (receiverId?: string) => {
     if (receiverId) {
       queryClient.fetchQuery(userQuery(receiverId))
         .then(setReceiverInfo)
-        .catch(console.error);
+        .catch(err => {
+          // Ignorar erro de permissão - é esperado quando bloqueado
+          if (err?.code !== 'permission-denied') {
+            console.error('Erro ao carregar receiver:', err);
+          }
+        });
     }
   }, [receiverId]);
 
@@ -276,40 +281,44 @@ export const useChat = (receiverId?: string) => {
     if (!user || !receiverId) return;
 
     setLoading(true);
-    const unsubscribe = subscribeToMessages(user.uid, receiverId, (newMessages) => {
-      // Reconciliação Inteligente: Une mensagens locais (sending) com remotas
-      setMessages(prev => {
-        const messageMap = new Map<string, ChatMessage>();
+    const unsubscribe = subscribeToMessages(
+      user.uid,
+      receiverId,
+      (newMessages) => {
+        // Reconciliação Inteligente: Une mensagens locais (sending) com remotas
+        setMessages(prev => {
+          const messageMap = new Map<string, ChatMessage>();
 
-        // 1. Preserva mensagens locais que ainda estão sendo enviadas
-        // Isso inclui tanto as com ID estável (generated) quanto as legadas (temp_)
-        prev.forEach(msg => {
-          if (msg.status === 'sending') {
+          // 1. Preserva mensagens locais que ainda estão sendo enviadas
+          // Isso inclui tanto as com ID estável (generated) quanto as legadas (temp_)
+          prev.forEach(msg => {
+            if (msg.status === 'sending') {
+              messageMap.set(msg.id, msg);
+            }
+          });
+
+          // 2. Adiciona/Sobrescreve com mensagens do Firebase
+          // Se o upload terminou e o Firebase notificou, a mensagem com ID estável será atualizada aqui
+          newMessages.forEach(msg => {
             messageMap.set(msg.id, msg);
+          });
+
+          return Array.from(messageMap.values()).sort((a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        });
+        setLoading(false);
+
+        const isWindowActive = document.hasFocus() && document.visibilityState === 'visible';
+
+        if (isWindowActive) {
+          const hasUnread = newMessages.some(m => m.receiverId === user.uid && !m.readAt);
+          if (hasUnread) {
+            markAllMessagesAsRead(user.uid, receiverId).catch(() => { });
           }
-        });
-
-        // 2. Adiciona/Sobrescreve com mensagens do Firebase
-        // Se o upload terminou e o Firebase notificou, a mensagem com ID estável será atualizada aqui
-        newMessages.forEach(msg => {
-          messageMap.set(msg.id, msg);
-        });
-
-        return Array.from(messageMap.values()).sort((a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-      });
-      setLoading(false);
-
-      const isWindowActive = document.hasFocus() && document.visibilityState === 'visible';
-
-      if (isWindowActive) {
-        const hasUnread = newMessages.some(m => m.receiverId === user.uid && !m.readAt);
-        if (hasUnread) {
-          markAllMessagesAsRead(user.uid, receiverId).catch(() => { });
         }
       }
-    });
+    );
 
     const handleFocus = () => {
       setTimeout(() => {

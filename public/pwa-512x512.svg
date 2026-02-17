@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Fundo verde emerald com cantos arredondados -->
+  <rect width="512" height="512" fill="#10b981" rx="86"/>
+  
+  <!-- Ícone de livro centralizado e bem grande -->
+  <g transform="translate(256, 256)">
+    <g transform="scale(14)">
+      <g transform="translate(-12, -12)">
+        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" 
+              fill="none" 
+              stroke="white" 
+              stroke-width="2" 
+              stroke-linecap="round" 
+              stroke-linejoin="round"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -8,8 +8,10 @@ import cookieParser from 'cookie-parser';
 import { onRequest } from 'firebase-functions/v2/https';
 import authRouter from './auth';
 import friendsRouter from './friends';
+import usersRouter from './users';
 import healthRouter from './health';
 import { errorHandler } from './middleware/error.middleware';
+import { requestLogger } from './middleware/logging.middleware';
 import rateLimit from 'express-rate-limit';
 
 const app = express();
@@ -52,6 +54,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser() as unknown as express.RequestHandler);
 
+// Logging de todas as requisições (ANTES do rate limiter para capturar tudo)
+app.use(requestLogger);
+
 // Define um limite geral para a maioria das rotas API
 // Em desenvolvimento, limite maior para não bloquear testes
 const apiLimiter = rateLimit({
@@ -78,6 +83,7 @@ app.use(apiLimiter as unknown as express.RequestHandler);
 // Rotas da API (sem prefixo /api porque Firebase já remove ao redirecionar)
 app.use('/api', authRouter);                // Rotas de autenticação
 app.use('/api', friendsRouter);             // Rotas de amizades
+app.use('/api', usersRouter);               // Rotas de usuários
 app.use('/api', healthRouter);              // Health check
 
 // Registra o middleware de erro POR ÚLTIMO
