@@ -14,11 +14,11 @@ interface NotificationItemProps {
 export const NotificationItem = ({ notification, onMarkAsRead }: NotificationItemProps) => {
     const getNotificationIcon = () => {
         switch (notification.type) {
-            case 'FRIEND_REQUEST':
+            case 'friend_request':
                 return <UserPlus className="h-4 w-4 text-blue-500" />;
-            case 'FRIEND_ACCEPTED':
+            case 'friend_accepted':
                 return <UserCheck className="h-4 w-4 text-green-500" />;
-            case 'FRIEND_REJECTED':
+            case 'friend_rejected':
                 return <UserX className="h-4 w-4 text-red-500" />;
             default:
                 return <Bell className="h-4 w-4 text-gray-500" />;
@@ -26,15 +26,17 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
     };
 
     const getNotificationText = () => {
+        const actorName = notification.actorName || 'Alguém';
+
         switch (notification.type) {
-            case 'FRIEND_REQUEST':
+            case 'friend_request':
                 return (
                     <>
-                        <span className="font-semibold">{notification.actorName}</span>
+                        <span className="font-semibold">{actorName}</span>
                         {' '}enviou uma solicitação de amizade
                     </>
                 );
-            case 'FRIEND_ACCEPTED':
+            case 'friend_accepted':
                 // isRequester = true: você enviou, alguém aceitou
                 // isRequester = false: alguém enviou, você aceitou
                 const isRequester = notification.metadata?.isRequester;
@@ -43,7 +45,7 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                     // Para quem enviou a solicitação
                     return (
                         <>
-                            <span className="font-semibold">{notification.actorName}</span>
+                            <span className="font-semibold">{actorName}</span>
                             {' '}aceitou sua solicitação de amizade
                         </>
                     );
@@ -51,29 +53,29 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                     // Para quem aceitou a solicitação
                     return (
                         <>
-                            Você e <span className="font-semibold">{notification.actorName}</span>
+                            Você e <span className="font-semibold">{actorName}</span>
                             {' '}agora são amigos
                         </>
                     );
                 }
-            case 'FRIEND_REJECTED':
+            case 'friend_rejected':
                 return (
                     <>
-                        <span className="font-semibold">{notification.actorName}</span>
+                        <span className="font-semibold">{actorName}</span>
                         {' '}recusou sua solicitação de amizade
                     </>
                 );
             default:
-                return 'Notificação';
+                return `Nova notificação${actorName !== 'Alguém' ? ` de ${actorName}` : ''}`;
         }
     };
 
     const getNotificationLink = () => {
         switch (notification.type) {
-            case 'FRIEND_REQUEST':
+            case 'friend_request':
                 return '/friends/requests';
-            case 'FRIEND_ACCEPTED':
-            case 'FRIEND_REJECTED':
+            case 'friend_accepted':
+            case 'friend_rejected':
                 return `/profile/${notification.actorId}`;
             default:
                 return '/notifications';

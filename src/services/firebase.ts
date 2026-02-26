@@ -3,9 +3,7 @@ import { getAnalytics } from 'firebase/analytics';
 
 // Funções de conexão com emuladores
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
-import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import { connectDatabaseEmulator, getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
@@ -24,10 +22,8 @@ export const app = initializeApp(firebaseConfig);
 
 // Exporta os serviços já inicializados
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const database = getDatabase(app);
-export const functions = getFunctions(app);
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
 // Conecta aos emuladores locais APENAS se VITE_USE_FIREBASE_EMULATORS=true
@@ -39,12 +35,7 @@ if (import.meta.env.DEV && useFirebaseEmulators) {
         console.log("🛠️ Ambiente de DEV: Conectando aos emuladores locais do Firebase...");
 
         connectAuthEmulator(auth, "http://127.0.0.1:9099");
-        connectFirestoreEmulator(db, "127.0.0.1", 8080);
         connectStorageEmulator(storage, "127.0.0.1", 9199);
-
-        // Functions: Atencao - Geralmente usamos o proxy do Vite para /api
-        // Mas se usar a funcao .httpsCallable() do Firebase SDK, precisa disso:
-        // connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
         if (database) {
             connectDatabaseEmulator(database, "127.0.0.1", 9000);

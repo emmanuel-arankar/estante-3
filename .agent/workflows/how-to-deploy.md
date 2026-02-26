@@ -16,13 +16,24 @@ Antes de tudo, é necessário compilar o código.
 npm run build
 ```
 
-## 2. Deploy do Backend (Functions)
+## 2. Deploy do Backend (API)
 
-Para atualizar a lógica do servidor (incluindo correções de erro 500/Batch):
+Para atualizar a API (funções v2/gen2):
 
-```bash
-firebase deploy --only functions
-```
+1. **Build Obrigatório** (pois removemos o predeploy automático devido a erros):
+   ```bash
+   cd backend-api
+   npm run build
+   cd ..
+   ```
+
+2. **Deploy Específico da API**:
+   ```bash
+   firebase deploy --only functions:api
+   ```
+
+> [!NOTE]
+> Se usar apenas `firebase deploy --only functions`, ele tentará deployar também as funções antigas (v1) que podem estar com erros. Use `functions:api` para focar na nova API.
 
 ## 3. Deploy do Frontend (Hosting)
 

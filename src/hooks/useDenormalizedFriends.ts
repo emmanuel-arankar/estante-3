@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/services/firebase';
+
+
 import {
   toastSuccessClickable,
   toastErrorClickable
@@ -8,6 +8,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useCrossTabSync } from '@/hooks/useCrossTabSync';
 import { invalidateMutualFriendsCache } from '@/hooks/useMutualFriendsCache';
+import { refreshNotifications } from '@/hooks/useNotifications';
 import {
   listFriendsAPI,
   listRequestsAPI,
@@ -18,6 +19,9 @@ import {
   bulkAcceptAPI,
   bulkRejectAPI,
   bulkCancelAPI,
+  getFriendshipStatusAPI,
+  getUserStatsAPI,
+
   ListFriendsParams,
 } from '@/services/friendshipsApi';
 import type {
@@ -151,55 +155,45 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     sentRequests: ['friends', 'sent', user?.uid],
   };
 
-  // ==================== LISTENER DE CONTADORES (Smart Invalidation) ====================
-  // Em vez de ouvir a coleção inteira de amizades (caro e não escalável),
-  // ouvimos apenas o documento do usuário. Se os contadores mudarem, invalidamos o cache.
+  // ==================== LISTENER DE CONTADORES (Polling) ====================
+  // Substituímos o onSnapshot por polling para evitar leitura direta do Firestore no frontend
+  const { data: currentStats } = useQuery({
+    queryKey: ['userStats', user?.uid],
+    queryFn: getUserStatsAPI,
+    enabled: !!user?.uid,
+    refetchInterval: 1000 * 60, // Polling a cada 1 minuto (ajuste conforme necessidade)
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 30,
+  });
+
+  // Effect para sincronizar stats e invalidar queries se houver mudança externa
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!currentStats) return;
 
-    const userDocRef = doc(db, 'users', user.uid);
-    let previousStats: FriendshipStats | null = null;
-
-    const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        const newStats: FriendshipStats = {
-          totalFriends: data.friendsCount ?? 0,
-          pendingRequests: data.pendingRequestsCount ?? 0,
-          sentRequests: data.sentRequestsCount ?? 0
-        };
-
-        setUserStats(newStats);
-
-        // Se é a primeira carga, apenas armazena
-        if (!previousStats) {
-          previousStats = newStats;
-          return;
-        }
-
-        // Checa mudanças e invalida queries específicas
-        // Nota: Ignoramos se a mudança foi causada por nós mesmos (geralmente optimistic update já lidou com isso)
-        // Mas como invalidação é segura (apenas refaz o fetch), deixamos aqui para garantir consistência
-        // caso a alteração venha de outro dispositivo.
-
-        if (newStats.totalFriends !== previousStats.totalFriends) {
-          queryClient.invalidateQueries({ queryKey: ['friends', 'list'] });
-        }
-
-        if (newStats.pendingRequests !== previousStats.pendingRequests) {
-          queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
-        }
-
-        if (newStats.sentRequests !== previousStats.sentRequests) {
-          queryClient.invalidateQueries({ queryKey: ['friends', 'sent'] });
-        }
-
-        previousStats = newStats;
+    setUserStats(prev => {
+      // Se nada mudou, retorna o mesmo objeto para evitar re-renders
+      if (
+        prev.totalFriends === currentStats.totalFriends &&
+        prev.pendingRequests === currentStats.pendingRequests &&
+        prev.sentRequests === currentStats.sentRequests
+      ) {
+        return prev;
       }
-    });
 
-    return unsubscribe;
-  }, [user?.uid, queryClient]);
+      // Se mudou, atualiza e invalida as listas pertinentes
+      if (currentStats.totalFriends !== prev.totalFriends) {
+        queryClient.invalidateQueries({ queryKey: ['friends', 'list'] });
+      }
+      if (currentStats.pendingRequests !== prev.pendingRequests) {
+        queryClient.invalidateQueries({ queryKey: ['friends', 'requests'] });
+      }
+      if (currentStats.sentRequests !== prev.sentRequests) {
+        queryClient.invalidateQueries({ queryKey: ['friends', 'sent'] });
+      }
+
+      return currentStats;
+    });
+  }, [currentStats, queryClient]);
 
   // ==================== FETCHING QUERIES (Paginação com Cursor) ====================
 
@@ -325,6 +319,9 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
           queryKey: ['friends', 'sent'],
           refetchType: 'all' // Fix bug #2: invalidar sentRequests
         }),
+        queryClient.invalidateQueries({
+          queryKey: ['friendshipStatus', friendId]
+        }),
       ]);
 
       // 3. Invalidar cache de amigos em comum (fix bug #1: mutual friends não aparecem)
@@ -333,7 +330,10 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       invalidateMutualFriendsCache(); // Invalidar cache global também
 
       // 4. ✅ Notificar outras abas (cross-tab sync)
-      broadcast('FRIEND_REQUEST_ACCEPTED', { friendshipId, userId, friendId });
+      broadcast('friend_request_accepted', { friendshipId, userId, friendId });
+
+      // Atualizar notificações imediatamente
+      refreshNotifications();
     },
     onSettled: (_, __, friendshipId) => {
       clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
@@ -366,13 +366,15 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       toastSuccessClickable('Solicitação rejeitada');
 
       // ✅ SOLUÇÃO #3: Invalidar todas as queries relacionadas
+      const [, friendId] = friendshipId.split('_');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'list'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['friendshipStatus', friendId] }),
       ]);
 
       // ✅ Notificar outras abas (cross-tab sync)
-      broadcast('FRIEND_REQUEST_REJECTED', { friendshipId });
+      broadcast('friend_request_rejected', { friendshipId });
     },
     onSettled: (_, __, friendshipId) => {
       clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
@@ -443,6 +445,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.invalidateQueries({ queryKey: ['friends', 'list'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'sent'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['friendshipStatus', friendId] }),
       ]);
 
       // 3. Invalidar cache de amigos em comum (recalcular após remover amizade)
@@ -451,7 +454,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       invalidateMutualFriendsCache();
 
       // 4. ✅ Notificar outras abas (cross-tab sync)
-      broadcast('FRIEND_REMOVED', { friendshipId, userId, friendId });
+      broadcast('friend_removed', { friendshipId, userId, friendId });
     },
     onSettled: (_, __, friendshipId) => {
       clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
@@ -463,9 +466,13 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     onSuccess: (_, targetUserId) => {
       toastSuccessClickable('Solicitação de amizade enviada!');
       queryClient.invalidateQueries({ queryKey: queryKeys.sentRequests });
+      queryClient.invalidateQueries({ queryKey: ['friendshipStatus', targetUserId] });
 
       // ✅ Notificar outras abas (cross-tab sync)
-      broadcast('FRIEND_REQUEST_SENT', { friendshipId: `${user?.uid}_${targetUserId}` });
+      broadcast('friend_request_sent', { friendshipId: `${user?.uid}_${targetUserId}` });
+
+      // Atualizar notificações do destinatário (no caso de mesma sessão)
+      refreshNotifications();
     },
     onError: () => toastErrorClickable('Erro ao enviar solicitação de amizade')
   });
@@ -496,13 +503,15 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       toastSuccessClickable('Solicitação cancelada');
 
       // ✅ SOLUÇÃO #3: Invalidar todas as queries relacionadas
+      const [, friendId] = friendshipId.split('_');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['friends', 'sent'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'list'], refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: ['friendshipStatus', friendId] }),
       ]);
 
       // ✅ Notificar outras abas (cross-tab sync)
-      broadcast('SENT_REQUEST_CANCELLED', { friendshipId });
+      broadcast('sent_request_cancelled', { friendshipId });
     },
     onSettled: (_, __, friendshipId) => {
       clearOptimisticAction(friendshipId); // ✨ Limpar estado otimista
@@ -613,49 +622,17 @@ export const useFriendshipStats = () => {
 
 export const useFriendshipStatus = (targetUserId: string) => {
   const { user } = useAuth();
-  const [status, setStatus] = useState<'none' | 'friends' | 'request_sent' | 'request_received' | 'self'>('none');
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user || !targetUserId) {
-      setStatus('none');
-      setLoading(false);
-      return;
-    }
+  const { data: status, isLoading } = useQuery({
+    queryKey: ['friendshipStatus', targetUserId],
+    queryFn: () => getFriendshipStatusAPI(targetUserId),
+    enabled: !!user && !!targetUserId && user.uid !== targetUserId,
+    staleTime: 1000 * 60 * 5, // 5 minutos de cache (invalidado nas ações)
+  });
 
-    if (user.uid === targetUserId) {
-      setStatus('self');
-      setLoading(false);
-      return;
-    }
+  if (user?.uid === targetUserId) {
+    return { status: 'self', loading: false };
+  }
 
-    // Escutar diretamente o documento de amizade específico
-    // Isso evita problemas de paginação onde o amigo não está na lista carregada
-    const friendshipId = `${user.uid}_${targetUserId}`;
-    const docRef = doc(db, 'friendships', friendshipId);
-
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.status === 'accepted') {
-          setStatus('friends');
-        } else if (data.status === 'pending') {
-          setStatus(data.requestedBy === user.uid ? 'request_sent' : 'request_received');
-        } else {
-          setStatus('none');
-        }
-      } else {
-        setStatus('none');
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error('Erro ao verificar status de amizade:', error);
-      setStatus('none');
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user, targetUserId]);
-
-  return { status, loading };
+  return { status: status || 'none', loading: isLoading };
 };

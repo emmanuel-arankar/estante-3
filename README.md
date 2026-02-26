@@ -1,5 +1,7 @@
 # 📚 Estante de Bolso
 
+![Tests](https://github.com/emmanuel-arankar/estante-3/workflows/Tests/badge.svg)
+
 Uma rede social brasileira para amantes da leitura, onde você pode organizar sua biblioteca pessoal, descobrir novos livros e se conectar com outros leitores.
 
 ## 🚀 Funcionalidades

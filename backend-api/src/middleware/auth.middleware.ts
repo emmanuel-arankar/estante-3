@@ -1,57 +1,82 @@
+// =============================================================================
+// IMPORTS E DEPENDÊNCIAS
+// =============================================================================
+
 import { Request, Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 
+// ==== ==== INTERFACES E TIPOS ==== ====
+
 /**
- * Estende a interface Request do Express para incluir 
- * nossa propriedade 'user' (que virá do token decodificado).
+ * @name Interface de Requisição Autenticada
+ * @summary Extensão do Request com dados do usuário.
+ * @description Estende a interface {@link Request} do Express para incluir 
+ * a propriedade 'user' (que virá do token decodificado do Firebase).
+ * 
+ * @property {admin.auth.DecodedIdToken} user - Dados do token decodificado pelo Firebase Admin SDK
  */
 export interface AuthenticatedRequest extends Request {
   user: admin.auth.DecodedIdToken;
 }
 
+// ==== ==== MIDDLEWARE DE AUTENTICAÇÃO ==== ====
+
 /**
- * Middleware para verificar o cookie de sessão do Firebase.
+ * @name Verificar Autenticação
+ * @summary Middleware de proteção de rotas.
+ * @description Middleware para verificar o cookie de sessão ou o Token ID do Firebase.
  * Se for válido, anexa os dados do usuário a `req.user`.
- * Se for inválido, retorna um erro 401.
+ * Prioriza o cookie `__session` e faz fallback para o cabeçalho `Authorization: Bearer`.
+ * 
+ * @params {Request} req - Objeto de requisição {@link Request} do Express
+ * @params {Response} res - Objeto de resposta {@link Response} do Express
+ * @params {NextFunction} next - Função de continuidade {@link NextFunction}
+ * @throws {UnauthorizedError} Retorna 401 se nenhum método de autenticação for válido.
+ * @example
+ * app.get('/perfil', checkAuth, (req, res) => { ... });
  */
 export const checkAuth = async (req: Request, res: Response, next: NextFunction) => {
-  // Pega o cookie de sessão do objeto 'req.cookies'
   const sessionCookie = req.cookies?.__session || '';
 
-  if (!sessionCookie) {
-    logger.warn('Tentativa de acesso não autenticado (cookie ausente)', { path: req.path, ip: req.ip });
-    // Se não houver cookie, o usuário não está logado.
-    return res.status(401).send({ error: 'Não autenticado. Cookie de sessão ausente.' });
-  }
-
-  try {
-    // Verifica o cookie com o Firebase Admin.
-    // O 'true' verifica se a sessão foi revogada (ex: mudança de senha).
-    const decodedToken = await admin.auth().verifySessionCookie(
-      sessionCookie,
-      true // checkRevoked
-    );
-
-    // Anexa os dados do usuário (payload do token) à requisição.
-    // Usamos um cast para nossa interface customizada.
-    (req as AuthenticatedRequest).user = decodedToken;
-    // Logar sucesso (opcional, pode ser verboso)
-    // logger.debug('Cookie de sessão verificado com sucesso', { uid: decodedToken.uid, path: req.path });
-    return next();
-  } catch (error: any) {
-    logger.warn('Falha ao verificar cookie de sessão:', {
-        errorCode: error.code,
-        errorMessage: error.message,
-        path: req.path,
-        ip: req.ip
-    });
-    // Determinar a mensagem de erro específica baseada no código
-    let clientErrorMessage = 'Sessão inválida ou expirada. Faça login novamente.';
-    if (error.code === 'auth/session-cookie-revoked') {
-      clientErrorMessage = 'Sua sessão foi revogada (ex: mudança de senha). Faça login novamente.';
+  // 1. Tentar validar via Cookie de Sessão (Prioridade para Navegadores/SSR)
+  // [DECISÃO] Cookies são preferíveis para aplicações web por serem HttpOnly e resilientes a XSS.
+  if (sessionCookie) {
+    try {
+      // [SEGURANÇA] Verifica se o token foi revogado manualmente no console do Firebase
+      const decodedToken = await admin.auth().verifySessionCookie(sessionCookie, true);
+      (req as AuthenticatedRequest).user = decodedToken;
+      return next();
+    } catch (error: any) {
+      if (error.code === 'auth/session-cookie-revoked') {
+        return res.status(401).send({ error: 'Sua sessão foi revogada. Faça login novamente.' });
+      }
+      // [FALLBACK] Se a validação do cookie falhar, não rejeitamos imediatamente; tentamos o Header Authorization.
+      // Isso permite que clientes híbridos (App + Web) funcionem de forma transparente.
+      logger.warn('Cookie de sessão inválido, tentando cabeçalho Auth', { error: error.message });
     }
-
-    return res.status(401).send({ error: clientErrorMessage });
   }
+
+  // 2. Tentar validar via ID Token (Header Authorization)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      (req as AuthenticatedRequest).user = decodedToken;
+      return next();
+    } catch (error: any) {
+      logger.warn('ID Token inválido', { error: error.message });
+      return res.status(401).send({ error: 'Token de autenticação inválido ou expirado.' });
+    }
+  }
+
+  // Se nenhum dos métodos de autenticação funcionar
+  if (!sessionCookie && !authHeader) {
+    logger.warn('Acesso não autenticado (sem cookie ou header)', { path: req.path });
+    return res.status(401).send({ error: 'Não autenticado. Faça login.' });
+  }
+
+  // Fallback: caso o cookie exista mas seja inválido e não haja um Header Authorization válido
+  return res.status(401).send({ error: 'Sessão inválida. Faça login novamente.' });
 };

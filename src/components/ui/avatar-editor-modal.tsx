@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
-import { updateProfile } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Upload, Save, RotateCcw, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,12 +17,8 @@ import {
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
 import { syncProfileAPI } from '@/services/friendshipsApi';
-import { db } from '@/services/firebase';
-import {
-  saveUserAvatar,
-  getUserAvatars
-} from '@/services/firestore';
 import { uploadProfileImage } from '@/services/storage';
+import { apiClient } from '@/services/apiClient';
 
 interface PhotoEditorProps {
   currentPhotoURL?: string;
@@ -76,7 +70,7 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
 
     setLoadingPrevious(true);
     try {
-      const avatars = await getUserAvatars(user.uid);
+      const avatars = await apiClient<UserAvatar[]>(`/users/${user.uid}/avatars`);
       setPreviousAvatars(avatars);
     } catch (error) {
       console.error('Erro ao carregar avatares anteriores:', error);
@@ -184,22 +178,27 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
         uploadProfileImage(originalFile, user.uid),
       ]);
 
-      await saveUserAvatar(user.uid, {
-        originalUrl,
-        croppedUrl,
-        isPublic: true,
-        cropData: {
-          x: crop.x,
-          y: crop.y,
-          zoom,
-          croppedArea: croppedAreaPixels
+      // Salvar avatar via API backend
+      // Salvar avatar via API backend
+      await apiClient('/avatars', {
+        method: 'POST',
+        data: {
+          originalUrl,
+          croppedUrl,
+          isPublic: true,
+          cropData: {
+            x: crop.x,
+            y: crop.y,
+            zoom,
+            croppedArea: croppedAreaPixels
+          }
         }
       });
 
-      await updateProfile(user, { photoURL: croppedUrl });
-      await updateDoc(doc(db, 'users', user.uid), {
-        photoURL: croppedUrl,
-        updatedAt: new Date(),
+      // Atualizar photoURL (Auth e Firestore) via API unificada
+      await apiClient('/users/me', {
+        method: 'PATCH',
+        data: { photoURL: croppedUrl }
       });
 
       // ✅ Sincronizar dados denormalizados
@@ -220,10 +219,10 @@ export const AvatarEditorModal = ({ currentPhotoURL, onSave, onCancel }: PhotoEd
 
     setIsUploading(true);
     try {
-      await updateProfile(user, { photoURL: selectedPreviousAvatar });
-      await updateDoc(doc(db, 'users', user.uid), {
-        photoURL: selectedPreviousAvatar,
-        updatedAt: new Date(),
+      // Atualizar photoURL (Auth e Firestore) via API unificada
+      await apiClient('/users/me', {
+        method: 'PATCH',
+        data: { photoURL: selectedPreviousAvatar }
       });
 
       // ✅ Sincronizar dados denormalizados

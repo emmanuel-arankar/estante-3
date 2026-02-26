@@ -22,7 +22,7 @@ import {
   toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
-import { likeAvatar, commentOnAvatar, getUserAvatars } from '@/services/firestore';
+import { apiClient } from '@/services/apiClient';
 
 interface PhotoViewerProps {
   imageUrl: string;
@@ -62,8 +62,8 @@ export const PhotoViewer = ({
       }
 
       try {
-        const avatars = await getUserAvatars(userId);
-        const avatar = avatars.find(a => a.id === avatarId);
+        const avatars = await apiClient<any[]>(`/users/${userId}/avatars`);
+        const avatar = avatars.find((a: any) => a.id === avatarId);
 
         if (avatar) {
           setAvatarData(avatar);
@@ -86,7 +86,7 @@ export const PhotoViewer = ({
 
     setIsLiking(true);
     try {
-      await likeAvatar(avatarId, user.uid);
+      await apiClient(`/avatars/${avatarId}/like`, { method: 'POST' });
 
       if (isLiked) {
         setLikesCount(prev => prev - 1);
@@ -108,20 +108,13 @@ export const PhotoViewer = ({
 
     setIsSubmittingComment(true);
     try {
-      const commentId = Date.now().toString();
-
-      const comment = {
-        userId: user.uid,
-        content: newComment.trim(),
-        likes: [],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      await commentOnAvatar(avatarId, comment);
+      const commentData = await apiClient(`/avatars/${avatarId}/comment`, {
+        method: 'POST',
+        data: { content: newComment.trim() },
+      });
 
       // Adiciona o comentário localmente
-      setComments(prev => [...prev, comment]);
+      setComments(prev => [...prev, commentData]);
       setNewComment('');
       toastSuccessClickable('Comentário adicionado!');
     } catch (error) {

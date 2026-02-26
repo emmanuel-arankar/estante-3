@@ -14,6 +14,15 @@ interface ChatGalleryProps {
 export const ChatGallery = ({ messages, isOpen, onClose }: ChatGalleryProps) => {
     if (!isOpen) return null;
 
+    // Filtra apenas mensagens que são imagens ou possuem conteúdo de imagem
+    const images = messages.filter(msg =>
+        msg.type === 'image' ||
+        (msg.content && (msg.content.startsWith('http') && (
+            msg.content.match(/\.(jpeg|jpg|gif|png|webp)/i) ||
+            msg.content.includes('firebasestorage.googleapis.com')
+        )))
+    );
+
     return createPortal(
         <AnimatePresence>
             {isOpen && (

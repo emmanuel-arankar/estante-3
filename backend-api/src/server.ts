@@ -1,21 +1,34 @@
-/**
- * Servidor standalone para desenvolvimento local
- * Permite rodar o backend-api sem Firebase Emulators
- */
-
-// Carrega variáveis de ambiente do .env
+// ==== ==== CARREGAR VARIÁVEIS DE AMBIENTE ANTES DE TUDO ==== ====
 import * as path from 'path';
 try {
-  require('dotenv').config({ path: path.join(__dirname, '../.env') });
+  require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 } catch (error) {
   console.log('⚠️  dotenv não encontrado, usando variáveis de ambiente do sistema');
 }
+
+// =============================================================================
+// SERVIDOR STANDALONE (DESENVOLVIMENTO)
+// =============================================================================
+
+/**
+ * @name Servidor Standalone
+ * @summary Servidor Express para desenvolvimento local.
+ * @description Servidor standalone para desenvolvimento local.
+ * Permite rodar o backend-api sem a necessidade do Firebase Functions Emulator.
+ * 
+ * @example
+ * npm run dev:server
+ */
 
 import { app } from './index';
 
 const PORT = process.env.PORT || 3000;
 
-// Inicia o servidor HTTP
+// =============================================================================
+// INICIALIZAÇÃO DO SERVIDOR (STARTUP)
+// =============================================================================
+
+// ==== ==== INICIALIZAÇÃO DO SERVIDOR (STARTUP) ==== ====
 app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════╗
@@ -35,7 +48,11 @@ app.listen(PORT, () => {
   `);
 });
 
-// Graceful shutdown
+// =============================================================================
+// ENCERRAMENTO GRACIOSO (SHUTDOWN)
+// =============================================================================
+
+// ==== ==== GERENCIAMENTO DE SINAIS (SHUTDOWN) ==== ====
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM recebido. Encerrando servidor...');
   process.exit(0);

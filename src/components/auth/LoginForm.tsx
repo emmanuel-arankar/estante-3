@@ -1,12 +1,5 @@
 import { useState } from 'react';
 import { Form, Link, useNavigation, useNavigate, useLocation } from 'react-router-dom';
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  getAdditionalUserInfo,
-  updateProfile as updateAuthProfile
-} from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import { Eye, EyeOff, Mail, Lock, Chrome } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,10 +18,9 @@ import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
-import { auth, db } from '@/services/firebase';
 import { PATHS } from '@/router/paths';
-import { generateUniqueNickname } from '@/utils/nickname';
-import { User } from '@estante/common-types';
+import { googleAuthAPI } from '@/services/authApi';
+import { signInWithGoogle } from '@/services/auth';
 
 export const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -42,47 +34,25 @@ export const LoginForm = () => {
   // # atualizado: Obtém a rota de origem, se existir
   const from = location.state?.from?.pathname || '/';
 
-  // # atualizado: Lógica completa para login com Google
+  // # atualizado: Lógica completa para login com Google centralizada no backend
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithGoogle();
       const user = result.user;
-      const additionalInfo = getAdditionalUserInfo(result);
 
-      // Verifica se é um novo usuário
-      if (additionalInfo?.isNewUser) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const nickname = await generateUniqueNickname(user.displayName || 'Leitor');
-        const finalDisplayName = user.displayName || 'Novo Leitor';
+      // Chama o backend para criar o documento Firestore se for novato
+      const authResponse = await googleAuthAPI({
+        uid: user.uid,
+        email: user.email!,
+        displayName: user.displayName || 'Novo Leitor',
+        photoURL: user.photoURL,
+      });
 
-        const newProfileData: Omit<User, 'id'> = {
-          displayName: finalDisplayName,
-          nickname,
-          email: user.email!,
-          photoURL: user.photoURL || '',
-          bio: '',
-          location: '',
-          website: '',
-          joinedAt: new Date(),
-          booksRead: 0,
-          currentlyReading: 0,
-          followers: 0,
-          following: 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          role: 'user',
-        };
-
-        await Promise.all([
-          setDoc(userDocRef, newProfileData),
-          updateAuthProfile(user, { displayName: finalDisplayName })
-        ]);
-
-        toastSuccessClickable(`Bem-vindo(a), ${finalDisplayName}! Sua conta foi criada.`);
+      if (authResponse.isNewUser) {
+        toastSuccessClickable(`Bem-vindo(a), ${user.displayName || 'Novo Leitor'}! Sua conta foi criada.`);
       } else {
-        toastSuccessClickable(`Bem-vindo(a) de volta, ${user.displayName}!`);
+        toastSuccessClickable(`Bem-vindo(a) de volta, ${user.displayName || 'Leitor'}!`);
       }
 
       navigate(PATHS.PROFILE_ME);

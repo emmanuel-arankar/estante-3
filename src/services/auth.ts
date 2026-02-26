@@ -2,15 +2,43 @@ import {
   signOut,
   onAuthStateChanged,
   getIdTokenResult,
+  signInWithPopup,
+  signInWithCustomToken,
+  GoogleAuthProvider,
   User as FirebaseUser
 } from 'firebase/auth';
+
+export type { FirebaseUser };
+export { GoogleAuthProvider };
+
+/**
+ * Wrapper para login com pop-up (ex: Google)
+ */
+export const signInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  return signInWithPopup(auth, provider);
+};
+
+/**
+ * Wrapper para login com Custom Token
+ */
+export const signInWithToken = async (customToken: string) => {
+  return signInWithCustomToken(auth, customToken);
+};
+
+/**
+ * Wrapper para observar o estado de autenticação
+ */
+export const onAuthChange = (callback: (user: FirebaseUser | null) => void) => {
+  return onAuthStateChanged(auth, callback);
+};
 import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
-import { auth, database } from '@/services/firebase';
-import { ref, set, serverTimestamp, onDisconnect } from 'firebase/database';
+import { auth } from '@/services/firebase';
+import { setUserOffline } from '@/services/realtime';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
@@ -69,18 +97,10 @@ export const logout = async () => {
         method: 'POST',
         credentials: 'include'
       }).catch(err => console.error("Session logout error", err)),
-      signOut(auth).catch(err => console.error("Firebase signOut error", err))
+      signOut(auth).catch(err => console.error("Firebase signOut error", err)),
+      // 2.1 Limpeza de Presença via API
+      setUserOffline(auth.currentUser?.uid || '').catch(err => console.error("Presence logout error", err))
     ];
-
-    // 2.1 Limpeza de Presença (Offline imediato)
-    if (auth.currentUser && database) {
-      const userStatusRef = ref(database, `/status/${auth.currentUser.uid}`);
-      logoutPromises.push(
-        set(userStatusRef, { online: false, lastSeen: serverTimestamp() })
-          .then(() => onDisconnect(userStatusRef).cancel())
-          .catch(err => console.error("Presence logout error", err))
-      );
-    }
 
     await Promise.all(logoutPromises);
 

@@ -1,96 +1,173 @@
-import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/services/firebase';
+import { useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import {
+    listNotifications,
+    markNotificationAsRead as markAsReadAPI,
+    markAllNotificationsAsRead as markAllAsReadAPI,
+    getUnreadCount,
+} from '@/services/notifications';
 import type { Notification } from '@estante/common-types';
+import {
+    useInfiniteQuery,
+    useQuery,
+    useQueryClient,
+} from '@tanstack/react-query';
+
+const NOTIFICATIONS_PAGE_SIZE = 15;
+
+/**
+ * Dispara refetch imediato das notificações.
+ * Pode ser chamado de qualquer lugar da aplicação.
+ */
+export const refreshNotifications = () => {
+    window.dispatchEvent(new CustomEvent('notifications:refresh'));
+};
+
+// ==== ==== QUERY KEYS ==== ====
+
+const notificationKeys = {
+    all: ['notifications'] as const,
+    list: (unreadOnly?: boolean) => ['notifications', 'list', { unreadOnly }] as const,
+    unreadCount: ['notifications', 'unreadCount'] as const,
+};
+
+// ==== ==== HOOK PRINCIPAL ==== ====
 
 export const useNotifications = () => {
     const { user } = useAuth();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
 
-    // Listener para notificações não lidas (real-time)
-    useEffect(() => {
-        if (!user?.uid) {
-            setNotifications([]);
-            setUnreadCount(0);
-            setIsLoading(false);
-            return;
+    // ==================== INFINITE QUERY (Lista Paginada) ====================
+    const notificationsQuery = useInfiniteQuery({
+        queryKey: notificationKeys.list(false),
+        queryFn: async ({ pageParam }) => {
+            const response = await listNotifications({
+                limit: NOTIFICATIONS_PAGE_SIZE,
+                cursor: pageParam as string | undefined,
+                unreadOnly: false,
+            });
+            return response;
+        },
+        initialPageParam: undefined as string | undefined,
+        getNextPageParam: (lastPage) =>
+            lastPage.pagination.hasMore ? lastPage.pagination.nextCursor : undefined,
+        enabled: !!user?.uid,
+        staleTime: 1000 * 30, // 30 segundos
+        refetchOnWindowFocus: true,
+    });
+
+    // ==================== UNREAD COUNT (Query Separada - Polling) ====================
+    const unreadQuery = useQuery({
+        queryKey: notificationKeys.unreadCount,
+        queryFn: getUnreadCount,
+        enabled: !!user?.uid,
+        refetchInterval: 30_000, // Polling a cada 30 segundos
+        refetchOnWindowFocus: true,
+        staleTime: 1000 * 15,
+    });
+
+    // ==================== DERIVED DATA ====================
+
+    const notifications: Notification[] =
+        notificationsQuery.data?.pages.flatMap(page => page.data) || [];
+
+    const unreadCount = unreadQuery.data ?? 0;
+    const hasMore = !!notificationsQuery.hasNextPage;
+    const isLoadingMore = notificationsQuery.isFetchingNextPage;
+
+    // ==================== ACTIONS ====================
+
+    const loadMore = useCallback(async () => {
+        if (notificationsQuery.hasNextPage && !notificationsQuery.isFetchingNextPage) {
+            await notificationsQuery.fetchNextPage();
         }
+    }, [notificationsQuery]);
 
-        setIsLoading(true);
-
-        const notificationsQuery = query(
-            collection(db, 'notifications'),
-            where('userId', '==', user.uid),
-            where('read', '==', false),
-            orderBy('createdAt', 'desc'),
-            limit(20) // Últimas 20 não lidas
-        );
-
-        const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
-            const notifs = snapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    userId: data.userId,
-                    type: data.type,
-                    actorId: data.actorId,
-                    actorName: data.actorName,
-                    actorPhoto: data.actorPhoto,
-                    read: data.read,
-                    createdAt: data.createdAt?.toDate() || new Date(),
-                    metadata: data.metadata
-                } as Notification;
-            });
-
-            setNotifications(notifs);
-            setUnreadCount(notifs.length);
-            setIsLoading(false);
-        }, (error) => {
-            console.error('Error fetching notifications:', error);
-            setIsLoading(false);
-        });
-
-        return unsubscribe;
-    }, [user?.uid]);
-
-    // Marcar notificação como lida
-    const markAsRead = async (notificationId: string) => {
+    const markAsRead = useCallback(async (notificationId: string) => {
         try {
-            const notifRef = doc(db, 'notifications', notificationId);
-            await updateDoc(notifRef, {
-                read: true,
-                readAt: Timestamp.now()
-            });
+            await markAsReadAPI(notificationId);
+
+            // Optimistic update na lista
+            queryClient.setQueriesData(
+                { queryKey: notificationKeys.list(false) },
+                (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            data: page.data.map((n: Notification) =>
+                                n.id === notificationId ? { ...n, read: true } : n
+                            ),
+                        })),
+                    };
+                }
+            );
+
+            // Decrementar unread count
+            queryClient.setQueryData(notificationKeys.unreadCount, (old: number | undefined) =>
+                Math.max(0, (old ?? 1) - 1)
+            );
         } catch (error) {
             console.error('Error marking notification as read:', error);
             throw error;
         }
-    };
+    }, [queryClient]);
 
-    // Marcar todas como lidas
-    const markAllAsRead = async () => {
+    const markAllAsRead = useCallback(async () => {
         try {
-            const promises = notifications.map(notif =>
-                updateDoc(doc(db, 'notifications', notif.id), {
-                    read: true,
-                    readAt: Timestamp.now()
-                })
+            const result = await markAllAsReadAPI();
+
+            // Optimistic update: marcar todas como lidas
+            queryClient.setQueriesData(
+                { queryKey: notificationKeys.list(false) },
+                (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            data: page.data.map((n: Notification) => ({ ...n, read: true })),
+                        })),
+                    };
+                }
             );
-            await Promise.all(promises);
+
+            // Zerar unread count
+            queryClient.setQueryData(notificationKeys.unreadCount, 0);
+
+            return result;
         } catch (error) {
             console.error('Error marking all notifications as read:', error);
             throw error;
         }
-    };
+    }, [queryClient]);
+
+    const refetch = useCallback(async () => {
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: notificationKeys.all }),
+        ]);
+    }, [queryClient]);
+
+    // ==================== REFRESH EVENT LISTENER ====================
+    // Escutar evento de refresh imediato (disparado por ações de amizade)
+    useEffect(() => {
+        const handleRefresh = () => {
+            setTimeout(() => refetch(), 500);
+        };
+        window.addEventListener('notifications:refresh', handleRefresh);
+        return () => window.removeEventListener('notifications:refresh', handleRefresh);
+    }, [refetch]);
 
     return {
         notifications,
         unreadCount,
-        isLoading,
+        isLoading: notificationsQuery.isLoading,
+        isLoadingMore,
+        hasMore,
+        loadMore,
         markAsRead,
-        markAllAsRead
+        markAllAsRead,
+        refetch,
     };
 };

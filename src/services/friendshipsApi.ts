@@ -5,6 +5,7 @@
 
 import { DenormalizedFriendship } from '@estante/common-types';
 import { invalidateMutualFriendsCache } from '@/hooks/useMutualFriendsCache';
+import { apiClient } from '@/services/apiClient';
 
 // ==================== TIPOS ====================
 
@@ -72,6 +73,12 @@ export interface SyncProfileResponse {
   updated: number;
 }
 
+export interface UserStatsResponse {
+  totalFriends: number;
+  pendingRequests: number;
+  sentRequests: number;
+}
+
 // ==================== UTILITÁRIOS ====================
 
 /**
@@ -127,116 +134,49 @@ const buildQueryString = (params: Record<string, any>): string => {
   return qs ? `?${qs}` : '';
 };
 
-/**
- * Helper para tratar erros de API de forma robusta
- * Tenta fazer parse do JSON de erro, mas fornece fallback seguro
- */
-const handleApiError = async (response: Response): Promise<never> => {
-  let errorMessage = `Erro da API (${response.status})`;
-
-  console.log(`[handleApiError] Status: ${response.status} ${response.statusText}`);
-
-  try {
-    const contentType = response.headers.get('content-type');
-    console.log(`[handleApiError] Content-Type: ${contentType}`);
-
-    if (contentType && contentType.includes('application/json')) {
-      const text = await response.text();
-      console.log(`[handleApiError] Body Text:`, text);
-
-      try {
-        const errorData = JSON.parse(text) as ApiResponse;
-        if (errorData.error) {
-          errorMessage = errorData.error;
-        } else {
-          errorMessage = `${errorMessage}: ${response.statusText}`;
-        }
-      } catch (e) {
-        console.error('[handleApiError] Falha ao fazer parse do body JSON:', e);
-      }
-    } else {
-      const text = await response.text();
-      console.log(`[handleApiError] Body Text (Non-JSON):`, text.substring(0, 500)); // Logar início do erro (pode ser HTML)
-      errorMessage = `${errorMessage}: ${response.statusText}`;
-    }
-  } catch (parseError) {
-    console.error('Erro ao ler resposta de erro:', parseError);
-    errorMessage = `${errorMessage}: ${response.statusText}`;
-  }
-
-  console.error(`[handleApiError] Throwing: ${errorMessage}`);
-  throw new Error(errorMessage);
-};
-
 // ==================== OPERAÇÕES INDIVIDUAIS ====================
 
 /**
  * Envia solicitação de amizade
  */
 export const sendFriendRequestAPI = async (targetUserId: string): Promise<void> => {
-  const response = await fetch('/api/friendships/request', {
+  await apiClient('/friendships/request', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ targetUserId }),
+    data: { targetUserId },
   });
-
-  if (!response.ok) {
-    await handleApiError(response);
-  }
 };
 
 /**
  * Aceita solicitação de amizade e invalida cache de amigos em comum
  */
 export const acceptFriendRequestAPI = async (friendshipId: string): Promise<void> => {
-  const response = await fetch(`/api/friendships/${friendshipId}/accept`, {
+  await apiClient(`/friendships/${friendshipId}/accept`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
   });
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  // Invalidar cache de amigos em comum para ambos os usuários
-  const [userId, friendId] = friendshipId.split('_');
+  const [userId, friendIdStr] = friendshipId.split('_');
   invalidateMutualFriendsCache(userId);
-  invalidateMutualFriendsCache(friendId);
+  invalidateMutualFriendsCache(friendIdStr);
 };
 
 /**
  * Rejeita/cancela solicitação ou remove amizade e invalida cache
  */
 export const removeFriendshipAPI = async (friendshipId: string): Promise<void> => {
-  const response = await fetch(`/api/friendships/${friendshipId}`, {
+  await apiClient(`/friendships/${friendshipId}`, {
     method: 'DELETE',
-    credentials: 'include',
   });
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  const [userId, friendId] = friendshipId.split('_');
+  const [userId, friendIdStr] = friendshipId.split('_');
   invalidateMutualFriendsCache(userId);
-  invalidateMutualFriendsCache(friendId);
+  invalidateMutualFriendsCache(friendIdStr);
 };
 
 /**
  * Verifica status de amizade com um usuário
  */
 export const getFriendshipStatusAPI = async (targetUserId: string): Promise<FriendshipStatus> => {
-  const response = await fetch(`/api/friendships/status/${targetUserId}`, {
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  const data = await response.json() as FriendshipStatusResponse;
+  const data = await apiClient<FriendshipStatusResponse>(`/friendships/status/${targetUserId}`);
   return data.status;
 };
 
@@ -244,34 +184,20 @@ export const getFriendshipStatusAPI = async (targetUserId: string): Promise<Frie
  * Calcula amigos em comum com outro usuário
  */
 export const getMutualFriendsAPI = async (targetUserId: string): Promise<MutualFriendsResponse> => {
-  const response = await fetch(`/api/friendships/mutual/${targetUserId}`, {
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  return await response.json() as MutualFriendsResponse;
+  return await apiClient<MutualFriendsResponse>(`/friendships/mutual/${targetUserId}`);
 };
 
 /**
  * Bloqueia um usuário
  */
 export const blockUserAPI = async (targetUserId: string): Promise<void> => {
-  const response = await fetch('/api/friendships/block', {
+  const response = await apiClient<{ blockId?: string }>('/friendships/block', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ targetUserId }),
+    data: { targetUserId },
   });
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
   // Invalidar caches relevantes
-  const [userId] = (await response.clone().json() as any).blockId?.split('_') || [];
+  const [userId] = response.blockId?.split('_') || [];
   if (userId) {
     invalidateMutualFriendsCache(userId);
   }
@@ -281,16 +207,10 @@ export const blockUserAPI = async (targetUserId: string): Promise<void> => {
  * Desbloqueia um usuário
  */
 export const unblockUserAPI = async (targetUserId: string): Promise<void> => {
-  const response = await fetch('/api/friendships/unblock', {
+  await apiClient('/friendships/unblock', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ targetUserId }),
+    data: { targetUserId },
   });
-
-  if (!response.ok) {
-    await handleApiError(response);
-  }
 };
 
 export interface BlockedUser {
@@ -304,16 +224,8 @@ export interface BlockedUser {
  * Lista usuários bloqueados
  */
 export const listBlockedUsersAPI = async (): Promise<BlockedUser[]> => {
-  const response = await fetch('/api/friendships/blocking/list', {
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  const json = await response.json();
-  return json.data as BlockedUser[];
+  const json = await apiClient<{ data: BlockedUser[] }>('/friendships/blocking/list');
+  return json.data;
 };
 
 // ==================== LISTAGEM ====================
@@ -325,16 +237,8 @@ export const listFriendsAPI = async (
   params?: ListFriendsParams
 ): Promise<PaginatedResponse<DenormalizedFriendship>> => {
   const qs = buildQueryString(params || {});
-  const response = await fetch(`/api/friendships${qs}`, {
-    credentials: 'include',
-  });
+  const json = await apiClient<{ data: any[], pagination: any }>(`/friendships${qs}`);
 
-  if (!response.ok) {
-    const errorData = await response.json() as ApiResponse;
-    throw new Error(errorData.error || `Erro da API: ${response.statusText}`);
-  }
-
-  const json = await response.json();
   return {
     data: (json.data || []).map(parseDenormalizedFriendship),
     pagination: json.pagination,
@@ -348,15 +252,8 @@ export const listRequestsAPI = async (
   params?: ListRequestsParams
 ): Promise<PaginatedResponse<DenormalizedFriendship>> => {
   const qs = buildQueryString(params || {});
-  const response = await fetch(`/api/friendships/requests${qs}`, {
-    credentials: 'include',
-  });
+  const json = await apiClient<{ data: any[], pagination: any }>(`/friendships/requests${qs}`);
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  const json = await response.json();
   return {
     data: (json.data || []).map(parseDenormalizedFriendship),
     pagination: json.pagination,
@@ -370,15 +267,8 @@ export const listSentRequestsAPI = async (
   params?: ListRequestsParams
 ): Promise<PaginatedResponse<DenormalizedFriendship>> => {
   const qs = buildQueryString(params || {});
-  const response = await fetch(`/api/friendships/sent${qs}`, {
-    credentials: 'include',
-  });
+  const json = await apiClient<{ data: any[], pagination: any }>(`/friendships/sent${qs}`);
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  const json = await response.json();
   return {
     data: (json.data || []).map(parseDenormalizedFriendship),
     pagination: json.pagination,
@@ -391,55 +281,33 @@ export const listSentRequestsAPI = async (
  * Aceita múltiplas solicitações de amizade
  */
 export const bulkAcceptAPI = async (friendIds: string[]): Promise<BulkActionResponse> => {
-  const response = await fetch('/api/friendships/bulk-accept', {
+  const response = await apiClient<BulkActionResponse>('/friendships/bulk-accept', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ friendIds }),
+    data: { friendIds },
   });
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
   invalidateMutualFriendsCache();
-  return await response.json() as BulkActionResponse;
+  return response;
 };
 
 /**
  * Rejeita múltiplas solicitações recebidas
  */
 export const bulkRejectAPI = async (friendIds: string[]): Promise<BulkActionResponse> => {
-  const response = await fetch('/api/friendships/bulk-reject', {
+  return await apiClient<BulkActionResponse>('/friendships/bulk-reject', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ friendIds }),
+    data: { friendIds },
   });
-
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  return await response.json() as BulkActionResponse;
 };
 
 /**
  * Cancela múltiplas solicitações enviadas
  */
 export const bulkCancelAPI = async (friendIds: string[]): Promise<BulkActionResponse> => {
-  const response = await fetch('/api/friendships/bulk-cancel', {
+  return await apiClient<BulkActionResponse>('/friendships/bulk-cancel', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ friendIds }),
+    data: { friendIds },
   });
-
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  return await response.json() as BulkActionResponse;
 };
 
 // ==================== SINCRONIZAÇÃO ====================
@@ -449,15 +317,14 @@ export const bulkCancelAPI = async (friendIds: string[]): Promise<BulkActionResp
  * Deve ser chamado após edição de perfil ou foto
  */
 export const syncProfileAPI = async (): Promise<SyncProfileResponse> => {
-  const response = await fetch('/api/friendships/sync-profile', {
+  return await apiClient<SyncProfileResponse>('/friendships/sync-profile', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
   });
+};
 
-  if (!response.ok) {
-    await handleApiError(response);
-  }
-
-  return await response.json() as SyncProfileResponse;
+/**
+ * Busca estatísticas de amizade do usuário atual (friends, requests, sent)
+ */
+export const getUserStatsAPI = async (): Promise<UserStatsResponse> => {
+  return await apiClient<UserStatsResponse>('/users/me/stats');
 };

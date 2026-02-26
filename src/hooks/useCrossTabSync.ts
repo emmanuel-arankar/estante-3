@@ -6,11 +6,11 @@ import { useQueryClient } from '@tanstack/react-query';
  * Sincroniza ações de amizade entre múltiplas abas do mesmo usuário
  */
 type SyncEventType =
-    | 'FRIEND_REQUEST_SENT'
-    | 'FRIEND_REQUEST_ACCEPTED'
-    | 'FRIEND_REQUEST_REJECTED'
-    | 'FRIEND_REMOVED'
-    | 'SENT_REQUEST_CANCELLED';
+    | 'friend_request_sent'
+    | 'friend_request_accepted'
+    | 'friend_request_rejected'
+    | 'friend_removed'
+    | 'sent_request_cancelled';
 
 interface SyncEvent {
     type: SyncEventType;
@@ -58,7 +58,7 @@ export const useCrossTabSync = () => {
 
             // Invalidar queries relevantes baseado no tipo de evento
             switch (type) {
-                case 'FRIEND_REQUEST_SENT':
+                case 'friend_request_sent':
                     // Invalidar lista de solicitações enviadas
                     queryClient.invalidateQueries({
                         queryKey: ['friends', 'sent'],
@@ -66,7 +66,7 @@ export const useCrossTabSync = () => {
                     });
                     break;
 
-                case 'FRIEND_REQUEST_ACCEPTED':
+                case 'friend_request_accepted':
                     // Invalidar lista de amigos E solicitações recebidas
                     queryClient.invalidateQueries({
                         queryKey: ['friends', 'list'],
@@ -78,7 +78,7 @@ export const useCrossTabSync = () => {
                     });
                     break;
 
-                case 'FRIEND_REQUEST_REJECTED':
+                case 'friend_request_rejected':
                     // Invalidar lista de solicitações recebidas
                     queryClient.invalidateQueries({
                         queryKey: ['friends', 'requests'],
@@ -86,7 +86,7 @@ export const useCrossTabSync = () => {
                     });
                     break;
 
-                case 'FRIEND_REMOVED':
+                case 'friend_removed':
                     // Invalidar lista de amigos
                     queryClient.invalidateQueries({
                         queryKey: ['friends', 'list'],
@@ -94,7 +94,7 @@ export const useCrossTabSync = () => {
                     });
                     break;
 
-                case 'SENT_REQUEST_CANCELLED':
+                case 'sent_request_cancelled':
                     // Invalidar lista de solicitações enviadas
                     queryClient.invalidateQueries({
                         queryKey: ['friends', 'sent'],

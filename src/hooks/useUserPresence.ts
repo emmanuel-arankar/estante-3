@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { ref, onValue, serverTimestamp, set, onDisconnect, Unsubscribe } from 'firebase/database';
-import { database } from '../services/firebase';
 import { useAuth } from './useAuth';
+import {
+  setUserOnline,
+  setUserOffline,
+  subscribeToUserStatus,
+  subscribeToConnection,
+  Unsubscribe
+} from '../services/realtime';
 
 // --- useUserPresence (Ouve o status de outro usuário) ---
 interface PresenceStatus {
@@ -13,21 +18,14 @@ export const useUserPresence = (userId: string | null | undefined): PresenceStat
   const [presence, setPresence] = useState<PresenceStatus>({ online: false, lastSeen: null });
 
   useEffect(() => {
-    if (!userId || !database) return;
+    if (!userId) return;
 
-    const userStatusRef = ref(database, `/status/${userId}`);
-
-    const unsubscribe = onValue(userStatusRef, (snapshot) => {
-      const data = snapshot.val();
-      if (snapshot.exists()) {
-        const isOnline = data.online === true;
-        setPresence((prev) => {
-          if (prev.online === isOnline && prev.lastSeen === data.lastSeen) return prev;
-          return { online: isOnline, lastSeen: data.lastSeen || null };
-        });
-      }
-    }, (error) => {
-      console.error(`[useUserPresence] Erro no listener para ${userId}:`, error);
+    const unsubscribe = subscribeToUserStatus(userId, (isOnline, lastSeen) => {
+      setPresence((prev) => {
+        const lastSeenTime = lastSeen ? lastSeen.getTime() : null;
+        if (prev.online === isOnline && prev.lastSeen === lastSeenTime) return prev;
+        return { online: isOnline, lastSeen: lastSeenTime };
+      });
     });
 
     return () => unsubscribe();
@@ -48,44 +46,29 @@ export const useManageMyPresence = () => {
   useEffect(() => {
     let unsubscribeConnected: Unsubscribe | null = null;
 
-    if (user && database) {
+    if (user) {
       const myUid = user.uid;
       myUidRef.current = myUid;
-      const userStatusRef = ref(database, `/status/${myUid}`);
-      const connectedRef = ref(database, '.info/connected');
 
-      const isOnlineForDatabase = {
-        online: true,
-        lastSeen: serverTimestamp(),
-      };
-
-      const isOfflineForDatabase = {
-        online: false,
-        lastSeen: serverTimestamp(),
-      };
-
-      unsubscribeConnected = onValue(connectedRef, (snapshot) => {
-        const isConnected = snapshot.val();
-
+      unsubscribeConnected = subscribeToConnection((isConnected) => {
         if (isConnected === true) {
-          onDisconnect(userStatusRef).set(isOfflineForDatabase)
+          setUserOnline(myUid)
             .then(() => {
-              return set(userStatusRef, isOnlineForDatabase);
-            })
-            .then(() => {
-              console.log(`✅ [Presença] Sticky-Status ONLINE: ${myUid}`);
+              console.log(`✅ [Presença] Sticky-Status ONLINE via API: ${myUid}`);
             })
             .catch((error) => {
-              console.error(`❌ [Presença] Erro ao sincronizar status:`, error);
+              console.error(`❌ [Presença] Erro ao sincronizar status via API:`, error);
             });
         }
       });
 
       return () => {
         if (unsubscribeConnected) unsubscribeConnected();
+        // Opcional: Marcar como offline ao desmontar, mas o onDisconnect no servidor é mais confiável para crashes/fechamento de aba
+        if (myUidRef.current) {
+          setUserOffline(myUidRef.current).catch(() => { });
+        }
       };
     }
-    // IMPORTANTE: Não estamos forçando offline no deslogar via hook para evitar flickers.
-    // O offline é forçado pelo serviço de logout ou timeout do servidor.
   }, [user]);
 };

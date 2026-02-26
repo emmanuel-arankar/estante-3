@@ -1,68 +1,30 @@
-import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import { Bell, CheckCheck } from 'lucide-react';
-import { db } from '@/services/firebase';
-import { useAuth } from '@/hooks/useAuth';
+import { useState, useMemo } from 'react';
+import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationItem } from '@/components/notifications/NotificationItem';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageMetadata } from '@/components/seo/PageMetadata';
-import type { Notification } from '@estante/common-types';
 
 export const NotificationsPage = () => {
-    const { user } = useAuth();
-    const { markAsRead, markAllAsRead } = useNotifications();
-    const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const {
+        notifications,
+        unreadCount,
+        isLoading,
+        isLoadingMore,
+        hasMore,
+        loadMore,
+        markAsRead,
+        markAllAsRead,
+    } = useNotifications();
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-    // Buscar todas as notificações (não apenas não lidas)
-    useEffect(() => {
-        if (!user?.uid) return;
-
-        const fetchAllNotifications = async () => {
-            setIsLoading(true);
-            try {
-                const notificationsQuery = query(
-                    collection(db, 'notifications'),
-                    where('userId', '==', user.uid),
-                    orderBy('createdAt', 'desc'),
-                    limit(50)
-                );
-
-                const snapshot = await getDocs(notificationsQuery);
-                const notifs = snapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        userId: data.userId,
-                        type: data.type,
-                        actorId: data.actorId,
-                        actorName: data.actorName,
-                        actorPhoto: data.actorPhoto,
-                        read: data.read,
-                        createdAt: data.createdAt?.toDate() || new Date(),
-                        metadata: data.metadata
-                    } as Notification;
-                });
-
-                setAllNotifications(notifs);
-            } catch (error) {
-                console.error('Error fetching notifications:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchAllNotifications();
-    }, [user?.uid]);
-
-    const filteredNotifications = filter === 'unread'
-        ? allNotifications.filter(n => !n.read)
-        : allNotifications;
-
-    const unreadCount = allNotifications.filter(n => !n.read).length;
+    const filteredNotifications = useMemo(() =>
+        filter === 'unread'
+            ? notifications.filter(n => !n.read)
+            : notifications,
+        [notifications, filter]
+    );
 
     return (
         <>
@@ -134,15 +96,39 @@ export const NotificationsPage = () => {
                                 </p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-gray-200">
-                                {filteredNotifications.map((notification) => (
-                                    <NotificationItem
-                                        key={notification.id}
-                                        notification={notification}
-                                        onMarkAsRead={markAsRead}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div className="divide-y divide-gray-200">
+                                    {filteredNotifications.map((notification) => (
+                                        <NotificationItem
+                                            key={notification.id}
+                                            notification={notification}
+                                            onMarkAsRead={markAsRead}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Botão "Carregar Mais" */}
+                                {hasMore && filter === 'all' && (
+                                    <div className="flex justify-center py-4 border-t border-gray-200">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={loadMore}
+                                            disabled={isLoadingMore}
+                                            className="gap-2"
+                                        >
+                                            {isLoadingMore ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    Carregando...
+                                                </>
+                                            ) : (
+                                                'Carregar mais notificações'
+                                            )}
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

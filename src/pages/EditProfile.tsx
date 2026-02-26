@@ -1,35 +1,28 @@
 import { useState } from 'react';
 import { useNavigate, useLoaderData, Form, useNavigation } from 'react-router-dom';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs 
-} from 'firebase/firestore';
 import { ArrowLeft, Save, User, Link as LinkIcon, Check, X, Loader2 } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { LocationSelector } from '@/components/ui/location-selector';
-import { useAuth } from '@/hooks/useAuth';
-import { db } from '@/services/firebase';
 import { PATHS } from '@/router/paths';
-import { User as UserModel, UserLocation } from '@estante/common-types';
+import { User as UserModel } from '@estante/common-types';
+import { apiClient } from '@/services/apiClient';
 
 const convertFirestoreDate = (date: any): Date | null => {
   if (!date) return null;
@@ -43,7 +36,6 @@ const convertFirestoreDate = (date: any): Date | null => {
 
 export const EditProfile = () => {
   const profile = useLoaderData() as UserModel;
-  const { user } = useAuth();
   const navigate = useNavigate();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === 'submitting';
@@ -67,14 +59,17 @@ export const EditProfile = () => {
     if (!newNickname || newNickname.length < 3) {
       setNicknameStatus('invalid');
       return false;
-    };
-    const q = query(collection(db, 'users'), where('nickname', '==', newNickname));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      // It's not available unless it's the user's own current nickname
-      return querySnapshot.docs[0].id === user?.uid;
     }
-    return true;
+    try {
+      const data = await apiClient<{ available: boolean }>(`/users/check-nickname?nickname=${encodeURIComponent(newNickname)}`);
+      if (!data.available) {
+        // Não disponível, mas pode ser o próprio nickname do usuário
+        return newNickname === profile.nickname;
+      }
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,7 +142,7 @@ export const EditProfile = () => {
         ogDescription="Mantenha seus dados atualizados para se conectar com outros leitores."
         noIndex={true}
       />
-      
+
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardHeader>

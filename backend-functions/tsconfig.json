@@ -6,9 +6,16 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "skipLibCheck": true,
+    "target": "es2017",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   },
   "compileOnSave": true,
+  "exclude": [
+    "node_modules",
+    "../node_modules/@types/request/**/*"
+  ],
   "include": [
     "src"
   ]

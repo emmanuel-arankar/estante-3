@@ -1,4 +1,3 @@
-import { getPendingRequestCount } from '@/services/firestore';
 import {
   awaitAuthReady,
   getCurrentUser
@@ -29,11 +28,10 @@ export const layoutLoader = async () => {
   }
 
   try {
-    // Buscar dados em PARALELO (não sequencial) - muito mais rápido!
-    const [userProfile, initialFriendRequests] = await Promise.all([
-      queryClient.ensureQueryData(userQuery(user.uid)),
-      getPendingRequestCount(user.uid).catch(() => 0) // Fallback em caso de erro
-    ]);
+    const userProfile = await queryClient.ensureQueryData(userQuery(user.uid));
+
+    // Usar campo do user doc (atualizado atomicamente pela API)
+    const initialFriendRequests = (userProfile as any)?.pendingRequestsCount ?? 0;
 
     // 3. Importante: Sincronizar userProfile carregado com o store global
     // Isso permite que componentes usem useAuthStore().userProfile

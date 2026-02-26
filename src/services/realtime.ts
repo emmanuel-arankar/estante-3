@@ -1,69 +1,44 @@
-import {
-  ref,
-  push,
-  onValue,
-  off,
-  query,
-  limitToLast,
-  serverTimestamp,
-  set,
-  update,
-  get,
-  onDisconnect,
-  increment,
-  runTransaction,
-  remove
-} from 'firebase/database';
+import { ref, onValue, off, query, limitToLast, orderByKey, endBefore, get } from 'firebase/database';
 import { database } from '@/services/firebase';
 import { ChatMessage } from '@estante/common-types';
+import { apiClient } from '@/services/apiClient';
 
 // Helper to generate ID client-side
-export const generateMessageId = (senderId: string, receiverId: string): string => {
-  const chatId = getChatId(senderId, receiverId);
-  const messagesRef = ref(database, `chats/${chatId}/messages`);
-  return push(messagesRef).key!;
+export const generateMessageId = (_senderId: string, _receiverId: string): string => {
+  return crypto.randomUUID();
 };
 
 // Chat Messages
 export const sendMessage = async (
-  senderId: string,
+  _senderId: string,
   receiverId: string,
   content: string,
   type: ChatMessage['type'] = 'text',
   replyTo?: ChatMessage['replyTo'],
   isTemporary?: boolean,
-  customId?: string, // Optional: Allow client to pre-generate ID
-  waveform?: number[], // Optional: Audio waveform data
-  duration?: number, // Optional: Audio duration in seconds
-  caption?: string, // Optional: Image caption
-  viewOnce?: boolean, // Optional: WhatsApp-style view once
-  images?: string[] // Optional: Array of image URLs for Grid
+  customId?: string,
+  waveform?: number[],
+  duration?: number,
+  caption?: string,
+  viewOnce?: boolean,
+  images?: string[]
 ): Promise<void> => {
-  const chatId = getChatId(senderId, receiverId);
-  const messagesRef = ref(database, `chats/${chatId}/messages`);
-
-  const messageData = {
-    senderId,
-    receiverId,
-    content,
-    type,
-    createdAt: serverTimestamp(),
-    readAt: null,
-    ...(replyTo && { replyTo }),
-    ...(isTemporary && { isTemporary }),
-    ...(waveform && { waveform }),
-    ...(duration && { duration }),
-    ...(caption && { caption }),
-    ...(viewOnce && { viewOnce }),
-    ...(images && { images }),
-  };
-
-  if (customId) {
-    // If ID is provided (Optimistic UI), use SET to ensure idempotency and no flicker
-    await set(ref(database, `chats/${chatId}/messages/${customId}`), messageData);
-  } else {
-    await push(messagesRef, messageData);
-  }
+  await apiClient('/chat/messages', {
+    method: 'POST',
+    data: {
+      receiverId,
+      content,
+      type,
+      replyTo,
+      isTemporary,
+      customId,
+      waveform,
+      duration,
+      caption,
+      viewOnce,
+      images,
+    },
+  });
 };
 
 export const subscribeToMessages = (
@@ -96,15 +71,58 @@ export const subscribeToMessages = (
 };
 
 /**
+ * @description Carrega mensagens mais antigas do que a mensagem mais antiga atualmente exibida.
+ * Usado para implementar scroll infinito reverso (carregar histórico ao rolar para cima).
+ */
+export const loadOlderMessages = async (
+  senderId: string,
+  receiverId: string,
+  oldestMessageId: string,
+  pageSize: number = 30
+): Promise<{ messages: ChatMessage[]; hasMore: boolean }> => {
+  const chatId = getChatId(senderId, receiverId);
+  const messagesRef = ref(database, `chats/${chatId}/messages`);
+  const olderQuery = query(
+    messagesRef,
+    orderByKey(),
+    endBefore(oldestMessageId),
+    limitToLast(pageSize + 1) // +1 para saber se há mais
+  );
+
+  const snapshot = await get(olderQuery);
+  const messages: ChatMessage[] = [];
+
+  snapshot.forEach((childSnapshot) => {
+    const data = childSnapshot.val();
+    messages.push({
+      id: childSnapshot.key!,
+      ...data,
+      createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+      readAt: data.readAt ? new Date(data.readAt) : null,
+    } as ChatMessage);
+  });
+
+  const hasMore = messages.length > pageSize;
+  if (hasMore) {
+    messages.shift(); // Remove o extra usado para detectar hasMore
+  }
+
+  return { messages, hasMore };
+};
+
+/**
  * Marca uma única mensagem como lida.
  */
 export const markMessageAsRead = async (
-  chatId: string,
+  receiverId: string,
   messageId: string
 ): Promise<void> => {
-  const messageRef = ref(database, `chats/${chatId}/messages/${messageId}`);
-  await update(messageRef, {
-    readAt: serverTimestamp(),
+  await apiClient(`/chat/messages/${messageId}`, {
+    method: 'PATCH',
+    data: {
+      otherId: receiverId,
+      readAt: true
+    },
   });
 };
 
@@ -113,14 +131,16 @@ export const markMessageAsRead = async (
  * Isso persiste no banco e invalida o áudio mesmo após reload.
  */
 export const markTemporaryAudioAsPlayed = async (
-  senderId: string,
+  _senderId: string,
   receiverId: string,
   messageId: string
 ): Promise<void> => {
-  const chatId = getChatId(senderId, receiverId);
-  const messageRef = ref(database, `chats/${chatId}/messages/${messageId}`);
-  await update(messageRef, {
-    playedAt: serverTimestamp(),
+  await apiClient(`/chat/messages/${messageId}`, {
+    method: 'PATCH',
+    data: {
+      otherId: receiverId,
+      playedAt: true
+    },
   });
 };
 
@@ -132,35 +152,29 @@ export const deleteMessage = async (
   receiverId: string,
   messageId: string
 ): Promise<void> => {
-  const chatId = getChatId(senderId, receiverId);
-  const messageRef = ref(database, `chats/${chatId}/messages/${messageId}`);
-
-  await update(messageRef, {
-    content: "Mensagem apagada",
-    isDeleted: true,
+  await apiClient(`/chat/messages/${messageId}`, {
+    method: 'DELETE',
+    data: { otherId: receiverId },
   });
 };
 
 /**
  * Exclui uma conversa inteira para o usuário e remove as mensagens do banco.
  */
-export const markMessageAsViewed = async (senderId: string, receiverId: string, messageId: string): Promise<void> => {
-  const chatId = getChatId(senderId, receiverId);
-  await update(ref(database, `chats/${chatId}/messages/${messageId}`), {
-    isViewed: true,
-    viewedAt: serverTimestamp()
+export const markMessageAsViewed = async (_senderId: string, receiverId: string, messageId: string): Promise<void> => {
+  await apiClient(`/chat/messages/${messageId}`, {
+    method: 'PATCH',
+    data: {
+      otherId: receiverId,
+      viewedAt: true
+    },
   });
 };
 
-export const deleteChat = async (myId: string, otherId: string): Promise<void> => {
-  const chatId = getChatId(myId, otherId);
-  const messagesRef = ref(database, `chats/${chatId}`);
-  const myChatRef = ref(database, `userChats/${myId}/${otherId}`);
-
-  await Promise.all([
-    remove(messagesRef),
-    remove(myChatRef)
-  ]);
+export const deleteChat = async (_myId: string, otherId: string): Promise<void> => {
+  await apiClient(`/chat/${otherId}`, {
+    method: 'DELETE',
+  });
 };
 
 /**
@@ -168,27 +182,17 @@ export const deleteChat = async (myId: string, otherId: string): Promise<void> =
  * Só marca como editado se o conteúdo realmente mudou.
  */
 export const editMessage = async (
-  senderId: string,
+  _senderId: string,
   receiverId: string,
   messageId: string,
   newContent: string
 ): Promise<void> => {
-  const chatId = getChatId(senderId, receiverId);
-  const messageRef = ref(database, `chats/${chatId}/messages/${messageId}`);
-
-  // Verificar se o conteúdo realmente mudou
-  const snapshot = await get(messageRef);
-  if (snapshot.exists()) {
-    const currentMessage = snapshot.val();
-    if (currentMessage.content === newContent) {
-      // Conteúdo não mudou, não marcar como editado
-      return;
-    }
-  }
-
-  await update(messageRef, {
-    content: newContent,
-    editedAt: serverTimestamp(),
+  await apiClient(`/chat/messages/${messageId}`, {
+    method: 'PATCH',
+    data: {
+      otherId: receiverId,
+      content: newContent
+    },
   });
 };
 
@@ -197,43 +201,18 @@ export const editMessage = async (
  * Alterna uma reação (emoji) em uma mensagem de forma exclusiva (uma por usuário).
  */
 export const toggleReaction = async (
-  senderId: string,
+  _senderId: string,
   receiverId: string,
   messageId: string,
   emoji: string,
-  userId: string
+  _userId: string
 ): Promise<void> => {
-  const chatId = getChatId(senderId, receiverId);
-  const reactionsRef = ref(database, `chats/${chatId}/messages/${messageId}/reactions`);
-
-  await runTransaction(reactionsRef, (currentReactions: Record<string, string[]> | null) => {
-    const reactions = currentReactions || {};
-    let alreadyHadThisEmoji = false;
-
-    // 1. Remover o usuário de QUALQUER emoji que ele já tenha reagido nesta mensagem
-    Object.keys(reactions).forEach(e => {
-      const users = reactions[e] || [];
-      const index = users.indexOf(userId);
-      if (index > -1) {
-        if (e === emoji) alreadyHadThisEmoji = true;
-        users.splice(index, 1);
-        // Se a lista de usuários para esse emoji ficar vazia, removemos a chave
-        if (users.length === 0) {
-          delete reactions[e];
-        }
-      }
-    });
-
-    // 2. Se o usuário NÃO tinha ESSE emoji específico, adicionamos ele
-    if (!alreadyHadThisEmoji) {
-      if (!reactions[emoji]) {
-        reactions[emoji] = [userId];
-      } else {
-        reactions[emoji].push(userId);
-      }
-    }
-
-    return Object.keys(reactions).length === 0 ? null : reactions;
+  await apiClient(`/chat/messages/${messageId}/react`, {
+    method: 'POST',
+    data: {
+      otherId: receiverId,
+      emoji
+    },
   });
 };
 
@@ -242,40 +221,13 @@ export const toggleReaction = async (
  * Ideal para quando o usuário abre a tela de conversa.
  */
 export const markAllMessagesAsRead = async (
-  myId: string,
+  _myId: string,
   otherId: string
 ): Promise<void> => {
-  const chatId = getChatId(myId, otherId);
-  const messagesRef = ref(database, `chats/${chatId}/messages`);
-
-  // Pegamos as últimas mensagens para verificar o que precisa ser lido
-  const snapshot = await get(query(messagesRef, limitToLast(50)));
-
-  if (!snapshot.exists()) return;
-
-  const updates: { [key: string]: any } = {};
-  snapshot.forEach((child) => {
-    const msg = child.val();
-    // Se a mensagem foi para MIM e ainda não foi lida
-    if (msg.receiverId === myId && !msg.readAt) {
-      updates[`${child.key}/readAt`] = serverTimestamp();
-    }
+  await apiClient('/chat/read-all', {
+    method: 'POST',
+    data: { otherId },
   });
-
-  if (Object.keys(updates).length > 0) {
-    await update(messagesRef, updates);
-  }
-
-  // SEMPRE zera o contador de não lidas na lista de chats ao entrar
-  const myChatRef = ref(database, `userChats/${myId}/${otherId}`);
-  await update(myChatRef, { unreadCount: 0 });
-
-  // Também marca como lido para o OUTRO ver na lista dele (Visto duplo no /messages)
-  const otherChatRef = ref(database, `userChats/${otherId}/${myId}`);
-  const otherChatSnap = await get(otherChatRef);
-  if (otherChatSnap.exists() && !otherChatSnap.val().lastMessageRead) {
-    await update(otherChatRef, { lastMessageRead: true });
-  }
 };
 
 
@@ -333,25 +285,17 @@ const getChatId = (userId1: string, userId2: string): string => {
 };
 
 // Online presence
-export const setUserOnline = async (userId: string): Promise<void> => {
-  const userStatusRef = ref(database, `status/${userId}`);
-  await set(userStatusRef, {
-    online: true,
-    lastSeen: serverTimestamp(),
-  });
-
-  // Set offline when user disconnects
-  onDisconnect(userStatusRef).set({
-    online: false,
-    lastSeen: serverTimestamp(),
+export const setUserOnline = async (_userId: string): Promise<void> => {
+  await apiClient('/chat/presence', {
+    method: 'POST',
+    data: { online: true },
   });
 };
 
-export const setUserOffline = async (userId: string): Promise<void> => {
-  const userStatusRef = ref(database, `status/${userId}`);
-  await set(userStatusRef, {
-    online: false,
-    lastSeen: serverTimestamp(),
+export const setUserOffline = async (_userId: string): Promise<void> => {
+  await apiClient('/chat/presence', {
+    method: 'POST',
+    data: { online: false },
   });
 };
 
@@ -373,66 +317,23 @@ export const subscribeToUserStatus = (
   return unsubscribe;
 };
 
-// Update user chat list when new message is sent
-export const updateUserChatList = async (
-  senderId: string,
-  receiverId: string,
-  lastMessage: string,
-  messageTime: Date,
-  type: ChatMessage['type'] = 'text',
-  receiverMetadata?: { displayName?: string; photoURL?: string },
-  senderMetadata?: { displayName?: string; photoURL?: string }
-): Promise<void> => {
-  const senderChatRef = ref(database, `userChats/${senderId}/${receiverId}`);
-  const receiverChatRef = ref(database, `userChats/${receiverId}/${senderId}`);
-
-  // Prévias amigáveis de mídia
-  let previewText = lastMessage;
-  if (type === 'image') previewText = '📷 Foto';
-  if (type === 'audio') previewText = '🎤 Áudio';
-  if (type === 'book') previewText = '📖 Livro compartilhado';
-
-  const baseData = {
-    lastMessage: previewText,
-    lastMessageTime: messageTime.getTime(),
-    updatedAt: serverTimestamp(),
-    lastSenderId: senderId,
-    lastMessageRead: false,
-  };
-
-  const senderUpdate: any = { ...baseData, unreadCount: 0 };
-  if (receiverMetadata?.displayName) senderUpdate.displayName = receiverMetadata.displayName;
-  if (receiverMetadata?.photoURL) senderUpdate.photoURL = receiverMetadata.photoURL;
-
-  const receiverUpdate: any = { ...baseData, unreadCount: increment(1) };
-  if (senderMetadata?.displayName) receiverUpdate.displayName = senderMetadata.displayName;
-  if (senderMetadata?.photoURL) receiverUpdate.photoURL = senderMetadata.photoURL;
-
-  await Promise.all([
-    update(senderChatRef, senderUpdate),
-    update(receiverChatRef, receiverUpdate),
-  ]);
-};
-
-
 // --- Typing Indicator ---
 
 /**
  * Define se o usuário atual está digitando ou gravando áudio para outro usuário.
  */
 export const setTypingStatus = async (
-  senderId: string,
+  _senderId: string,
   receiverId: string,
   status: boolean | 'recording'
 ): Promise<void> => {
-  const typingRef = ref(database, `typing/${receiverId}/${senderId}`);
-
-  if (status) {
-    await set(typingRef, status);
-    onDisconnect(typingRef).remove();
-  } else {
-    await set(typingRef, null);
-  }
+  await apiClient('/chat/typing', {
+    method: 'POST',
+    data: {
+      receiverId,
+      status
+    },
+  });
 };
 
 /**
@@ -451,3 +352,17 @@ export const subscribeToTypingStatus = (
 
   return () => off(typingRef, 'value', unsubscribe);
 };
+
+// --- Connection Monitor ---
+
+/**
+ * Escuta o estado de conexão com o RTDB.
+ */
+export const subscribeToConnection = (callback: (isConnected: boolean) => void): (() => void) => {
+  const connectedRef = ref(database, '.info/connected');
+  return onValue(connectedRef, (snapshot) => {
+    callback(snapshot.val() === true);
+  });
+};
+
+export type Unsubscribe = () => void;

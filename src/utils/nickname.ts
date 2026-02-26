@@ -1,5 +1,6 @@
 import slugify from 'slugify';
 import { adjectives, animals, colors, uniqueNamesGenerator } from 'unique-names-generator';
+import { apiClient } from '@/services/apiClient';
 
 // Função para gerar nickname baseado no nome do usuário
 export const generateNickname = (displayName: string): string => {
@@ -22,7 +23,7 @@ export const generateNickname = (displayName: string): string => {
 
   // Pega a primeira parte do nome (primeiro nome)
   const firstName = cleanName.split('-')[0];
-  
+
   // Gera um sufixo único baseado em cores ou animais
   const suffix = uniqueNamesGenerator({
     dictionaries: [colors, animals],
@@ -37,23 +38,19 @@ export const generateNickname = (displayName: string): string => {
 
 // Função para verificar se nickname já existe
 export const isNicknameAvailable = async (nickname: string): Promise<boolean> => {
-  const { collection, query, where, getDocs } = await import('firebase/firestore');
-  const { db } = await import('@/services/firebase');
-  
-  const q = query(
-    collection(db, 'users'),
-    where('nickname', '==', nickname)
-  );
-  
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.empty;
+  try {
+    const data = await apiClient<{ available: boolean }>(`/users/check-nickname?nickname=${encodeURIComponent(nickname)}`);
+    return data.available;
+  } catch {
+    return false;
+  }
 };
 
 // Função para gerar nickname único (tenta até encontrar um disponível)
 export const generateUniqueNickname = async (displayName: string): Promise<string> => {
   let nickname = generateNickname(displayName);
   let counter = 1;
-  
+
   // Tenta até 10 vezes encontrar um nickname único
   while (!(await isNicknameAvailable(nickname)) && counter <= 10) {
     const suffix = uniqueNamesGenerator({
@@ -62,16 +59,16 @@ export const generateUniqueNickname = async (displayName: string): Promise<strin
       length: 1,
       style: 'lowerCase'
     });
-    
+
     const firstName = slugify(displayName.split(' ')[0], {
       lower: true,
       strict: true,
       locale: 'pt'
     });
-    
+
     nickname = `${firstName}-${suffix}-${counter}`;
     counter++;
   }
-  
+
   return nickname;
 };

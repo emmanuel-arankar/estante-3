@@ -1,7 +1,14 @@
+﻿// =============================================================================
+// IMPORTS E DEPENDÊNCIAS
+// =============================================================================
+
 import { Router, Request, Response } from 'express';
 import * as logger from 'firebase-functions/logger';
-import { admin, db } from './firebase'; // Importa do nosso módulo centralizado
-import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware';
+import { admin, db } from './firebase';
+import {
+  checkAuth,
+  AuthenticatedRequest
+} from './middleware/auth.middleware';
 import {
   findFriendsQuerySchema,
   sendFriendRequestSchema,
@@ -14,17 +21,43 @@ import {
 import { blockUserSchema, unblockUserSchema } from './schemas/blocking.schema';
 import { getCached, setCache, invalidatePattern, CacheKeys } from './lib/cache';
 import { ensureNotBlocked, isBlockedBy } from './services/block.service';
+import { AuditService } from './services/audit.service';
 
 const router = Router();
 
+// =============================================================================
+// CONFIGURAÇÕES E CONSTANTES
+// =============================================================================
+
+/**
+ * @name Limite de Busca
+ * @summary Quantidade máxima de resultados para pesquisa de amigos.
+ * @description Define o limite de documentos retornados em operações de busca para controlar 
+ * o consumo de recursos e latência.
+ */
 const FIND_FRIENDS_LIMIT = parseInt(process.env.FIND_FRIENDS_QUERY_LIMIT || '', 10) || 10;
 logger.info(`Usando limite de busca de amigos: ${FIND_FRIENDS_LIMIT}`);
 
-// ==================== HELPERS DE AMIGOS EM COMUM ====================
+// =============================================================================
+// FUNÇÕES AUXILIARES
+// =============================================================================
 
 /**
- * Calcula amigos em comum entre dois usuários
- * Retorna count e preview (primeiros 3 amigos)
+ * @name Calcular Amigos em Comum
+ * @summary Calcula a interseção de amigos entre dois usuários.
+ * @description Calcula a interseção de amigos aceitos entre dois usuários.
+ * Retorna a contagem total e os IDs dos primeiros 3 amigos para visualização.
+ * 
+ * @params {string} userId1 - ID do primeiro usuário
+ * @params {string} userId2 - ID do segundo usuário
+ * @returns {Promise<{ count: number; preview: string[] }>} Contagem e array de IDs
+ * 
+ * @example
+ * const { count, preview } = await calculateMutualFriends("userA", "userB");
+ * 
+ * @note Considerações de Performance:
+ * - A função utiliza `Promise.all` para buscar os snapshots de ambos os usuários em paralelo.
+ * - Utiliza `.select('friendId')` para reduzir o payload de rede e processamento do Firestore.
  */
 const calculateMutualFriends = async (
   userId1: string,
@@ -60,14 +93,28 @@ const calculateMutualFriends = async (
 };
 
 /**
- * Atualiza mutualFriendsCount para todas as amizades afetadas
- * quando uma nova amizade é criada entre userId1 e userId2
+ * @name Atualizar Mútuos para Nova Amizade
+ * @summary Incrementa contadores de mútuos após nova conexão.
+ * @description Atualiza o contador `mutualFriendsCount` para todas as amizades 
+ * afetadas quando uma nova conexão é estabelecida entre userId1 e userId2.
+ * 
+ * @params {string} userId1 - ID do primeiro usuário
+ * @params {string} userId2 - ID do segundo usuário
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * await updateMutualFriendsForNewFriendship("uid1", "uid2");
+ * 
+ * @note Lógica de Propagação:
+ * - Esta função propaga o incremento de amigos mútuos para toda a rede afetada.
+ * - Utiliza `db.batch()` para garantir que as atualizações sejam enviadas em um único lote atômico.
+ * - Crítico para manter a consistência visual dos contadores de mútuos na interface.
  */
 const updateMutualFriendsForNewFriendship = async (
   userId1: string,
   userId2: string
 ): Promise<void> => {
-  // Buscar amigos em comum (que agora têm +1 mútuo entre si)
+  // 1. Snapshot paralelo de amizades aceitas
   const [friends1Snapshot, friends2Snapshot] = await Promise.all([
     db.collection('friendships')
       .where('userId', '==', userId1)
@@ -84,6 +131,7 @@ const updateMutualFriendsForNewFriendship = async (
   const friends1Set = new Set(friends1Snapshot.docs.map(doc => doc.data().friendId));
   const mutualFriendIds: string[] = [];
 
+  // Identificação da interseção
   for (const doc of friends2Snapshot.docs) {
     const friendId = doc.data().friendId;
     if (friends1Set.has(friendId)) {
@@ -129,8 +177,21 @@ const updateMutualFriendsForNewFriendship = async (
 };
 
 /**
- * Atualiza mutualFriendsCount para todas as amizades afetadas
- * quando uma amizade é removida entre userId1 e userId2
+ * @name Atualizar Mútuos para Amizade Removida
+ * @summary Decrementa contadores de mútuos após remoção de conexão.
+ * @description Decrementa o contador `mutualFriendsCount` para todas as amizades
+ * afetadas quando uma conexão é desfeita entre userId1 e userId2.
+ * 
+ * @params {string} userId1 - ID do primeiro usuário
+ * @params {string} userId2 - ID do segundo usuário
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * await updateMutualFriendsForRemovedFriendship("uid1", "uid2");
+ * 
+ * @note Lógica de Limpeza:
+ * - Realiza o decremento atômico de amigos mútuos quando uma amizade é desfeita.
+ * - Opera de forma similar à propagação, mas em sentido inverso, garantindo integridade dos dados históricos.
  */
 const updateMutualFriendsForRemovedFriendship = async (
   userId1: string,
@@ -186,7 +247,28 @@ const updateMutualFriendsForRemovedFriendship = async (
   logger.info(`Decrementado mutualFriendsCount para ${mutualFriendIds.length * 4} amizades afetadas`);
 };
 
-// Lógica de busca dupla (nome e nickname)
+// =============================================================================
+// ROTAS DE AMIZADE E GERENCIAMENTO
+// =============================================================================
+
+/**
+ * @name Buscar Amigos
+ * @summary Pesquisa perfis por nome ou handle.
+ * @description Realiza a busca de perfis de usuários por nome de exibição ou @nickname,
+ * utilizando queries paralelas para otimização e mesclagem de resultados.
+ * 
+ * @route {GET} /api/findFriends
+ * @queryparam {string} searchTerm - Termo de busca (nome ou @nickname)
+ * @returns {Array<Object>} 200 - Lista de usuários encontrados
+ * 
+ * @example
+ * GET /api/findFriends?searchTerm=@joaosilva
+ * 
+ * @note Estratégia de Busca:
+ * - Utiliza busca nativa de prefixo do Firestore (`>=` e `<= \uf8ff`).
+ * - Executa queries paralelas para permitir busca simultânea por Nome e Nickname.
+ * - Filtra automaticamente o usuário logado dos resultados para evitar solicitações a si mesmo.
+ */
 router.get('/findFriends', checkAuth, async (req: Request, res: Response, next) => {
   try {
     const authReq = req as AuthenticatedRequest;
@@ -266,11 +348,32 @@ router.get('/findFriends', checkAuth, async (req: Request, res: Response, next) 
   }
 });
 
-// ==================== LISTAGEM DE AMIZADES ====================
+// =============================================================================
+// LISTAGEM DE AMIZADES
+// =============================================================================
 
 /**
- * GET /api/friendships
- * Lista amigos aceitos com paginação, busca e ordenação
+ * @name Listar Amizades
+ * @summary Retorna lista de amigos aceitos com paginação.
+ * @description Lista amigos aceitos com suporte a paginação baseada em cursor,
+ * busca por texto e ordenação customizável. Utiliza cache para a primeira página.
+ * 
+ * @route {GET} /api/friendships
+ * @queryparam {number} [page=1] - Número da página
+ * @queryparam {number} [limit=10] - Limite de itens por página
+ * @queryparam {string} [search] - Termo de busca por nome ou @nickname
+ * @queryparam {string} [sortBy='friendshipDate'] - Campo para ordenação
+ * @queryparam {string} [sortDirection='desc'] - Direção da ordenação (asc/desc)
+ * @queryparam {string} [cursor] - Cursor para paginação baseada em cursor
+ * @returns {Object} 200 - Objeto com amigos e paginação
+ * 
+ * @example
+ * GET /api/friendships?page=1&limit=20&search=João
+ * 
+ * @note Performance e Cache:
+ * - Implementa cache em Redis/Memória para a primeira página de resultados padrão.
+ * - Utiliza paginação por cursor de alta precisão (nanosegundos do Firestore) para evitar saltos ou repetições.
+ * - Inclui lógica de fallback para busca com capitalização automática (ex: "emma" -> "Emma").
  */
 router.get('/friendships', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -302,7 +405,7 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
       .where('userId', '==', userId)
       .where('status', '==', 'accepted');
 
-    // --- Lógica de Busca e Ordenação ---
+    // Filtros de busca e regras de ordenação
     if (search) {
       // Busca Nativa por Prefixo (Escalável)
       if (search.startsWith('@')) {
@@ -328,17 +431,15 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
       } else {
         query = query.orderBy('friendshipDate', sortDirection);
       }
-      query = query.orderBy('__name__', sortDirection); // Tie breaker para cursor estável
+      query = query.orderBy('__name__', sortDirection); // Critério de desempate para cursor estável
     }
 
-    // --- Contagem Total (Agregação Rápida) ---
-    // Nota: count() não é afetado por limit/offset subsequentes na construção da query
-    // mas se usarmos startAt/endAt (busca), ele conta apenas os filtrados. Perfeito.
+    // Contagem de agregação paralela (otimizada pelo Firestore)
     const countQuery = query;
     const countSnapshot = await countQuery.count().get();
     const total = countSnapshot.data().count;
 
-    // --- Paginação ---
+    // Configuração de paginação
     query = query.limit(limit);
 
     if (cursor) {
@@ -367,14 +468,39 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
       query = query.offset((page - 1) * limit);
     }
 
-    const snapshot = await query.get();
+    let snapshot = await query.get();
+
+    // FALLBACK DE BUSCA: Se busca por nome não retornou nada, tentar Capitalized (ex: "emma" -> "Emma")
+    if (snapshot.empty && search && !search.startsWith('@') && /^[a-z]/.test(search)) {
+      const capitalizedSearch = search.charAt(0).toUpperCase() + search.slice(1);
+
+      // Recriar a query com o termo capitalizado
+      // Nota: precisamos reconstruir a query base para não afetar a anterior
+      let fallbackQuery = db.collection('friendships')
+        .where('userId', '==', userId)
+        .where('status', '==', 'accepted');
+
+      fallbackQuery = fallbackQuery
+        .orderBy('friend.displayName')
+        .orderBy('__name__')
+        .startAt(capitalizedSearch)
+        .endAt(capitalizedSearch + '\uf8ff');
+
+      // Reaplicar paginação se necessário (limit apenas, cursor seria invalido se trocarmos a query base)
+      fallbackQuery = fallbackQuery.limit(limit);
+
+      const fallbackSnapshot = await fallbackQuery.get();
+      if (!fallbackSnapshot.empty) {
+        snapshot = fallbackSnapshot;
+      }
+    }
 
     const friends = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     }));
 
-    // --- Gerar Próximo Cursor ---
+    // Geração de cursor para próxima página (serialização segura)
     let nextCursor = null;
     if (snapshot.docs.length === limit) {
       const lastDoc = snapshot.docs[snapshot.docs.length - 1];
@@ -390,7 +516,7 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
         else values.push(data.friendshipDate);
       }
 
-      values.push(lastDoc.id); // __name__
+      values.push(lastDoc.id); // Critério de desempate (__name__)
 
       // Serializar valores para dates/timestamps se necessário
       const serializedValues = values.map(v => {
@@ -448,8 +574,19 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
 });
 
 /**
- * GET /api/friendships/requests
- * Lista pedidos de amizade recebidos (pendentes)
+ * @name Listar Pedidos de Amizade
+ * @summary Retorna solicitações pendentes recebidas.
+ * @description Retorna as solicitações de amizade recebidas pelo usuário logado que 
+ * ainda estão com status 'pending'. Suporta paginação e busca.
+ * 
+ * @route {GET} /api/friendships/requests
+ * @queryparam {number} [page=1] - Número da página
+ * @queryparam {number} [limit=10] - Limite de itens por página
+ * @queryparam {string} [search] - Termo de busca por nome
+ * @queryparam {string} [cursor] - Cursor para paginação
+ * @returns {Object} 200 - Objeto com dados dos pedidos e informações de paginação
+ * @example
+ * GET /api/friendships/requests?limit=5
  */
 router.get('/friendships/requests', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -496,14 +633,36 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
       query = query.offset((page - 1) * limit);
     }
 
-    const snapshot = await query.get();
+    let snapshot = await query.get();
 
-    // FILTRO EM MEMÓRIA: Apenas Recebidas
+    // FALLBACK DE BUSCA: Se busca por nome não retornou nada, tentar Capitalized
+    if (snapshot.empty && search && !search.startsWith('@') && /^[a-z]/.test(search)) {
+      const capitalizedSearch = search.charAt(0).toUpperCase() + search.slice(1);
+
+      let fallbackQuery = db.collection('friendships')
+        .where('userId', '==', userId)
+        .where('status', '==', 'pending');
+
+      fallbackQuery = fallbackQuery
+        .orderBy('friend.displayName')
+        .orderBy('__name__')
+        .startAt(capitalizedSearch)
+        .endAt(capitalizedSearch + '\uf8ff');
+
+      fallbackQuery = fallbackQuery.limit(limit);
+
+      const fallbackSnapshot = await fallbackQuery.get();
+      if (!fallbackSnapshot.empty) {
+        snapshot = fallbackSnapshot;
+      }
+    }
+
+    // Filtro em memória para separar solicitações recebidas
     const requests = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .filter((doc: any) => doc.requestedBy !== userId);
 
-    // Gerar Next Cursor
+    // Geração de cursor de paginação
     let nextCursor = null;
     if (snapshot.docs.length === limit) {
       const lastDoc = snapshot.docs[snapshot.docs.length - 1];
@@ -536,8 +695,19 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
 });
 
 /**
- * GET /api/friendships/sent
- * Lista pedidos de amizade enviados (pendentes)
+ * @name Listar Pedidos Enviados
+ * @summary Retorna solicitações pendentes enviadas.
+ * @description Retorna as solicitações de amizade enviadas pelo usuário logado que 
+ * ainda estão pendentes. Útil para gerenciamento de convites ativos.
+ * 
+ * @route {GET} /api/friendships/sent
+ * @queryparam {number} [page=1] - Número da página
+ * @queryparam {number} [limit=10] - Limite de itens por página
+ * @queryparam {string} [search] - Termo de busca por nome
+ * @queryparam {string} [cursor] - Cursor para paginação
+ * @returns {Object} 200 - Objeto com dados dos pedidos enviados e informações de paginação
+ * @example
+ * GET /api/friendships/sent?page=2
  */
 router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -583,7 +753,30 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
       query = query.offset((page - 1) * limit);
     }
 
-    const snapshot = await query.get();
+    let snapshot = await query.get();
+
+    // FALLBACK DE BUSCA: Se busca por nome não retornou nada, tentar Capitalized
+    if (snapshot.empty && search && !search.startsWith('@') && /^[a-z]/.test(search)) {
+      const capitalizedSearch = search.charAt(0).toUpperCase() + search.slice(1);
+
+      let fallbackQuery = db.collection('friendships')
+        .where('userId', '==', userId)
+        .where('status', '==', 'pending')
+        .where('requestedBy', '==', userId);
+
+      fallbackQuery = fallbackQuery
+        .orderBy('friend.displayName')
+        .orderBy('__name__')
+        .startAt(capitalizedSearch)
+        .endAt(capitalizedSearch + '\uf8ff');
+
+      fallbackQuery = fallbackQuery.limit(limit);
+
+      const fallbackSnapshot = await fallbackQuery.get();
+      if (!fallbackSnapshot.empty) {
+        snapshot = fallbackSnapshot;
+      }
+    }
     const sent = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     let nextCursor = null;
@@ -617,11 +810,32 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
   }
 });
 
-// ==================== OPERAÇÕES DE AMIZADE ====================
+// =============================================================================
+// OPERAÇÕES DE AMIZADE
+// =============================================================================
 
 /**
+ * @name Enviar Solicitação de Amizade
+ * @summary Envia um novo pedido de amizade.
+ * @description Cria um novo pedido de amizade bidirecional ('pending') e notifica 
+ * o usuário alvo. Realiza verificações de bloqueio e duplicidade.
+ * 
+ * @route {POST} /api/friendships/request
+ * @bodyparams {string} targetUserId - ID do usuário alvo da solicitação
+ * @returns {Object} 201 - { message: 'Solicitação enviada com sucesso' }
+ * 
+ * @example
  * POST /api/friendships/request
- * Envia solicitação de amizade
+ * { "targetUserId": "UID_CONTATO" }
+ * 
+ * @throws {400} Erro se o usuário tentar adicionar a si mesmo ou dados forem inválidos.
+ * @throws {403} Erro se o remetente estiver bloqueado pelo destinatário.
+ * @throws {409} Erro se uma relação já existir entre ambos.
+ * 
+ * @note Integridade e Notificações:
+ * - Executa em uma transação atômica para criar ambos os documentos de amizade simultaneamente.
+ * - Atualiza os contadores globais (`sentRequestsCount` e `pendingRequestsCount`) de forma segura.
+ * - Dispara uma notificação Firestore após o sucesso da transação.
  */
 router.post('/friendships/request', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -653,18 +867,18 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
     const fromUserFriendshipRef = db.collection('friendships').doc(`${fromUserId}_${targetUserId}`);
     const toUserFriendshipRef = db.collection('friendships').doc(`${targetUserId}_${fromUserId}`);
 
-    // Calcular amigos em comum ANTES da transação (não pode fazer queries dentro)
+    // Cálculo de mútuos pré-transação para evitar deadlock
     const mutualFriends = await calculateMutualFriends(fromUserId, targetUserId);
 
     await db.runTransaction(async (transaction) => {
-      // Leitura sequencial para evitar erros INTERNAL no emulador
+      // 1. Verificação de existência e leitura sequencial
       const fromDoc = await transaction.get(fromUserFriendshipRef);
 
       if (fromDoc.exists) {
         throw new Error('Relação de amizade já existe');
       }
 
-      // Buscar dados dos usuários sequencialmente
+      // 2. Busca de dados de perfil para denormalização
       const fromUserDoc = await transaction.get(db.collection('users').doc(fromUserId));
       const toUserDoc = await transaction.get(db.collection('users').doc(targetUserId));
 
@@ -677,7 +891,7 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
 
       const timestamp = admin.firestore.Timestamp.now();
 
-      // Criar documentos de amizade bidirecionais
+      // 3. Persistência bidirecional da relação
       transaction.set(fromUserFriendshipRef, {
         userId: fromUserId,
         friendId: targetUserId,
@@ -720,10 +934,57 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
         mutualFriendsPreview: mutualFriends.preview,
       });
 
+      // Atualizar contadores (atômico dentro da transação)
+      const fromUserRef = db.collection('users').doc(fromUserId);
+      const toUserRef = db.collection('users').doc(targetUserId);
 
+      transaction.update(fromUserRef, {
+        sentRequestsCount: admin.firestore.FieldValue.increment(1),
+        updatedAt: timestamp,
+      });
+
+      transaction.update(toUserRef, {
+        pendingRequestsCount: admin.firestore.FieldValue.increment(1),
+        updatedAt: timestamp,
+      });
     });
 
     logger.info(`Solicitação de amizade enviada: ${fromUserId} → ${targetUserId}`);
+
+    // Audit Log: Solicitação de amizade
+    AuditService.logAuditEvent({
+      userId: fromUserId,
+      action: 'FRIEND_REQUEST_SENT',
+      category: 'SOCIAL',
+      resourceId: targetUserId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')?.toString(),
+      requestId: (req as any).requestId
+    });
+
+    // Registro de notificação fora da transação de escrita (eventual consistency)
+    try {
+      const fromUserDoc = await db.collection('users').doc(fromUserId).get();
+      const fromUserData = fromUserDoc.data();
+
+      await db.collection('notifications').add({
+        userId: targetUserId,
+        type: 'friend_request',
+        actorId: fromUserId,
+        actorName: fromUserData?.displayName || 'Alguém',
+        actorPhoto: fromUserData?.photoURL || null,
+        read: false,
+        createdAt: admin.firestore.Timestamp.now(),
+        metadata: {
+          friendshipId: `${targetUserId}_${fromUserId}`,
+        },
+      });
+
+      logger.info(`Notificação de friend_request criada para ${targetUserId}`);
+    } catch (notifError) {
+      logger.error('Erro ao criar notificação de friend request:', notifError);
+      // Não falhar a request se notificação falhar
+    }
 
     // Invalidar cache de AMBOS
     await Promise.all([
@@ -745,8 +1006,25 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
 });
 
 /**
- * POST /api/friendships/:friendshipId/accept
- * Aceita solicitação de amizade
+ * @name Aceitar Amizade
+ * @summary Aceita uma solicitação de amizade pendente.
+ * @description Aceita uma solicitação de amizade pendente, atualiza o status para 'accepted',
+ * incrementa contadores e notifica o remetente. Realizado em transação atômica.
+ * 
+ * @route {POST} /api/friendships/:friendshipId/accept
+ * @params {string} friendshipId - ID da relação de amizade
+ * @returns {Object} 200 - { message: 'Amizade aceita com sucesso' }
+ * 
+ * @example
+ * POST /api/friendships/UID1_UID2/accept
+ * 
+ * @throws {400} Erro se a solicitação não estiver pendente ou for inválida.
+ * @throws {403} Erro se o usuário atual não estiver envolvido ou houver bloqueio.
+ * 
+ * @note Fluxo Pós-Aceite:
+ * - Atualiza o status para 'accepted' e define a data oficial da amizade em transação.
+ * - Incrementa `friendsCount` e decrementa contadores de pendências.
+ * - Inicia o cálculo assíncrono de amigos mútuos para toda a rede afetada.
  */
 router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -763,7 +1041,7 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
 
     const { friendshipId } = validationResult.data;
 
-    // friendshipId pode estar em qualquer ordem: userId_friendId ou friendId_userId
+    // Identificação dos interlocutores na relação
     const [id1, id2] = friendshipId.split('_');
 
     // Verificar se o usuário atual está envolvido na relação
@@ -782,7 +1060,7 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
     const friendFriendshipRef = db.collection('friendships').doc(`${friendId}_${userId}`);
 
     await db.runTransaction(async (transaction) => {
-      // TODAS as leituras PRIMEIRO (regra do Firestore)
+      // 1. Validação de estado e integridade
       const userDoc = await transaction.get(userFriendshipRef);
       const friendDoc = await transaction.get(friendFriendshipRef);
 
@@ -802,7 +1080,7 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
 
       const timestamp = admin.firestore.Timestamp.now();
 
-      // TODAS as escritas DEPOIS
+      // 2. Transição de estado para amizade confirmada
       transaction.update(userFriendshipRef, {
         status: 'accepted',
         friendshipDate: timestamp,
@@ -815,12 +1093,26 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
         updatedAt: timestamp,
       });
 
+      // Atualizar contadores (atômico dentro da transação)
+      const requesterRef = db.collection('users').doc(userData?.requestedBy);
+      const accepterRef = db.collection('users').doc(userId);
 
+      // Quem aceitou: -1 pendingRequestsCount, +1 friendsCount
+      transaction.update(accepterRef, {
+        pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+        friendsCount: admin.firestore.FieldValue.increment(1),
+        updatedAt: timestamp,
+      });
+
+      // Quem enviou: -1 sentRequestsCount, +1 friendsCount
+      transaction.update(requesterRef, {
+        sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+        friendsCount: admin.firestore.FieldValue.increment(1),
+        updatedAt: timestamp,
+      });
     });
 
-
-
-    // Atualizar mutualFriendsCount para amizades afetadas (wait for completion)
+    // Propagação de amigos mútuos em segundo plano
     try {
       await updateMutualFriendsForNewFriendship(userId, friendId);
     } catch (err) {
@@ -830,11 +1122,46 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
 
     logger.info(`Amizade aceita: ${userId} ↔ ${friendId}`);
 
+    // Notificação de aceitação (assíncrona)
+    try {
+      const acceptorDoc = await db.collection('users').doc(userId).get();
+      const acceptorData = acceptorDoc.data();
+
+      await db.collection('notifications').add({
+        userId: friendId, // friendId é quem enviou a solicitação
+        type: 'friend_accepted',
+        actorId: userId, // userId é quem aceitou
+        actorName: acceptorData?.displayName || 'Alguém',
+        actorPhoto: acceptorData?.photoURL || null,
+        read: false,
+        createdAt: admin.firestore.Timestamp.now(),
+        metadata: {
+          friendshipId: `${friendId}_${userId}`,
+        },
+      });
+
+      logger.info(`Notificação de friend_accepted criada para ${friendId}`);
+    } catch (notifError) {
+      logger.error('Erro ao criar notificação de friend accepted:', notifError);
+      // Não falhar a request se notificação falhar
+    }
+
     // Invalidar cache de AMBOS
     await Promise.all([
       invalidatePattern(CacheKeys.allUserPattern(userId)),
       invalidatePattern(CacheKeys.allUserPattern(friendId))
     ]);
+
+    // Audit Log: Solicitação aceita
+    AuditService.logAuditEvent({
+      userId,
+      action: 'FRIEND_REQUEST_ACCEPTED',
+      category: 'SOCIAL',
+      resourceId: friendId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')?.toString(),
+      requestId: (req as any).requestId
+    });
 
     return res.status(200).json({ message: 'Solicitação aceita com sucesso' });
   } catch (error: any) {
@@ -847,8 +1174,24 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
 });
 
 /**
- * DELETE /api/friendships/:friendshipId
- * Rejeita/cancela solicitação ou remove amizade
+ * @name Remover Relação de Amizade
+ * @summary Rejeita, cancela ou remove amizade.
+ * @description Rejeita/cancela solicitação pendente ou remove uma amizade existente,
+ * atualizando contadores e limpando caches.
+ * 
+ * @route {DELETE} /api/friendships/:friendshipId
+ * @params {string} friendshipId - ID da relação de amizade (userId1_userId2)
+ * @returns {Object} 200 - { message: 'Relação removida com sucesso' }
+ * 
+ * @example
+ * DELETE /api/friendships/UID1_UID2
+ * 
+ * @throws {403} Erro se o usuário logado não for um dos participantes da relação.
+ * @throws {404} Erro se a relação não for encontrada.
+ * 
+ * @note Resiliência:
+ * - Utiliza `db.batch()` para garantir que a remoção bidirecional e o ajuste de contadores ocorram de forma completa ou falhem totalmente.
+ * - Gerencia automaticamente os contadores de `friendsCount`, `sentRequestsCount` ou `pendingRequestsCount` com base no status prévio.
  */
 router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -887,11 +1230,11 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
     const friendshipRef1 = db.collection('friendships').doc(doc1Id);
     const friendshipRef2 = db.collection('friendships').doc(doc2Id);
 
-    // Implementação via Batch (mais robusta contra erros internos do emulador)
+    // Processamento de remoção e decremento de contadores se houver amizade
     const batch = db.batch();
+    let hadAcceptedFriendship = false;
 
-    // 1. Ler documentos antes (fora de transação)
-    logger.info(`[DELETE] Lendo documentos...`);
+    // ==== ==== 1. SNAPSHOT DA RELAÇÃO E CONTADORES ==== ====
     const doc1 = await friendshipRef1.get();
     const doc2 = await friendshipRef2.get();
 
@@ -909,19 +1252,57 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
 
     logger.info(`[DELETE] requestedBy: ${requestedBy}, status: ${status}`);
 
-    // Deletar documentos de amizade
-    logger.info(`[DELETE] Deletando documentos`);
+    // ==== ==== 2. EXECUÇÃO DA DELEÇÃO FÍSICA ==== ====
     if (doc1.exists) batch.delete(friendshipRef1);
     if (doc2.exists) batch.delete(friendshipRef2);
 
-    // (Counter updates removed - handled by Cloud Functions)
+    // ==== ==== 3. AJUSTE DE CONTADORES GLOBAIS ==== ====
+    const userRef = db.collection('users').doc(userId);
+    const friendRef = db.collection('users').doc(friendId);
+    const batchTimestamp = admin.firestore.Timestamp.now();
+
+    if (status === 'accepted') {
+      hadAcceptedFriendship = true;
+      // Remover amizade: -1 friendsCount para ambos
+      batch.update(userRef, {
+        friendsCount: admin.firestore.FieldValue.increment(-1),
+        updatedAt: batchTimestamp,
+      });
+      batch.update(friendRef, {
+        friendsCount: admin.firestore.FieldValue.increment(-1),
+        updatedAt: batchTimestamp,
+      });
+    } else if (status === 'pending') {
+      // Cancelar/rejeitar solicitação pendente
+      if (requestedBy === userId) {
+        // Usuário atual é quem ENVIOU → cancelando
+        batch.update(userRef, {
+          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: batchTimestamp,
+        });
+        batch.update(friendRef, {
+          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: batchTimestamp,
+        });
+      } else {
+        // Usuário atual RECEBEU → rejeitando
+        batch.update(userRef, {
+          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: batchTimestamp,
+        });
+        batch.update(friendRef, {
+          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: batchTimestamp,
+        });
+      }
+    }
 
     logger.info(`[DELETE] Commitando batch...`);
     await batch.commit();
     logger.info(`[DELETE] Batch concluído com sucesso`);
 
-    // Se era uma amizade aceita, atualizar mutualFriendsCount das amizades afetadas (em background)
-    if (status === 'accepted') {
+    // Atualização de amigos mútuos em segundo plano
+    if (hadAcceptedFriendship) {
       updateMutualFriendsForRemovedFriendship(userId, friendId).catch(err => {
         logger.error('Erro ao atualizar amigos em comum após remover amizade:', err);
       });
@@ -935,6 +1316,18 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
       invalidatePattern(CacheKeys.allUserPattern(friendId))
     ]);
 
+    // Audit Log: Amizade removida
+    AuditService.logAuditEvent({
+      userId,
+      action: 'FRIEND_REMOVED',
+      category: 'SOCIAL',
+      resourceId: friendId,
+      metadata: { previousStatus: status },
+      ip: req.ip,
+      userAgent: req.get('User-Agent')?.toString(),
+      requestId: (req as any).requestId
+    });
+
     return res.status(200).json({ message: 'Relação removida com sucesso' });
   } catch (error: any) {
     logger.error('Erro ao remover relação:', error);
@@ -945,11 +1338,30 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
   }
 });
 
-// ==================== AÇÕES EM LOTE ====================
+// =============================================================================
+// AÇÕES EM LOTE
+// =============================================================================
 
 /**
+ * @name Aceitar Amizades em Lote
+ * @summary Aceita múltiplas solicitações em uma transação.
+ * @description Aceita múltiplas solicitações de amizade de uma única vez, 
+ * garantindo integridade dos contadores de todos os usuários envolvidos.
+ * 
+ * @route {POST} /api/friendships/bulk-accept
+ * @bodyparams {string[]} friendIds - Lista de IDs de usuários cujas solicitações serão aceitas
+ * @returns {Object} 200 - Resumo das solicitações aceitas e puladas
+ * 
+ * @example
  * POST /api/friendships/bulk-accept
- * Aceita múltiplas solicitações de amizade em uma transação
+ * { "friendIds": ["UID1", "UID2", "UID3"] }
+ * 
+ * @throws {400} Erro se o corpo da requisição for inválido.
+ * 
+ * @note Atomicidade em Massa:
+ * - Processa múltiplos aceites em uma única transação Firestore para garantir que todos os contadores sejam atualizados de forma consistente.
+ * - Filtra automaticamente solicitações que não estão mais pendentes ou não pertencem ao usuário atual.
+ * - Invalida o cache de todos os usuários envolvidos para garantir dados frescos em toda a plataforma.
  */
 router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -971,7 +1383,7 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
     };
 
     await db.runTransaction(async (transaction) => {
-      // 1. Ler todos os documentos de amizade
+      // ==== ==== 1. LEITURA DOS DOCUMENTOS DE AMIZADE ==== ====
       const reads = await Promise.all(
         friendIds.map(async (friendId) => {
           const userDocRef = db.collection('friendships').doc(`${userId}_${friendId}`);
@@ -984,7 +1396,7 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
         })
       );
 
-      // 2. Validar e separar válidos de inválidos
+      // ==== ==== 2. VALIDAÇÃO DE ESTADO E SEGURANÇA ==== ====
       const valid: typeof reads = [];
       for (const item of reads) {
         if (!item.userDoc.exists || !item.friendDoc.exists) {
@@ -1007,7 +1419,7 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
 
       const timestamp = admin.firestore.Timestamp.now();
 
-      // 3. Aplicar escritas para todos os válidos
+      // ==== ==== 3. PERSISTÊNCIA EM LOTE ==== ====
       for (const item of valid) {
         transaction.update(item.userDocRef, {
           status: 'accepted',
@@ -1023,7 +1435,26 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
         results.accepted.push(item.friendId);
       }
 
-      // (Counter updates removed - handled by Cloud Functions)
+      // Atualizar contadores (atômico dentro da transação)
+      const accepterRef = db.collection('users').doc(userId);
+
+      // Quem aceitou: -N pendingRequestsCount, +N friendsCount
+      transaction.update(accepterRef, {
+        pendingRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
+        friendsCount: admin.firestore.FieldValue.increment(valid.length),
+        updatedAt: timestamp,
+      });
+
+      // Cada remetente: -1 sentRequestsCount, +1 friendsCount
+      for (const item of valid) {
+        const requesterData = item.userDoc.data();
+        const requesterRef = db.collection('users').doc(requesterData?.requestedBy || item.friendId);
+        transaction.update(requesterRef, {
+          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          friendsCount: admin.firestore.FieldValue.increment(1),
+          updatedAt: timestamp,
+        });
+      }
     });
 
 
@@ -1046,8 +1477,24 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
 });
 
 /**
+ * @name Rejeitar Amizades em Lote
+ * @summary Rejeita múltiplas solicitações recebidas.
+ * @description Rejeita múltiplas solicitações de amizade recebidas em uma única transação
+ * atômica, atualizando contadores de pendências.
+ * 
+ * @route {POST} /api/friendships/bulk-reject
+ * @bodyparams {string[]} friendIds - Lista de IDs de usuários cujas solicitações serão rejeitadas
+ * @returns {Object} 200 - Resumo das solicitações rejeitadas e puladas
+ * 
+ * @example
  * POST /api/friendships/bulk-reject
- * Rejeita múltiplas solicitações de amizade recebidas em uma transação
+ * { "friendIds": ["UID1", "UID2"] }
+ * 
+ * @throws {400} Erro se tentar rejeitar solicitações enviadas (usar bulk-cancel).
+ * 
+ * @note Limpeza de Pendências:
+ * - Remove os documentos de amizade bidirecionais e ajusta os contadores de solicitações pendentes.
+ * - Garante que o usuário logado só possa rejeitar solicitações destinadas a ele.
  */
 router.post('/friendships/bulk-reject', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -1105,6 +1552,26 @@ router.post('/friendships/bulk-reject', checkAuth, async (req: Request, res: Res
         transaction.delete(item.friendDocRef);
         results.rejected.push(item.friendId);
       }
+
+      // Atualizar contadores (atômico dentro da transação)
+      const timestamp = admin.firestore.Timestamp.now();
+      const receiverRef = db.collection('users').doc(userId);
+
+      // Quem rejeitou (destinatário): -N pendingRequestsCount
+      transaction.update(receiverRef, {
+        pendingRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
+        updatedAt: timestamp,
+      });
+
+      // Cada remetente: -1 sentRequestsCount
+      for (const item of valid) {
+        const senderData = item.userDoc.data();
+        const senderRef = db.collection('users').doc(senderData?.requestedBy || item.friendId);
+        transaction.update(senderRef, {
+          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: timestamp,
+        });
+      }
     });
 
     logger.info(`Bulk reject: ${userId} rejeitou ${results.rejected.length}/${friendIds.length} solicitações`);
@@ -1125,8 +1592,22 @@ router.post('/friendships/bulk-reject', checkAuth, async (req: Request, res: Res
 });
 
 /**
+ * @name Cancelar Amizades em Lote
+ * @summary Cancela múltiplas solicitações enviadas.
+ * @description Cancela múltiplas solicitações de amizade enviadas pelo usuário logado 
+ * de forma atômica. Apenas solicitações pendentes e enviadas pelo autor podem ser canceladas.
+ * 
+ * @route {POST} /api/friendships/bulk-cancel
+ * @bodyparams {string[]} friendIds - Lista de IDs de usuários cujas solicitações serão canceladas
+ * @returns {Object} 200 - Resumo das solicitações canceladas e puladas
+ * 
+ * @example
  * POST /api/friendships/bulk-cancel
- * Cancela múltiplas solicitações de amizade enviadas em uma transação
+ * { "friendIds": ["UID_ENVIADO1"] }
+ * 
+ * @note Cancelamento Seguro:
+ * - Permite que o remetente remova convites antes de serem aceitos.
+ * - Atualiza `sentRequestsCount` para o autor e `pendingRequestsCount` para os destinatários.
  */
 router.post('/friendships/bulk-cancel', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -1182,10 +1663,29 @@ router.post('/friendships/bulk-cancel', checkAuth, async (req: Request, res: Res
         transaction.delete(item.friendDocRef);
         results.cancelled.push(item.friendId);
       }
+
+      // Atualizar contadores (atômico dentro da transação)
+      const timestamp = admin.firestore.Timestamp.now();
+      const senderRef = db.collection('users').doc(userId);
+
+      // Quem cancelou (remetente): -N sentRequestsCount
+      transaction.update(senderRef, {
+        sentRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
+        updatedAt: timestamp,
+      });
+
+      // Cada destinatário: -1 pendingRequestsCount
+      for (const item of valid) {
+        const receiverRef = db.collection('users').doc(item.friendId);
+        transaction.update(receiverRef, {
+          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: timestamp,
+        });
+      }
     });
     logger.info(`Bulk cancel: ${userId} cancelou ${results.cancelled.length}/${friendIds.length} solicitações`);
 
-    // Invalidar cache do usuário atual e de todos os amigos cancelados
+    // ==== ==== INVALIDAR CACHE ==== ====
     const invalidations = [invalidatePattern(CacheKeys.allUserPattern(userId))];
     results.cancelled.forEach(fId => invalidations.push(invalidatePattern(CacheKeys.allUserPattern(fId))));
     await Promise.all(invalidations);
@@ -1200,14 +1700,28 @@ router.post('/friendships/bulk-cancel', checkAuth, async (req: Request, res: Res
   }
 });
 
-// ==================== SINCRONIZAÇÃO ====================
+// =============================================================================
+// SINCRONIZAÇÃO E MANUTENÇÃO
+// =============================================================================
 
+// Limite atômico do Firestore
 const FIRESTORE_BATCH_LIMIT = 500;
 
 /**
+ * @name Sincronizar Perfil
+ * @summary Atualiza dados denormalizados nas amizades.
+ * @description Atualiza dados denormalizados do usuário (nome, foto, etc) em todos os
+ * documentos de amizade onde ele aparece como amigo. Deve ser chamado após edição de perfil.
+ * 
+ * @route {POST} /api/friendships/sync-profile
+ * @returns {Object} 200 - Resumo da sincronização com contagem de documentos atualizados
+ * 
+ * @example
  * POST /api/friendships/sync-profile
- * Atualiza dados denormalizados do usuário em todas as suas amizades
- * Deve ser chamado após edição de perfil ou foto
+ * 
+ * @note Consistência Eventual e Lotes:
+ * - A sincronização é necessária porque os dados do perfil (nome, foto) são denormalizados em cada documento de amizade para evitar joins custosos.
+ * - Utiliza a constante `FIRESTORE_BATCH_LIMIT` (500) para processar atualizações em massa sem exceder os limites do SDK.
  */
 router.post('/friendships/sync-profile', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -1222,23 +1736,23 @@ router.post('/friendships/sync-profile', checkAuth, async (req: Request, res: Re
 
     const userData = userDoc.data()!;
 
-    // 2. Buscar todas as amizades onde este usuário aparece como "friend"
-    const snapshot = await db.collection('friendships')
+    // 2. Buscar todas as amizades onde o usuário é o 'friend' (o outro lado da relação)
+    const friendshipsSnapshot = await db.collection('friendships')
       .where('friendId', '==', userId)
       .get();
 
-    if (snapshot.empty) {
+    if (friendshipsSnapshot.empty) {
       logger.info(`Sync-profile: nenhuma amizade para atualizar (${userId})`);
       return res.status(200).json({ message: 'Nenhum documento para atualizar', updated: 0 });
     }
 
-    // 3. Atualizar em lotes (Firestore limita a 500 operações por batch)
-    const docs = snapshot.docs;
+    // 3. Processamento em lotes para respeitar limites do Firestore
+    const docs = friendshipsSnapshot.docs;
     let updated = 0;
 
     for (let i = 0; i < docs.length; i += FIRESTORE_BATCH_LIMIT) {
       const batch = db.batch();
-      const chunk = docs.slice(i, i + FIRESTORE_BATCH_LIMIT);
+      const chunk = docs.slice(i, i + FIRESTORE_BATCH_LIMIT); // Dividir em pedaços de 500
 
       for (const docSnapshot of chunk) {
         batch.update(docSnapshot.ref, {
@@ -1267,8 +1781,20 @@ router.post('/friendships/sync-profile', checkAuth, async (req: Request, res: Re
 });
 
 /**
- * GET /api/friendships/mutual/:userId
- * Calcula amigos em comum entre usuário logado e outro usuário
+ * @name Calcular Amigos Mútuos
+ * @summary Compara amigos entre o autor e um alvo.
+ * @description Retorna a interseção de amigos aceitos entre o usuário autenticado e um 
+ * terceiro, respeitando as configurações de bloqueio.
+ * 
+ * @route {GET} /api/friendships/mutual/:userId
+ * @param {string} userId - ID do usuário alvo para comparação
+ * @returns {Object} 200 - Contagem e lista detalhada de amigos em comum
+ * 
+ * @example
+ * GET /api/friendships/mutual/TARGET_UID
+ * 
+ * @throws {400} Erro se o ID do usuário for inválido ou ausente.
+ * @throws {403} Erro se o alvo bloqueou o usuário logado (privacidade).
  */
 router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -1298,7 +1824,7 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
       });
     }
 
-    // Buscar amigos de ambos os usuários em paralelo
+    // ==== ==== BUSCAR AMIGOS EM PARALELO ==== ====
     const [currentUserFriendsSnapshot, targetUserFriendsSnapshot] = await Promise.all([
       db.collection('friendships')
         .where('userId', '==', currentUserId)
@@ -1310,13 +1836,13 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
         .get(),
     ]);
 
-    // Criar set com IDs dos amigos do usuário atual
+    // ==== ==== CRIAR SET DE IDs PARA BUSCA ==== ====
     const currentUserFriendIds = new Set<string>();
     currentUserFriendsSnapshot.docs.forEach(doc => {
       currentUserFriendIds.add(doc.data().friendId);
     });
 
-    // Encontrar interseção e coletar dados dos amigos mútuos
+    // ==== ==== ENCONTRAR INTERSEÇÃO ==== ====
     const mutualFriends: Array<{
       id: string;
       displayName: string;
@@ -1351,8 +1877,19 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
 });
 
 /**
- * GET /api/friendships/status/:userId
- * Verifica status de amizade com um usuário
+ * @name Verificar Status de Amizade
+ * @summary Obtém o estado atual da relação com um alvo.
+ * @description Retorna uma string identificando a relação: 'none', 'friends', 
+ * 'request_sent', 'request_received' ou 'self'.
+ * 
+ * @route {GET} /api/friendships/status/:userId
+ * @param {string} userId - ID do usuário alvo para verificação
+ * @returns {Object} 200 - { status: string }
+ * 
+ * @example
+ * GET /api/friendships/status/TARGET_UID
+ * 
+ * @throws {403} Erro se houver bloqueio impedindo a verificação.
  */
 router.get('/friendships/status/:userId', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -1373,7 +1910,7 @@ router.get('/friendships/status/:userId', checkAuth, async (req: Request, res: R
       return res.status(200).json({ status: 'self' });
     }
 
-    // Verificar se há bloqueio em qualquer direção
+    // ==== ==== VERIFICAR BLOQUEIO ==== ====
     const isBlocked = await isBlockedBy(targetUserId, currentUserId);
     if (isBlocked) {
       logger.info(`Acesso ao status de amizade bloqueado: ${targetUserId} bloqueou ${currentUserId}`);
@@ -1414,11 +1951,29 @@ router.get('/friendships/status/:userId', checkAuth, async (req: Request, res: R
   }
 });
 
-// ==================== BLOQUEIO ====================
+// =============================================================================
+// BLOQUEIO E SEGURANÇA
+// =============================================================================
 
 /**
+ * @name Bloquear Usuário
+ * @summary Bloqueia e desfaz amizades instantaneamente.
+ * @description Registra um bloqueio no Firestore e inicia uma limpeza atômica (batch) 
+ * de qualquer amizade ou solicitação pendente entre os dois usuários.
+ * 
+ * @route {POST} /api/friendships/block
+ * @bodyparam {string} targetUserId - ID do usuário a ser bloqueado
+ * @returns {Object} 200 - { message, blockId }
+ * 
+ * @example
  * POST /api/friendships/block
- * Bloqueia um usuário
+ * { "targetUserId": "UID_ALVO" }
+ * 
+ * @throws {400} Erro se tentar bloquear a si mesmo ou dados inválidos.
+ * 
+ * @note Limpeza Pós-Bloqueio:
+ * - Além de criar o registro de bloqueio, a rota remove documentos bidirecionais de `friendships`.
+ * - Ajusta os contadores de `friendsCount` e pendências de ambos para manter integridade.
  */
 router.post('/friendships/block', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -1442,21 +1997,113 @@ router.post('/friendships/block', checkAuth, async (req: Request, res: Response,
     const blockId = `${userId}_${targetUserId}`;
     const blockRef = db.collection('blocks').doc(blockId);
 
-    await blockRef.set({
-      blockerId: userId,
-      blockedId: targetUserId,
-      createdAt: admin.firestore.Timestamp.now(),
+    // 1. Executa bloqueio oficial (transactional para atomicidade)
+    await db.runTransaction(async (transaction) => {
+      const existingBlock = await transaction.get(blockRef);
+      if (existingBlock.exists) return;
+
+      transaction.set(blockRef, {
+        blockerId: userId,
+        blockedId: targetUserId,
+        createdAt: admin.firestore.Timestamp.now(),
+      });
     });
 
     logger.info(`Usuário bloqueado: ${userId} -> ${targetUserId}`);
 
-    // Nota: O trigger onBlockCreated cuidará de remover amizades existentes
+    // 2. Limpeza física de relações existentes (pós-bloqueio)
+    const friendship1Ref = db.collection('friendships').doc(`${userId}_${targetUserId}`);
+    const friendship2Ref = db.collection('friendships').doc(`${targetUserId}_${userId}`);
+
+    const [doc1, doc2] = await Promise.all([
+      friendship1Ref.get(),
+      friendship2Ref.get(),
+    ]);
+
+    // Processamento de remoção e decremento de contadores se houver amizade
+    const batch = db.batch();
+    let hadAcceptedFriendship = false;
+    let deleteCount = 0;
+
+    if (doc1.exists || doc2.exists) {
+      if (doc1.exists) {
+        batch.delete(friendship1Ref);
+        deleteCount++;
+      }
+      if (doc2.exists) {
+        batch.delete(friendship2Ref);
+        deleteCount++;
+      }
+
+      const friendshipData = doc1.exists ? doc1.data() : doc2.data();
+      const status = friendshipData?.status;
+      const requestedBy = friendshipData?.requestedBy;
+      const blockTimestamp = admin.firestore.Timestamp.now();
+
+      const userRef = db.collection('users').doc(userId);
+      const targetRef = db.collection('users').doc(targetUserId);
+
+      if (status === 'accepted') {
+        hadAcceptedFriendship = true;
+        batch.update(userRef, {
+          friendsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: blockTimestamp,
+        });
+        batch.update(targetRef, {
+          friendsCount: admin.firestore.FieldValue.increment(-1),
+          updatedAt: blockTimestamp,
+        });
+      } else if (status === 'pending') {
+        if (requestedBy === userId) {
+          batch.update(userRef, {
+            sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+            updatedAt: blockTimestamp,
+          });
+          batch.update(targetRef, {
+            pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+            updatedAt: blockTimestamp,
+          });
+        } else {
+          batch.update(userRef, {
+            pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+            updatedAt: blockTimestamp,
+          });
+          batch.update(targetRef, {
+            sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+            updatedAt: blockTimestamp,
+          });
+        }
+      }
+    }
+
+    if (deleteCount > 0) {
+      await batch.commit();
+      logger.info(`[Block] Deleted ${deleteCount} friendship docs between ${userId} and ${targetUserId}`);
+    }
+
+    // Atualização de amigos mútuos em segundo plano
+    if (hadAcceptedFriendship) {
+      updateMutualFriendsForRemovedFriendship(userId, targetUserId).catch(err => {
+        logger.error('Erro ao atualizar amigos em comum após bloqueio:', err);
+      });
+    }
 
     // Invalidar cache de ambos os usuários
     await Promise.all([
       invalidatePattern(CacheKeys.allUserPattern(userId)),
       invalidatePattern(CacheKeys.allUserPattern(targetUserId))
     ]);
+
+    // Audit Log: Usuário bloqueado
+    AuditService.logAuditEvent({
+      userId,
+      action: 'USER_BLOCKED',
+      category: 'SOCIAL',
+      resourceId: targetUserId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')?.toString(),
+      requestId: (req as any).requestId
+    });
 
     return res.status(200).json({ message: 'Usuário bloqueado com sucesso', blockId });
   } catch (error) {
@@ -1466,8 +2113,18 @@ router.post('/friendships/block', checkAuth, async (req: Request, res: Response,
 });
 
 /**
+ * @name Desbloquear Usuário
+ * @summary Remove restrição de bloqueio.
+ * @description Exclui o registro de bloqueio, permitindo novas solicitações de amizade futuras. 
+ * Não restaura amizades deletadas automaticamente.
+ * 
+ * @route {POST} /api/friendships/unblock
+ * @bodyparam {string} targetUserId - ID do usuário a ser desbloqueado
+ * @returns {Object} 200 - { message: 'Usuário desbloqueado com sucesso' }
+ * 
+ * @example
  * POST /api/friendships/unblock
- * Desbloqueia um usuário
+ * { "targetUserId": "UID_ALVO" }
  */
 router.post('/friendships/unblock', checkAuth, async (req: Request, res: Response, next) => {
   try {
@@ -1495,6 +2152,17 @@ router.post('/friendships/unblock', checkAuth, async (req: Request, res: Respons
       invalidatePattern(CacheKeys.allUserPattern(targetUserId))
     ]);
 
+    // Audit Log: Usuário desbloqueado
+    AuditService.logAuditEvent({
+      userId,
+      action: 'USER_UNBLOCKED',
+      category: 'SOCIAL',
+      resourceId: targetUserId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      requestId: (req as any).requestId
+    });
+
     return res.status(200).json({ message: 'Usuário desbloqueado com sucesso' });
   } catch (error) {
     logger.error('Erro ao desbloquear usuário:', error);
@@ -1503,15 +2171,27 @@ router.post('/friendships/unblock', checkAuth, async (req: Request, res: Respons
 });
 
 /**
+ * @name Listar Bloqueados
+ * @summary Retorna lista de perfis bloqueados.
+ * @description Retorna os detalhes básicos (nome, foto, nickname) de todos os usuários
+ * que o usuário logado bloqueou, ordenados por data de bloqueio decrescente.
+ * 
+ * @route {GET} /api/friendships/blocking/list
+ * @returns {Object} 200 - { data: Array<UserProfile> }
+ * 
+ * @example
  * GET /api/friendships/blocking/list
- * Lista usuários bloqueados pelo usuário atual
+ * 
+ * @note Limites da Query:
+ * - Atualmente assume que a lista de bloqueados é pequena (<100) para processamento em memória.
+ * - Utiliza `Promise.all` para buscar os detalhes de cada perfil após obter os IDs de bloqueio.
  */
 router.get('/friendships/blocking/list', checkAuth, async (req: Request, res: Response, next) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user.uid;
 
-    // Buscar bloqueios onde blockerId == userId
+    // ==== ==== BUSCAR BLOQUEIOS ATIVOS ==== ====
     const blocksSnapshot = await db.collection('blocks')
       .where('blockerId', '==', userId)
       .orderBy('createdAt', 'desc')
@@ -1523,7 +2203,7 @@ router.get('/friendships/blocking/list', checkAuth, async (req: Request, res: Re
 
     const blockedIds = blocksSnapshot.docs.map(doc => doc.data().blockedId);
 
-    // Buscar detalhes dos usuários bloqueados (limite de 10 por batch se fosse batchGet, mas aqui getAll aceita array)
+    // ==== ==== BUSCAR DETALHES DOS USUÁRIOS ==== ====
     // Firestore getAll suporta ~100 docs? Verificar. Para listas pequenas ok.
     // Se for muito grande, ideal seria paginar ou armazenar dados denormalizados no block.
     // Assumindo lista < 100 por enquanto.

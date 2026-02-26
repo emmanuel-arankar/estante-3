@@ -53,7 +53,10 @@ export const Chat = () => {
     editMessage,
     reactToMessage,
     updateTyping,
-    markMessageAsViewed
+    markMessageAsViewed,
+    loadOlderMessages,
+    hasOlderMessages,
+    loadingOlder,
   } = useChat(receiverId || '');
 
   const { getAnonymizedUser } = useBlockedUsers();
@@ -110,8 +113,8 @@ export const Chat = () => {
   const isAtBottom = () => {
     if (!scrollRef.current) return false;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    // Buffer reduced to 50px to prevent accidental scrolling when interacting near bottom
-    return scrollHeight - scrollTop - clientHeight < 50;
+    // Buffer de 150px para tolerância ao verificar se está no final
+    return scrollHeight - scrollTop - clientHeight < 150;
   };
 
   // Auto-scroll para o final
@@ -133,21 +136,27 @@ export const Chat = () => {
     const prevLen = prevMessagesRef.current.length;
     const curLen = messages.length;
 
-    if (curLen > prevLen) {
-      const lastMsg = messages[curLen - 1];
-      const isOwn = lastMsg.senderId === user?.uid;
+    // Atualizar ref ANTES de qualquer early return
+    const prevMessages = prevMessagesRef.current;
+    prevMessagesRef.current = messages;
 
-      // Force scroll if it's my own message or if I'm already at the bottom
+    if (curLen > prevLen && curLen > 0) {
+      const lastMsg = messages[curLen - 1];
+      const prevLastMsg = prevMessages[prevLen - 1];
+
+      // Só auto-scroll se a ÚLTIMA mensagem mudou (nova mensagem, não carregamento de histórico)
+      if (prevLastMsg && lastMsg.id === prevLastMsg.id) return;
+
+      const isOwn = lastMsg.senderId === user?.uid;
+      // Force scroll se é minha mensagem ou se estou no final
       const forceScroll = isOwn || isAtBottom();
 
       const timer = setTimeout(() => {
         scrollToBottom(isOwn ? 'auto' : 'smooth', forceScroll);
-      }, 100); // Slightly longer delay to ensure DOM is ready
+      }, 100);
 
       return () => clearTimeout(timer);
     }
-
-    prevMessagesRef.current = messages;
   }, [messages]);
 
   // Use ResizeObserver to stay at bottom when content size changes (e.g. images loading)
@@ -190,13 +199,28 @@ export const Chat = () => {
     }
   }, [isTyping, isRecording]);
 
-  // Monitor scroll position to show/hide "Scroll to Bottom" button
+  // Monitor scroll position to show/hide "Scroll to Bottom" button + carregar histórico
   useEffect(() => {
     const handleScroll = () => {
       if (!isAtBottom()) {
         setShowScrollBottom(true);
       } else {
         setShowScrollBottom(false);
+      }
+
+      // Scroll infinito reverso: carregar mensagens mais antigas ao chegar no topo
+      const el = scrollRef.current;
+      if (el && el.scrollTop < 80 && hasOlderMessages && !loadingOlder) {
+        const prevScrollHeight = el.scrollHeight;
+        loadOlderMessages().then(() => {
+          // Preservar posição de scroll após inserir mensagens no topo
+          requestAnimationFrame(() => {
+            if (scrollRef.current) {
+              const newScrollHeight = scrollRef.current.scrollHeight;
+              scrollRef.current.scrollTop = newScrollHeight - prevScrollHeight;
+            }
+          });
+        });
       }
     };
 
@@ -205,7 +229,7 @@ export const Chat = () => {
       scrollEl.addEventListener('scroll', handleScroll);
       return () => scrollEl.removeEventListener('scroll', handleScroll);
     }
-  }, []);
+  }, [hasOlderMessages, loadingOlder, loadOlderMessages]);
 
   useEffect(() => {
     if (!user) {
@@ -517,6 +541,25 @@ export const Chat = () => {
               ref={scrollRef}
               className="absolute inset-0 overflow-y-auto p-4 space-y-1"
             >
+              {/* Indicador de carregamento de mensagens antigas */}
+              {loadingOlder && (
+                <div className="flex justify-center py-3">
+                  <LoadingSpinner size="sm" />
+                </div>
+              )}
+
+              {/* Botão para carregar mais (fallback se scroll não disparar) */}
+              {!loading && !loadingOlder && hasOlderMessages && messages.length > 0 && (
+                <div className="flex justify-center py-2">
+                  <button
+                    onClick={() => loadOlderMessages()}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium px-3 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                  >
+                    Carregar mensagens anteriores
+                  </button>
+                </div>
+              )}
+
               {loading ? (
                 <div className="flex justify-center py-8">
                   <LoadingSpinner size="md" />

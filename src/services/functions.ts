@@ -1,12 +1,13 @@
-import { functions } from '@/services/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { apiClient } from '@/services/apiClient';
 
 export const requestTranscription = async (chatId: string, messageId: string) => {
     try {
-        const requestTranscriptionFn = httpsCallable(functions, 'requestTranscription');
+        const result = await apiClient<{ transcription: string }>('/chat/transcription', {
+            method: 'POST',
+            data: { chatId, messageId }
+        });
 
-        const result = await requestTranscriptionFn({ chatId, messageId });
-        return result.data as { transcription: string };
+        return result;
     } catch (error) {
         console.error('Error requesting transcription:', error);
         throw error;

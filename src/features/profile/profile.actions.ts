@@ -1,6 +1,4 @@
 import { redirect } from 'react-router-dom';
-import { doc, updateDoc } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
 import {
   toastSuccessClickable,
   toastErrorClickable,
@@ -8,8 +6,9 @@ import {
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
 import { syncProfileAPI } from '@/services/friendshipsApi';
-import { auth, db } from '@/services/firebase';
+import { auth } from '@/services/firebase';
 import { useAuthStore } from '@/stores/authStore';
+import { apiClient } from '@/services/apiClient';
 import { UserLocation } from '@estante/common-types';
 
 export const editProfileAction = async ({ request }: any) => {
@@ -19,8 +18,8 @@ export const editProfileAction = async ({ request }: any) => {
 
   if (!user) return redirect(PATHS.LOGIN);
 
-  // Preparar dados
-  let birthDate = null;
+  // 1. Preparar dados de data de nascimento
+  let birthDate: Date | null = null;
   if (data.birthDay && data.birthMonth && data.birthYear) {
     birthDate = new Date(
       parseInt(data.birthYear as string),
@@ -29,7 +28,7 @@ export const editProfileAction = async ({ request }: any) => {
     );
   }
 
-  // Preparar localização
+  // 2. Preparar localização
   let location: string | UserLocation = '';
   if (data.locationState && data.locationStateCode && data.locationCity) {
     location = {
@@ -46,19 +45,16 @@ export const editProfileAction = async ({ request }: any) => {
     location: location,
     website: (data.website as string) || '',
     birthDate: birthDate,
-    updatedAt: new Date(),
   };
 
   try {
-    // 1. ATUALIZAÇÃO OTIMISTA: Atualizar cache local ANTES do banco
-    // Isso faz a UI refletir instantaneamente
+    // 3. ATUALIZAÇÃO OTIMISTA: Atualizar cache local ANTES do banco
     queryClient.setQueryData(['users', user.uid], (oldData: any) => {
       if (!oldData) return oldData;
       return { ...oldData, ...updatedFields };
     });
 
-    // 2. Atualizar AuthStore imediatamente (para o Header)
-    // Criamos um objeto que simula o user atualizado
+    // 4. Atualizar AuthStore imediatamente (para o Header/Avatar)
     const currentAuthUser = useAuthStore.getState().user;
     if (currentAuthUser) {
       useAuthStore.getState().setUser({
@@ -67,36 +63,33 @@ export const editProfileAction = async ({ request }: any) => {
       } as any);
     }
 
-    // 3. Mostrar toast de sucesso AGORA (feedback imediato)
+    // 5. Mostrar feedback imediato
     toastSuccessClickable('Perfil salvo com sucesso!');
 
-    // 4. Disparar operações de banco em PARALELO e SEM BLOQUEAR o redirect
-    // Usamos Promise.all mas não esperamos - deixamos rodar em background
-    const savePromises = [
-      // Salvar no Firestore
-      updateDoc(doc(db, 'users', user.uid), updatedFields),
-      // Atualizar Firebase Auth (para displayName)
-      updateProfile(user, { displayName: updatedFields.displayName }),
-    ];
-
-    // Executamos tudo em paralelo, mas NÃO esperamos
-    Promise.all(savePromises)
+    // 6. Persistir no backend (Background)
+    apiClient('/users/me', {
+      method: 'PATCH',
+      data: {
+        ...updatedFields,
+        birthDate: updatedFields.birthDate ? updatedFields.birthDate.toISOString() : null,
+      },
+    })
       .then(() => {
-        // Sincronização de amizades em background (não bloqueia nada)
+        // Sincronizar amizades para propagar mudanças de nome/nickname
         syncProfileAPI().catch(console.error);
       })
       .catch((error) => {
         console.error('Erro ao salvar perfil no backend:', error);
         // Rollback: invalidar cache para forçar refetch dos dados reais
         queryClient.invalidateQueries({ queryKey: ['users', user.uid] });
-        toastErrorClickable('Erro ao salvar. Recarregue a página.');
+        toastErrorClickable('Erro ao sincronizar com o servidor. Recarregue.');
       });
 
-    // 5. Redirecionar IMEDIATAMENTE (não espera o banco)
+    // 7. Redirecionar IMEDIATAMENTE
     return redirect(PATHS.PROFILE_ME);
   } catch (error) {
-    console.error('Erro:', error);
-    toastErrorClickable('Erro ao salvar o perfil.');
-    return { error: 'Falha ao salvar' };
+    console.error('Erro na ação de perfil:', error);
+    toastErrorClickable('Erro ao processar as alterações.');
+    return { error: 'Falha ao processar' };
   }
 };

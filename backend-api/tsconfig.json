@@ -1,28 +1,50 @@
 {
+  // =============================================================================
+  // CONFIGURAÇÃO DO COMPILADOR TYPESCRIPT (BACKEND-API)
+  // =============================================================================
+  
+  /**
+   * @name Configuração do Compilador TypeScript
+   * @summary Define as regras de transpilação, resolução de módulos e 
+   * restrições de tipagem para o núcleo do backend da Estante-3.
+   * 
+   * @note Estratégia de Compilação:
+   * - **Target ES2021**: Suporta recursos modernos de sintaxe (Async/Await, Nullish Coalescing).
+   * - **Strict Mode**: Habilita verificações rigorosas para garantir a integridade do código.
+   * - **Exclusão de Testes**: Arquivos de teste são explicitamente excluídos do build de produção.
+   */
   "compilerOptions": {
-    "module": "NodeNext", // # atualizado: Usar NodeNext (ou Bundler)
-    "moduleResolution": "NodeNext", // # atualizado: Especificar resolução moderna
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "esModuleInterop": true,
-    "outDir": "dist",
-    "sourceMap": true,
-    "strict": true,
-    "target": "es2021", // # atualizado: Usar uma target um pouco mais moderna
-    "skipLibCheck": true, // # atualizado: Adicionar para ignorar .d.ts em node_modules
-    "resolveJsonModule": true, // # atualizado: Adicionar caso precise importar JSONs
+    // ==== ==== 1. RESOLUÇÃO E TARGET ====
+    "module": "NodeNext",                       // Suporte a ESM e CommonJS moderno
+    "moduleResolution": "NodeNext",             // Resolução de módulos compatível com Node.js v16+
+    "target": "es2021",                         // Sintaxe moderna (Async/Await, Nullish Coalescing)
+    "lib": [
+      "es2021"
+    ],                                          // Bibliotecas de tipos da linguagem
+    // ==== ==== 2. REGRAS DE TIPAGEM (STRICT MODE) ==== ====
+    "strict": true,                             // Habilita todas as verificações rigorosas
+    "noImplicitReturns": true,                  // Garante que todas as ramificações retornem valor
+    "noUnusedLocals": true,                     // Evita variáveis locais não utilizadas (limpeza)
+    "skipLibCheck": true,                       // Ignora erros em arquivos de declaração (.d.ts) de terceiros
+    // ==== ==== 3. INTEROPERABILIDADE E SAÍDA ==== ====
+    "esModuleInterop": true,                    // Permite import de módulos CJS como se fossem ESM
+    "resolveJsonModule": true,                  // Permite importar arquivos .json como módulos
+    "outDir": "dist",                           // Diretório de destino do build
+    "sourceMap": true,                          // Gera mapas para facilitar o debug do código fonte
+    // ==== ==== 4. DEFINIÇÕES DE TIPOS GLOBAIS ==== ====
     "types": [
-      "node",
-      "vitest/globals"
-    ] // Mantém os types que adicionamos
+      "node",                                   // Tipos do ambiente Node.js
+      "vitest/globals"                          // Globais do Vitest (describe, test, expect)
+    ]
   },
   "compileOnSave": true,
   "include": [
-    "src/**/*" // Mantém incluir tudo em src
+    "src/**/*"                                  // Inclui todo o código fonte
   ],
   "exclude": [
-    "node_modules", // Garante que node_modules seja excluído
-    "dist",
-    "src/tests/**/*" // Mantém a exclusão dos testes
+    "node_modules",                             // Exclui dependências externas do build
+    "dist",                                     // Exclui a própria saída
+    "src/tests/**/*",                           // Exclui testes (build focado em produção)
+    "../node_modules/@types/request/**/*"       // Exclui tipos problemáticos legados
   ]
 }

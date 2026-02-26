@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toastErrorClickable } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
   sendMessage,
   subscribeToMessages,
+  loadOlderMessages,
   getUserChats,
-  updateUserChatList,
   setTypingStatus,
   subscribeToTypingStatus,
   markAllMessagesAsRead,
@@ -30,6 +30,9 @@ export const useChat = (receiverId?: string) => {
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
   const [receiverInfo, setReceiverInfo] = useState<User | null>(null);
+  const [hasOlderMessages, setHasOlderMessages] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false); // ref síncrona para bloquear re-triggers
 
 
   useEffect(() => {
@@ -97,15 +100,6 @@ export const useChat = (receiverId?: string) => {
           const remoteUrl = await uploadAudio(uploadFile, `chats/${user.uid}/audio`);
 
           await sendMessage(user.uid, receiverId, remoteUrl, type, replyData, isTemporary, messageId, waveform, duration, undefined, viewOnce);
-          await updateUserChatList(
-            user.uid,
-            receiverId,
-            "Áudio",
-            new Date(),
-            type,
-            { displayName: receiverInfo?.displayName, photoURL: receiverInfo?.photoURL },
-            { displayName: user.displayName || undefined, photoURL: user.photoURL || undefined }
-          );
 
           setTypingStatus(user.uid, receiverId, false).catch(() => { });
         } catch (err) {
@@ -167,15 +161,6 @@ export const useChat = (receiverId?: string) => {
             remoteUrls // Full Grid
           );
 
-          await updateUserChatList(
-            user.uid,
-            receiverId,
-            remoteUrls.length > 1 ? `📷 ${remoteUrls.length} Fotos` : "📷 Foto",
-            new Date(),
-            type,
-            { displayName: receiverInfo?.displayName, photoURL: receiverInfo?.photoURL },
-            { displayName: user.displayName || undefined, photoURL: user.photoURL || undefined }
-          );
 
           setTypingStatus(user.uid, receiverId, false).catch(() => { });
         } catch (err) {
@@ -190,7 +175,7 @@ export const useChat = (receiverId?: string) => {
     }
 
     // Fluxo Padrão (Texto ou Imagem com legenda)
-    const messageId = `temp_${Date.now()}`;
+    const messageId = generateMessageId(user.uid, receiverId);
     const optimisticMsg: ChatMessage = {
       id: messageId,
       senderId: user.uid,
@@ -208,15 +193,6 @@ export const useChat = (receiverId?: string) => {
 
     try {
       await sendMessage(user.uid, receiverId, content, type, replyData, isTemporary, messageId, undefined, duration, caption, viewOnce);
-      await updateUserChatList(
-        user.uid,
-        receiverId,
-        type === 'image' ? "📷 Foto" : content,
-        new Date(),
-        type,
-        { displayName: receiverInfo?.displayName, photoURL: receiverInfo?.photoURL },
-        { displayName: user.displayName || undefined, photoURL: user.photoURL || undefined }
-      );
       await setTypingStatus(user.uid, receiverId, false);
       setReplyingTo(null);
     } catch (error) {
@@ -232,15 +208,6 @@ export const useChat = (receiverId?: string) => {
     try {
       await editMessage(user.uid, receiverId, messageId, newContent);
       // Atualiza a lista de chats para refletir a edição na prévia
-      await updateUserChatList(
-        user.uid,
-        receiverId,
-        newContent,
-        new Date(),
-        'text',
-        { displayName: receiverInfo?.displayName, photoURL: receiverInfo?.photoURL },
-        { displayName: user.displayName || undefined, photoURL: user.photoURL || undefined }
-      );
       setEditingMessage(null);
     } catch (error) {
       toastErrorClickable('Erro ao editar mensagem');
@@ -378,6 +345,45 @@ export const useChat = (receiverId?: string) => {
     }
   }, [user, receiverId]);
 
+  // Carregar mensagens históricas (scroll infinito reverso)
+  const handleLoadOlderMessages = useCallback(async () => {
+    if (!user || !receiverId || !hasOlderMessages) return;
+    // Bloqueio síncrono via ref para evitar re-triggers do scroll event
+    if (loadingOlderRef.current) return;
+    const oldestId = messages[0]?.id;
+    if (!oldestId) return;
+
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const { messages: olderMsgs, hasMore } = await loadOlderMessages(
+        user.uid,
+        receiverId,
+        oldestId
+      );
+      // Se não retornou nada, não há mais histórico
+      if (olderMsgs.length === 0) {
+        setHasOlderMessages(false);
+        return;
+      }
+      setHasOlderMessages(hasMore);
+      setMessages(prev => {
+        const messageMap = new Map<string, ChatMessage>();
+        olderMsgs.forEach(m => messageMap.set(m.id, m));
+        prev.forEach(m => messageMap.set(m.id, m));
+        return Array.from(messageMap.values()).sort((a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      });
+    } catch (err) {
+      console.error('Erro ao carregar mensagens antigas:', err);
+    } finally {
+      setLoadingOlder(false);
+      // Cooldown de 1s para evitar re-trigger imediato pelo scroll restoration
+      setTimeout(() => { loadingOlderRef.current = false; }, 1000);
+    }
+  }, [user, receiverId, messages, hasOlderMessages]);
+
   return {
     messages,
     chats,
@@ -396,6 +402,9 @@ export const useChat = (receiverId?: string) => {
     reactToMessage: handleReactToMessage,
     updateTyping,
     deleteChat: deleteChatHandler,
-    markMessageAsViewed: markMessageAsViewedHandler
+    markMessageAsViewed: markMessageAsViewedHandler,
+    loadOlderMessages: handleLoadOlderMessages,
+    hasOlderMessages,
+    loadingOlder,
   };
 };

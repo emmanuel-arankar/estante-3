@@ -1,10 +1,9 @@
 import {
   DenormalizedFriendship,
   FriendshipStats,
+  SortOption,
+  SortDirection,
 } from '@estante/common-types';
-
-export type SortOption = 'default' | 'name' | 'nickname' | 'friendshipDate';
-export type SortDirection = 'asc' | 'desc';
 
 export interface UseFriendsResult {
   friends: DenormalizedFriendship[];

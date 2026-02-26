@@ -51,9 +51,24 @@ import {
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { Separator } from '@/components/ui/separator';
 import { userByNicknameQuery as userQueries } from '@/features/users/user.queries';
+import { apiClient } from '@/services/apiClient';
 import { cn } from '@/lib/utils';
 import { PATHS } from '@/router/paths';
-import { searchUsersForMention } from '@/services/firestore';
+
+// Busca de usuários para menções via API backend
+// Busca de usuários para menções via API backend
+const searchUsersForMention = async (
+  searchTerm: string
+): Promise<{ id: string; label: string; nickname: string; photoURL: string }[]> => {
+  if (!searchTerm || searchTerm.length < 2) return [];
+  try {
+    return await apiClient<{ id: string; label: string; nickname: string; photoURL: string }[]>(
+      `/users/search?q=${encodeURIComponent(searchTerm)}&limit=10`
+    );
+  } catch {
+    return [];
+  }
+};
 
 // # atualizado: Tipagem para os props do componente de menções (com photoURL)
 type MentionListProps = SuggestionProps & {

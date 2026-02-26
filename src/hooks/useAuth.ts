@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
-import { onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { setSessionCookie } from '@/services/auth';
-import { auth } from '@/services/firebase';
+import { onAuthChange, setSessionCookie } from '@/services/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { queryClient } from '@/lib/queryClient';
 import { userQuery } from '@/features/users/user.queries';
@@ -32,7 +30,7 @@ export const useAuth = () => {
       }
     }, 2500);
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthChange(async (firebaseUser) => {
       // Se o Firebase respondeu, cancelamos o timeout de segurança
       clearTimeout(safetyTimeout);
 
@@ -64,12 +62,6 @@ export const useAuth = () => {
             if (profile) {
               // Atualiza o perfil global (corrige foto/nome no Header)
               useAuthStore.getState().setUserProfile(profile);
-
-              // # AUTO-CORREÇÃO (Self-Healing):
-              if (profile.displayName && !firebaseUser.displayName) {
-                console.log("🛠️ Sincronizando displayName ausente no Auth...");
-                updateProfile(firebaseUser, { displayName: profile.displayName }).catch(console.error);
-              }
             }
           }).catch((err) => {
             console.error("Erro ao carregar perfil no useAuth:", err);

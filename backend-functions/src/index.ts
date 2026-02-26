@@ -1,7 +1,6 @@
 import * as logger from 'firebase-functions/logger';
 export { requestTranscription } from './requestTranscription';
-export * from './friendshipTriggers';
-export * from './blockingTriggers';
+export { onImageUpload } from './imageProcessing';
 
 // Conecta o Admin SDK aos emuladores se estiver em ambiente local
 if (process.env.FUNCTIONS_EMULATOR) {

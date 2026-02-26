@@ -1,5 +1,8 @@
 import { User } from ".";
 
+export type SortOption = 'default' | 'name' | 'nickname' | 'friendshipDate';
+export type SortDirection = 'asc' | 'desc';
+
 export type FriendshipStatus = 'pending' | 'accepted' | 'rejected';
 
 export interface Friendship {

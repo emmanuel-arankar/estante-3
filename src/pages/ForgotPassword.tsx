@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { recoverPasswordAPI } from '@/services/authApi';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
-import { auth } from '@/services/firebase';
 import { PATHS } from '@/router/paths';
 
 const forgotPasswordSchema = z.object({
@@ -43,38 +42,13 @@ export const ForgotPassword = () => {
   const handleSubmit = async (data: ForgotPasswordForm) => {
     setIsLoading(true);
     try {
-      await sendPasswordResetEmail(auth, data.email, {
-        url: `${window.location.origin}${PATHS.LOGIN}`,
-        handleCodeInApp: false,
-      });
+      await recoverPasswordAPI(data.email);
 
       setEmailSent(true);
       toastSuccessClickable('Email de recuperação enviado com sucesso! Verifique sua caixa de entrada e spam.');
     } catch (error: any) {
       console.error('Erro ao enviar email:', error);
-
-      let errorMessage = 'Erro ao enviar email de recuperação';
-
-      switch (error.code) {
-        case 'auth/user-not-found':
-          errorMessage = 'Nenhum usuário encontrado com este email';
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Email inválido';
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Muitas tentativas. Tente novamente mais tarde';
-          break;
-        case 'auth/missing-android-pkg-name':
-        case 'auth/missing-continue-uri':
-        case 'auth/missing-ios-bundle-id':
-        case 'auth/invalid-continue-uri':
-        case 'auth/unauthorized-continue-uri':
-          errorMessage = 'Erro de configuração. Contate o suporte';
-          break;
-        default:
-          errorMessage = 'Erro ao enviar email. Tente novamente';
-      }
+      const errorMessage = error.message || 'Erro ao enviar email. Tente novamente';
 
       toastErrorClickable(errorMessage);
       form.setError('email', { message: errorMessage });

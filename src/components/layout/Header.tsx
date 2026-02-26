@@ -39,7 +39,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useImageLoad } from '@/hooks/useImageLoad';
 import { logout } from '@/services/auth';
-import { subscribeToFriendRequests } from '@/services/firestore';
 import { subscribeToTotalUnreadMessages } from '@/services/realtime';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { PATHS } from '@/router/paths';
@@ -56,7 +55,6 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [friendRequestsCount, setFriendRequestsCount] = useState(initialFriendRequests);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   const { isLoaded: isAvatarLoaded } = useImageLoad(userProfile?.photoURL);
@@ -79,24 +77,8 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
   // Apenas mostra loading se NÃO estivermos em modo de segurança
   const effectiveIsAuthLoading = isAuthLoading && !forceGuestMode;
 
-  // Sincroniza contagem quando o usuário muda (evita dados do usuário anterior)
-  useEffect(() => {
-    if (!userProfile?.id) {
-      setFriendRequestsCount(0);
-      return;
-    }
-
-    // Reseta contador ao trocar de usuário antes de se inscrever
-    setFriendRequestsCount(0);
-
-    const unsubscribe = subscribeToFriendRequests(userProfile.id, (requests) => {
-      setFriendRequestsCount(requests.length);
-    });
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [userProfile?.id]);
+  // Contador de friend requests: usa campo do userProfile (atualizado atomicamente pela API)
+  const friendRequestsCount = userProfile?.pendingRequestsCount ?? initialFriendRequests;
 
   useEffect(() => {
     if (!userProfile?.id) {
@@ -263,7 +245,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
               <Button
                 variant="ghost"
                 asChild
-                className="text-gray-600 hover:text-emerald-600 rounded-full font-sans mb-2"
+                className="text-gray-600 hover:text-emerald-600 rounded-full font-sans"
               >
                 <Link to={PATHS.LOGIN}>
                   Entrar

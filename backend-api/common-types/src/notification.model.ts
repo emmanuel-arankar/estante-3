@@ -11,9 +11,9 @@ export interface Notification {
 }
 
 export type NotificationType =
-    | 'FRIEND_REQUEST'
-    | 'FRIEND_ACCEPTED'
-    | 'FRIEND_REJECTED';
+    | 'friend_request'
+    | 'friend_accepted'
+    | 'friend_rejected';
 
 export interface NotificationMetadata {
     friendshipId?: string;

@@ -3,7 +3,7 @@ import { useLoaderData, useNavigate, Outlet, useLocation } from 'react-router-do
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, UserCheck, MessageCircle, Camera, Users, UserMinus, X, Check, MoreVertical, Ban } from 'lucide-react';
+import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, MessageCircle, Camera, UserMinus, X, Check, MoreVertical, Ban } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
 import { PhotoViewer } from '@/components/profile/PhotoViewer';
@@ -58,10 +58,10 @@ import {
   blockUserAPI,
 } from '@/services/friendshipsApi';
 import { fetchMutualFriendsDeduped } from '@/hooks/useMutualFriendsCache';
-import { getUserAvatars } from '@/services/firestore';
 import { useAuthStore } from '@/stores/authStore';
 import { User as UserModel } from '@estante/common-types';
 import { useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/services/apiClient';
 
 // Função para converter datas do Firestore com segurança
 const convertFirestoreDate = (date: any): Date | null => {
@@ -246,8 +246,8 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     const fetchAvatarData = async () => {
       if (!profileUser?.id) return;
       try {
-        const avatars = await getUserAvatars(profileUser.id);
-        const currentAvatar = avatars.find(avatar => avatar.isCurrent);
+        const avatars = await apiClient<any[]>(`/users/${profileUser.id}/avatars`);
+        const currentAvatar = avatars.find((avatar: any) => avatar.isCurrent);
         if (currentAvatar) {
           setCurrentAvatarData({
             uploadedAt: currentAvatar.uploadedAt,
@@ -298,6 +298,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
       toastSuccessClickable('Solicitação de amizade enviada!');
       // Invalida cache para atualizar o botão
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friendshipStatus', profileUser.id] });
     } catch (error) {
       console.error('Erro ao enviar solicitação:', error);
       toastErrorClickable('Erro ao enviar solicitação de amizade');
@@ -313,6 +314,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
       await removeFriendshipAPI(`${currentUser.uid}_${profileUser.id}`);
       toastSuccessClickable('Solicitação cancelada');
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friendshipStatus', profileUser.id] });
     } catch (error) {
       console.error('Erro ao cancelar solicitação:', error);
       toastErrorClickable('Erro ao cancelar solicitação');
@@ -328,6 +330,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
       await acceptFriendRequestAPI(`${currentUser.uid}_${profileUser.id}`);
       toastSuccessClickable('Solicitação aceita!');
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friendshipStatus', profileUser.id] });
     } catch (error) {
       console.error('Erro ao aceitar solicitação:', error);
       toastErrorClickable('Erro ao aceitar solicitação');
@@ -343,6 +346,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
       await removeFriendshipAPI(`${currentUser.uid}_${profileUser.id}`);
       toastSuccessClickable('Solicitação recusada');
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friendshipStatus', profileUser.id] });
     } catch (error) {
       console.error('Erro ao recusar solicitação:', error);
       toastErrorClickable('Erro ao recusar solicitação');
@@ -358,6 +362,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
       await removeFriendshipAPI(`${currentUser.uid}_${profileUser.id}`);
       toastSuccessClickable('Amizade desfeita');
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friendshipStatus', profileUser.id] });
     } catch (error) {
       console.error('Erro ao desfazer amizade:', error);
       toastErrorClickable('Erro ao desfazer amizade');
@@ -635,20 +640,34 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
                       </a>
                     </div>
                   )}
-                  {convertFirestoreDate(profileUser.birthDate) && (
-                    <div className="flex items-center">
-                      <Cake className="h-4 w-4 mr-3 text-gray-400" />
-                      <span>
-                        Nasceu em {format(convertFirestoreDate(profileUser.birthDate)!, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-3 text-gray-400" />
-                    <span>
-                      Membro {formatDistanceToNow(convertFirestoreDate(profileUser.joinedAt)!, { addSuffix: true, locale: ptBR })}
-                    </span>
-                  </div>
+                  {(() => {
+                    const birthDate = convertFirestoreDate(profileUser.birthDate);
+                    if (birthDate && !isNaN(birthDate.getTime())) {
+                      return (
+                        <div className="flex items-center">
+                          <Cake className="h-4 w-4 mr-3 text-gray-400" />
+                          <span>
+                            Nasceu em {format(birthDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  {(() => {
+                    const joinedAt = convertFirestoreDate(profileUser.joinedAt);
+                    if (joinedAt && !isNaN(joinedAt.getTime())) {
+                      return (
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-3 text-gray-400" />
+                          <span>
+                            Membro {formatDistanceToNow(joinedAt, { addSuffix: true, locale: ptBR })}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             </div>
@@ -694,9 +713,11 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
             userName={profileUser.displayName}
             userId={profileUser.id}
             avatarId={currentAvatarData.id}
-            postDate={currentAvatarData.uploadedAt
-              ? format(currentAvatarData.uploadedAt, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-              : "Data não disponível"}
+            postDate={
+              currentAvatarData.uploadedAt && !isNaN(new Date(currentAvatarData.uploadedAt).getTime())
+                ? format(new Date(currentAvatarData.uploadedAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                : "Data não disponível"
+            }
           />
         )}
 
