@@ -11,6 +11,8 @@ import { PATHS } from '@/router/paths';
 import { FocusManager } from '@/router/FocusManager';
 import { useAuthStore } from '@/stores/authStore';
 import { User } from '@estante/common-types';
+import { ArrowUp } from 'lucide-react';
+import { AnalyticsRouteTracker } from '@/components/AnalyticsRouteTracker';
 
 interface LayoutData {
   userProfile: User | null;
@@ -58,6 +60,20 @@ export const Layout = () => {
       setHeaderData({ userProfile: null, initialFriendRequests: 0 });
     }
   }, [authUser?.uid]);
+
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const pageKey = useMemo(() => {
     const routeMatch = [...matches]
@@ -145,6 +161,7 @@ export const Layout = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 w-full overflow-x-hidden">
+      <AnalyticsRouteTracker />
       <FocusManager />
 
       <div
@@ -197,6 +214,21 @@ export const Layout = () => {
         containerStyle={{ top: '88px' }}
         gutter={8}
       />
+
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, y: 20, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.8 }}
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 hover:-translate-y-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            aria-label="Voltar ao topo"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

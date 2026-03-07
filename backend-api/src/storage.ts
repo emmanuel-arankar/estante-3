@@ -69,7 +69,7 @@ router.post('/storage/signed-url', checkAuth, async (req: Request, res: Response
 
         return res.json({
             uploadUrl: url,
-            fileUrl: `https://storage.googleapis.com/${bucket.name}/${path}`,
+            fileUrl: `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media`,
             path
         });
 

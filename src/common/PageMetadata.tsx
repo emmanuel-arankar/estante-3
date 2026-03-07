@@ -11,7 +11,7 @@ interface PageMetadataProps {
   schema?: object;
 }
 
-const SITE_URL = 'https://estante-virtual-805ef.web.app/';
+const SITE_URL = `https://${import.meta.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}.web.app/`;
 const SITE_NAME = 'Estante de Bolso';
 const DEFAULT_OG_IMAGE = `${SITE_URL}og-image.png`;
 const TWITTER_HANDLE = '@EstanteDeBolso';
@@ -30,7 +30,7 @@ export const PageMetadata = ({ title, description, ogTitle, ogDescription, image
       <meta name="description" content={description} />
       {noIndex && <meta name="robots" content="noindex, follow" />}
       <link rel="canonical" href={canonicalUrl} />
-      
+
       {/* Open Graph */}
       <meta property="og:title" content={pageTitle} />
       <meta property="og:description" content={pageDescription} />
@@ -38,7 +38,7 @@ export const PageMetadata = ({ title, description, ogTitle, ogDescription, image
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:image" content={pageImage} />
       <meta property="og:type" content="website" />
-      
+
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:creator" content={TWITTER_HANDLE} />

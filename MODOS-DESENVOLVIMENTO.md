@@ -137,7 +137,7 @@ Ao iniciar o frontend (`npm run dev`), verifique o console do navegador:
 - **Modo 3 (Produção):**
   ```
   🚀 Ambiente de DEV: Usando serviços de PRODUÇÃO (Nuvem)
-  🚀 API Proxy Target: https://us-central1-estante-virtual-805ef...
+  🚀 API Proxy Target: https://us-central1-estante-75463...
   ```
 
 ---

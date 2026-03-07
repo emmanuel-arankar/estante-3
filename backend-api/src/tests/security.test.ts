@@ -31,6 +31,6 @@ describe('Middleware de Segurança (security.middleware - Rate Limit)', () => {
 
         const rateLimited = results.filter(r => r.status === 429);
         expect(rateLimited.length).toBeGreaterThan(0);
-        expect(rateLimited[0].body.error.error).toContain('Muitas tentativas');
+        expect(rateLimited[0].body.error).toContain('Muitas tentativas');
     });
 });

@@ -16,6 +16,7 @@ import {
 import { validate } from './middleware/validate.middleware';
 import { authLimiter } from './middleware/security.middleware';
 import { AuditService } from './services/audit.service';
+import { generateSearchTerms } from './lib/search';
 
 /**
  * @name Recuperar Chave de API
@@ -25,10 +26,10 @@ import { AuditService } from './services/audit.service';
  * 
  * @returns {string | undefined} A chave de API ou undefined se não configurada.
  */
-const getFirebaseApiKey = () => process.env.FIREBASE_API_KEY;
+const getFirebaseApiKey = () => process.env.FB_API_KEY || process.env.FIREBASE_API_KEY;
 
 if (!getFirebaseApiKey() && process.env.NODE_ENV !== 'test') {
-  logger.warn('FIREBASE_API_KEY não definida no .env. Login com senha e recuperação falharão.');
+  logger.warn('FB_API_KEY não definida no .env. Login com senha e recuperação falharão.');
 }
 
 // =============================================================================
@@ -254,11 +255,12 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         displayName,
       });
     } catch (authError: any) {
+      console.error('CRITICAL: authError dump ->', authError);
       // ==== ==== 2. TRATAMENTO DE COLISÃO DE E-MAIL ==== ====
-      if (authError.code === 'auth/email-already-exists') {
+      if (authError?.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'E-mail já está em uso.' });
       }
-      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details: authError.message });
+      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details: authError?.message || JSON.stringify(authError) || String(authError) });
     }
 
     const { uid } = userRecord;
@@ -305,9 +307,10 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         userAgent: req.get('User-Agent')?.toString(),
         requestId: (req as any).requestId
       });
-    } catch (dbError) {
+    } catch (dbError: any) {
+      logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
       await admin.auth().deleteUser(uid).catch(() => logger.error(`Falha no rollback do user ${uid}`));
-      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.' });
+      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: dbError?.message || dbError });
     }
 
     const customToken = await admin.auth().createCustomToken(uid);
@@ -335,7 +338,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
 router.post('/login', authLimiter as any, validate({ body: loginSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const updates = req.body;
-    const apiKey = getFirebaseApiKey();
+    const apiKey = getFirebaseApiKey() || 'AIzaSyDqCNnrZNJG_Os_0sBhogbZ4-UZlHPqE1k';
     if (!apiKey) {
       return res.status(500).json({ error: 'Configuração do servidor ausente (FIREBASE_API_KEY).' });
     }
@@ -403,7 +406,7 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
  */
 router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const apiKey = getFirebaseApiKey();
+    const apiKey = getFirebaseApiKey() || 'AIzaSyDqCNnrZNJG_Os_0sBhogbZ4-UZlHPqE1k';
     if (!apiKey) {
       return res.status(500).json({ error: 'Configuração do servidor ausente (FIREBASE_API_KEY).' });
     }
@@ -511,6 +514,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
             createdAt: timestamp,
             updatedAt: timestamp,
             role: 'user',
+            searchTerms: generateSearchTerms(displayName, nickname),
           };
 
           transaction.set(userRef, newProfileData);

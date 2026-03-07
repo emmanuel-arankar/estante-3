@@ -64,7 +64,7 @@ Depois acessar `http://localhost:8080`
 firebase deploy --only hosting
 ```
 
-Depois acessar: `https://estante-virtual-805ef.web.app`
+Depois acessar: `https://estante-75463.web.app`
 
 Aí sim o banner de instalação aparecerá e você pode instalar o app!
 

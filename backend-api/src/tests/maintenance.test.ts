@@ -41,6 +41,6 @@ describe('Middleware de Modo Manutenção (maintenance.middleware)', () => {
 
         expect(resGet.status).toBe(200);
         expect(resPost.status).toBe(503);
-        expect(resPost.body.error.error).toContain('manutenção');
+        expect(resPost.body.error).toContain('manutenção');
     });
 });

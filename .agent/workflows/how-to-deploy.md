@@ -59,7 +59,7 @@ Se você quer desenvolver localmente (`localhost`) mas usando o Backend e Banco 
 
 1. **Pare** o `npm run serve` (se estiver rodando).
 2. **Edite** o arquivo `vite.config.ts` para apontar o proxy para a nuvem:
-   - Troque o `target` de `http://127.0.0.1:5001/...` para `https://us-central1-estante-virtual-805ef.cloudfunctions.net/api`
+   - Troque o `target` de `http://127.0.0.1:5001/...` para `https://us-central1-estante-75463.cloudfunctions.net/api`
 3. Rode `npm run dev`.
 
 Isso fará com que seu `localhost` acesse diretamente os servidores do Google.

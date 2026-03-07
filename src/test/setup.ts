@@ -45,3 +45,11 @@ global.console = {
     error: vi.fn(),
     warn: vi.fn(),
 };
+
+// Mock Firebase Modules Globally
+import { mockAuth, mockFirestore, mockStorage, mockFunctions } from './mocks/firebase';
+
+vi.mock('firebase/auth', () => mockAuth);
+vi.mock('firebase/firestore', () => mockFirestore);
+vi.mock('firebase/storage', () => mockStorage);
+vi.mock('firebase/functions', () => mockFunctions);

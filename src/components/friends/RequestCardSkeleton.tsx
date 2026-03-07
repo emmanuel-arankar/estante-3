@@ -15,23 +15,23 @@ export const RequestCardSkeleton = () => {
             <div className="flex items-center space-x-4">
                 {/* Avatar skeleton */}
                 <div
-                    className="w-12 h-12 rounded-full bg-gray-200 animate-pulse"
+                    className="w-12 h-12 rounded-full animate-shimmer"
                     aria-label="Carregando avatar"
                 />
 
                 <div className="flex-1 space-y-2">
                     {/* Nome skeleton */}
-                    <div className="h-4 bg-gray-200 rounded w-36 animate-pulse" />
+                    <div className="h-4 rounded w-36 animate-shimmer" />
                     {/* Nickname skeleton */}
-                    <div className="h-3 bg-gray-200 rounded w-28 animate-pulse" />
+                    <div className="h-3 rounded w-28 animate-shimmer" />
                     {/* Mutual friends skeleton */}
-                    <div className="h-3 bg-gray-200 rounded w-40 animate-pulse" />
+                    <div className="h-3 rounded w-40 animate-shimmer" />
                 </div>
 
                 {/* Botões de ação skeleton */}
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                    <div className="w-24 h-9 bg-gray-200 rounded animate-pulse" />
-                    <div className="w-24 h-9 bg-gray-200 rounded animate-pulse" />
+                    <div className="w-24 h-9 rounded animate-shimmer" />
+                    <div className="w-24 h-9 rounded animate-shimmer" />
                 </div>
             </div>
         </motion.div>

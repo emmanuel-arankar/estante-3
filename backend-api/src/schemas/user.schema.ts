@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { z } from 'zod';
-import { sanitize } from '../lib/sanitize';
+import { sanitize, sanitizeRichText } from '../lib/sanitize';
 
 /**
  * @name Schema de ID de Usuário
@@ -55,8 +55,8 @@ export const updateProfileSchema = z.object({
     .max(30)
     .regex(/^[a-z0-9_-]+$/, 'Nickname só pode conter letras minúsculas, números, hífens e underscores')
     .optional(),
-  bio: z.string().max(200, 'Bio deve ter no máximo 200 caracteres').optional()
-    .transform(val => val ? sanitize(val) : val),
+  bio: z.string().max(1500, 'Bio não pode exceder 1500 caracteres (incluindo formatação e emojis)').optional()
+    .transform(val => val ? sanitizeRichText(val) : val),
   location: z.union([
     z.string(),
     z.object({

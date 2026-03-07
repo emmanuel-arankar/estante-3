@@ -76,7 +76,11 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                 return '/friends/requests';
             case 'friend_accepted':
             case 'friend_rejected':
-                return `/profile/${notification.actorId}`;
+                // Usar actorNickname se disponível no metadata, senão fallback para /friends
+                if (notification.metadata?.actorNickname) {
+                    return `/profile/${notification.metadata.actorNickname}`;
+                }
+                return '/friends';
             default:
                 return '/notifications';
         }

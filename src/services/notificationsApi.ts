@@ -23,7 +23,8 @@ export const listNotificationsAPI = async (params: {
         throw new Error(error.message || 'Failed to fetch notifications');
     }
 
-    return res.json();
+    const json = await res.json();
+    return json.data || json;
 };
 
 /**

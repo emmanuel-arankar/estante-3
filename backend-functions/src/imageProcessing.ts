@@ -84,7 +84,7 @@ const getOutputPath = (originalPath: string, suffix: string, extension: string):
  */
 export const onImageUpload = functions.onObjectFinalized(
     {
-        region: 'us-central1',
+        region: process.env.VITE_FIREBASE_REGION || 'us-central1',
         memory: '512MiB',
         timeoutSeconds: 120,
         // Limita o trigger ao bucket padrão

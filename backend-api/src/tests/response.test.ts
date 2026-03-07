@@ -17,7 +17,7 @@ describe('Middleware de Padronização de Resposta (response.middleware)', () =>
 
     // Rota para Teste de Padronização de Erro
     testApp.get('/test-erro', (_req, res) => {
-        res.status(400).json({ detalhe: 'algo deu errado' });
+        res.status(400).json({ details: 'algo deu errado' });
     });
 
     it('deve formatar respostas de sucesso corretamente', async () => {
@@ -37,7 +37,7 @@ describe('Middleware de Padronização de Resposta (response.middleware)', () =>
         expect(res.status).toBe(400);
         expect(res.body.status).toBe('error');
         expect(res.body.requestId).toBeDefined();
-        expect(res.body.error.detalhe).toBe('algo deu errado');
+        expect(res.body.details).toBe('algo deu errado');
         expect(res.body.meta).toBeDefined();
     });
 });

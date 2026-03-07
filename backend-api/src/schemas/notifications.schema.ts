@@ -22,7 +22,7 @@ import { z } from 'zod';
 export const listNotificationsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
-  unreadOnly: z.coerce.boolean().optional().default(false),
+  unreadOnly: z.union([z.boolean(), z.enum(['true', 'false'])]).transform(val => val === true || val === 'true').optional().default(false),
   cursor: z.string().optional(),
 });
 

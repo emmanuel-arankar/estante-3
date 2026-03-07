@@ -15,21 +15,21 @@ export const FriendCardSkeleton = () => {
             <div className="flex items-center space-x-4">
                 {/* Avatar skeleton */}
                 <div
-                    className="w-12 h-12 rounded-full bg-gray-200 animate-pulse"
+                    className="w-12 h-12 rounded-full animate-shimmer"
                     aria-label="Carregando avatar"
                 />
 
                 <div className="flex-1 space-y-2">
                     {/* Nome skeleton */}
-                    <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
+                    <div className="h-4 rounded w-32 animate-shimmer" />
                     {/* Nickname skeleton */}
-                    <div className="h-3 bg-gray-200 rounded w-24 animate-pulse" />
+                    <div className="h-3 rounded w-24 animate-shimmer" />
                 </div>
 
                 {/* Botões skeleton */}
                 <div className="flex space-x-2">
-                    <div className="w-20 h-9 bg-gray-200 rounded animate-pulse" />
-                    <div className="w-20 h-9 bg-gray-200 rounded animate-pulse" />
+                    <div className="w-20 h-9 rounded animate-shimmer" />
+                    <div className="w-20 h-9 rounded animate-shimmer" />
                 </div>
             </div>
         </motion.div>

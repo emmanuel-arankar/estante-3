@@ -21,6 +21,7 @@ import {
 import { PATHS } from '@/router/paths';
 import { googleAuthAPI } from '@/services/authApi';
 import { signInWithGoogle } from '@/services/auth';
+import { trackEvent } from '@/lib/analytics';
 
 export const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -51,8 +52,10 @@ export const LoginForm = () => {
 
       if (authResponse.isNewUser) {
         toastSuccessClickable(`Bem-vindo(a), ${user.displayName || 'Novo Leitor'}! Sua conta foi criada.`);
+        trackEvent('sign_up', { method: 'google' });
       } else {
         toastSuccessClickable(`Bem-vindo(a) de volta, ${user.displayName || 'Leitor'}!`);
+        trackEvent('login', { method: 'google' });
       }
 
       navigate(PATHS.PROFILE_ME);
@@ -94,12 +97,22 @@ export const LoginForm = () => {
           </div>
 
           <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <Label htmlFor="password">Sua senha</Label>
+              <Link
+                to={PATHS.FORGOT_PASSWORD}
+                className="text-xs text-emerald-600 hover:underline font-sans font-medium"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
+                id="password"
                 type={showPassword ? 'text' : 'password'}
                 name="password"
-                placeholder="Sua senha"
+                placeholder="Digite sua senha"
                 className="pl-10 pr-10 font-sans"
                 required
               />
@@ -117,39 +130,42 @@ export const LoginForm = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              />
-              <Label htmlFor="rememberMe" className="cursor-pointer">
-                Lembrar de mim
-              </Label>
-            </div>
-            <Link
-              to={PATHS.FORGOT_PASSWORD}
-              className="text-sm text-emerald-600 hover:underline font-sans"
-            >
-              Esqueci minha senha
-            </Link>
+          <div className="flex items-center space-x-2 px-1">
+            <Checkbox
+              id="rememberMe"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+            />
+            <Label htmlFor="rememberMe" className="text-sm cursor-pointer text-gray-600">
+              Lembrar de mim
+            </Label>
           </div>
 
           <Button
             type="submit"
             className="w-full bg-emerald-600 hover:bg-emerald-700 rounded-full font-sans"
             disabled={isSubmitting}
+            onClick={() => trackEvent('login', { method: 'password' })}
           >
             {isSubmitting ? <LoadingSpinner size="sm" /> : 'Entrar'}
           </Button>
         </Form>
 
-        <Separator />
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <Separator className="w-full" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-gray-500 font-sans font-medium">
+              Ou acesse com sua conta
+            </span>
+          </div>
+        </div>
 
         <Button
           variant="outline"
           onClick={handleGoogleLogin}
-          className="w-full rounded-full font-sans"
+          className="w-full rounded-full font-sans border-gray-200 hover:bg-gray-50 hover:text-emerald-700 transition-all"
           disabled={isSubmitting}
         >
           <Chrome className="h-4 w-4 mr-2" />

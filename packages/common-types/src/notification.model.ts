@@ -18,6 +18,7 @@ export type NotificationType =
 export interface NotificationMetadata {
     friendshipId?: string;
     isRequester?: boolean;  // true = notification for requester, false = notification for accepter
+    actorNickname?: string; // Nickname do ator para links de perfil
 }
 
 export interface NotificationResponse {

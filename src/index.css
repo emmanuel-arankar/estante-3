@@ -105,21 +105,28 @@ div[data-hot-toast]:hover {
     transition: transform 0.2s ease !important;
 }
 
-/* Adicione ao seu arquivo CSS global */
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
+/* Reusable Skeleton Shimmer Effect (Premium) */
+.animate-shimmer {
+    background: #f3f4f6; /* gray-100 base */
+    background-image: linear-gradient(
+        to right,
+        #f3f4f6 0%,
+        #e5e7eb 20%, /* gray-200 highlight */
+        #f3f4f6 40%,
+        #f3f4f6 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 800px 100%;
+    animation: shimmer 1.5s infinite linear;
 }
 
-.animate-pulse {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes shimmer {
+    0% {
+        background-position: -400px 0;
+    }
+    100% {
+        background-position: 400px 0;
+    }
 }
 
 /* Transições suaves para imagens */

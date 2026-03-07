@@ -68,7 +68,7 @@ describe('Middleware de RBAC (Controle de Acesso Baseado em Cargos)', () => {
         const res = await request(testApp).get('/admin');
 
         expect(res.status).toBe(403);
-        expect(res.body.error.error).toContain('permissão');
+        expect(res.body.error).toContain('permissão');
     });
 
     it('deve permitir acesso a cargos múltiplos (librarian acessando rota permitida para librarian/admin)', async () => {
@@ -104,7 +104,7 @@ describe('Middleware de RBAC (Controle de Acesso Baseado em Cargos)', () => {
         const res = await request(testApp).get('/admin');
 
         expect(res.status).toBe(403);
-        expect(res.body.error.error).toContain('permissão');
+        expect(res.body.error).toContain('permissão');
     });
 
     it('deve retornar 404 se o documento do usuário não existir no Firestore', async () => {
@@ -115,6 +115,6 @@ describe('Middleware de RBAC (Controle de Acesso Baseado em Cargos)', () => {
         const res = await request(testApp).get('/admin');
 
         expect(res.status).toBe(404);
-        expect(res.body.error.error).toContain('não encontrado');
+        expect(res.body.error).toContain('não encontrado');
     });
 });

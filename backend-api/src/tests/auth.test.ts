@@ -207,8 +207,8 @@ describe('Ambiente de Teste de Autenticação', () => {
 
       // [ASSERT] Deve disparar erro de validação (ZodError) capturado pelo {@link errorHandler}
       expect(response.status).toBe(400);
-      expect(response.body.error).toHaveProperty('error', 'Dados inválidos na requisição');
-      expect(response.body.error).toHaveProperty('details');
+      expect(response.body.error).toBe('Dados inválidos na requisição');
+      expect(response.body).toHaveProperty('details');
     });
   });
 
@@ -274,7 +274,7 @@ describe('Ambiente de Teste de Autenticação', () => {
 
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toHaveProperty('error', 'E-mail ou senha inválidos.');
+      expect(response.body.error).toBe('E-mail ou senha inválidos.');
     });
   });
 
@@ -330,7 +330,7 @@ describe('Ambiente de Teste de Autenticação', () => {
         .send({ email: 'notfound@estante.com' });
 
       expect(response.status).toBe(404);
-      expect(response.body.error).toHaveProperty('error', 'Nenhum usuário encontrado com este e-mail.');
+      expect(response.body.error).toBe('Nenhum usuário encontrado com este e-mail.');
     });
   });
 

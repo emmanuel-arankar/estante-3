@@ -1,4 +1,5 @@
 import { User } from '@estante/common-types';
+import { apiClient } from '@/services/apiClient';
 
 /**
  * Busca usuários na API.
@@ -11,23 +12,10 @@ export const searchUsersAPI = async (searchTerm: string): Promise<User[]> => {
   }
 
   try {
-    // # atualizado - Adicionado objeto de opções com 'credentials: "include"'
-    const response = await fetch(`/api/findFriends?searchTerm=${encodeURIComponent(searchTerm)}`, {
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      // # atualizado - Lê o erro como JSON (baseado no seu log)
-      const errorData = await response.json(); 
-      // # atualizado - Lança o erro para ser pego pelo NewConversationModal
-      throw new Error(errorData.error || `Erro da API: ${response.statusText}`);
-    }
-
-    return await response.json() as User[];
+    const results = await apiClient<User[]>(`/findFriends?searchTerm=${encodeURIComponent(searchTerm)}`);
+    return results;
   } catch (error) {
     console.error('Falha ao buscar usuários na API:', error);
-    // # atualizado - Repassa o erro para o NewConversationModal
-    // para que o toastErrorClickable possa mostrá-lo.
     throw error;
   }
 };

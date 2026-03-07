@@ -14,29 +14,33 @@ interface AuthResponse {
 }
 
 export const registerAPI = async (data: any): Promise<AuthResponse> => {
-    return apiClient<AuthResponse>('/register', {
+    const res = await apiClient<any>('/register', {
         method: 'POST',
         body: JSON.stringify(data),
     });
+    return res.data || res; // Retorna o res.data desembrulhado pelo Wrapper Global ou a resposta direta
 };
 
 export const loginAPI = async (data: any): Promise<AuthResponse> => {
-    return apiClient<AuthResponse>('/login', {
+    const res = await apiClient<any>('/login', {
         method: 'POST',
         body: JSON.stringify(data),
     });
+    return res.data || res;
 };
 
 export const recoverPasswordAPI = async (email: string): Promise<AuthResponse> => {
-    return apiClient<AuthResponse>('/recover', {
+    const res = await apiClient<any>('/recover', {
         method: 'POST',
         body: JSON.stringify({ email }),
     });
+    return res.data || res;
 };
 
 export const googleAuthAPI = async (data: GoogleAuthParams): Promise<AuthResponse> => {
-    return apiClient<AuthResponse>('/google', {
+    const res = await apiClient<any>('/google', {
         method: 'POST',
         body: JSON.stringify(data),
     });
+    return res.data || res;
 };

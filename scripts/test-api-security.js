@@ -1,6 +1,7 @@
 
-const projectId = 'estante-virtual-805ef';
-const region = 'us-central1';
+require('dotenv').config();
+const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+const region = process.env.VITE_FIREBASE_REGION || 'us-central1';
 const baseUrl = `http://127.0.0.1:5001/${projectId}/${region}/api`;
 
 console.log(`\n🔒 Iniciando Teste de Segurança da API`);

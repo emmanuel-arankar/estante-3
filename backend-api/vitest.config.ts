@@ -22,7 +22,7 @@ export default defineConfig({
     globals: true,                              // Permite describe/it sem importação
     environment: 'node',                        // Ambiente de execução .ts (Node.js)
     env: {
-      FIREBASE_DATABASE_URL: 'https://estante-virtual-805ef-default-rtdb.firebaseio.com',
+      FIREBASE_DATABASE_URL: `https://${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}-default-rtdb.firebaseio.com`,
     },
 
     // ==== ==== 2. RELATÓRIOS DE COBERTURA ==== ====

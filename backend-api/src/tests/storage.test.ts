@@ -77,7 +77,7 @@ describe('Storage Operations', () => {
             .send({ path: filePath });
 
         expect(res.status).toBe(403);
-        expect(res.body.error.error).toContain('Acesso negado');
+        expect(res.body.error).toContain('Acesso negado');
     });
 
     it('deve retornar 404 se o arquivo não existir', async () => {
@@ -88,6 +88,6 @@ describe('Storage Operations', () => {
             .send({ path: filePath });
 
         expect(res.status).toBe(404);
-        expect(res.body.error.error).toContain('não encontrado');
+        expect(res.body.error).toContain('não encontrado');
     });
 });

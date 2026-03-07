@@ -152,10 +152,15 @@ export const CacheKeys = {
   sentRequests: (userId: string) => `sent:${userId}`,
   mutualFriends: (userId: string, friendId: string) => `mutual:${userId}:${friendId}`,
   notifications: (userId: string) => `notifications:${userId}`,
+  userProfile: (userId: string) => `profile:${userId}`,
+  userByNickname: (nickname: string) => `nickname:${nickname}`,
+  userStats: (userId: string) => `stats:${userId}`,
+  userSearch: (query: string) => `search:${query}`,
   friendsPattern: (userId: string) => `friends:${userId}*`,
   requestsPattern: (userId: string) => `requests:${userId}*`,
   sentPattern: (userId: string) => `sent:${userId}*`,
   mutualPattern: (userId: string) => `mutual:${userId}*`,
+  profilePattern: (userId: string) => `profile:${userId}*`,
   allUserPattern: (userId: string) => `*:${userId}*`,
 };
 

@@ -21,17 +21,16 @@ import {
   bulkCancelAPI,
   getFriendshipStatusAPI,
   getUserStatsAPI,
-
   ListFriendsParams,
 } from '@/services/friendshipsApi';
 import type {
   UseFriendsResult,
-  FriendshipActions,
-  SortOption,
-  SortDirection
+  FriendshipActions
 } from '@/hooks/types/friendship.types';
 import {
-  FriendshipStats,
+  SortOption,
+  SortDirection,
+  FriendshipStats
 } from '@estante/common-types';
 import {
   useQuery,
@@ -259,10 +258,13 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
       if (acceptedRequest) {
         // Remove das solicitações
-        queryClient.setQueryData(queryKeys.requests, (old: any) => ({
-          ...old,
-          data: old.data.filter((r: any) => r.id !== friendshipId)
-        }));
+        queryClient.setQueryData(queryKeys.requests, (old: any) => {
+          if (!old || !old.data) return old;
+          return {
+            ...old,
+            data: old.data.filter((r: any) => r.id !== friendshipId)
+          };
+        });
 
         // Adiciona aos amigos (simplificado para o optimistic UI)
         queryClient.setQueryData(queryKeys.friends({ sortBy: sortField as any, sortDirection, search: debouncedSearch }), (old: any) => {
@@ -322,6 +324,9 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.invalidateQueries({
           queryKey: ['friendshipStatus', friendId]
         }),
+        queryClient.invalidateQueries({
+          queryKey: ['userStats', user?.uid]
+        }),
       ]);
 
       // 3. Invalidar cache de amigos em comum (fix bug #1: mutual friends não aparecem)
@@ -350,10 +355,13 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       await queryClient.cancelQueries({ queryKey: queryKeys.requests });
       const previousRequests = queryClient.getQueryData(queryKeys.requests);
 
-      queryClient.setQueryData(queryKeys.requests, (old: any) => ({
-        ...old,
-        data: old.data.filter((r: any) => r.id !== friendshipId)
-      }));
+      queryClient.setQueryData(queryKeys.requests, (old: any) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.filter((r: any) => r.id !== friendshipId)
+        };
+      });
 
       return { previousRequests };
     },
@@ -371,6 +379,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'list'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friendshipStatus', friendId] }),
+        queryClient.invalidateQueries({ queryKey: ['userStats', user?.uid] }),
       ]);
 
       // ✅ Notificar outras abas (cross-tab sync)
@@ -446,6 +455,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.invalidateQueries({ queryKey: ['friends', 'requests'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'sent'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friendshipStatus', friendId] }),
+        queryClient.invalidateQueries({ queryKey: ['userStats', user?.uid] }),
       ]);
 
       // 3. Invalidar cache de amigos em comum (recalcular após remover amizade)
@@ -467,6 +477,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       toastSuccessClickable('Solicitação de amizade enviada!');
       queryClient.invalidateQueries({ queryKey: queryKeys.sentRequests });
       queryClient.invalidateQueries({ queryKey: ['friendshipStatus', targetUserId] });
+      queryClient.invalidateQueries({ queryKey: ['userStats', user?.uid] });
 
       // ✅ Notificar outras abas (cross-tab sync)
       broadcast('friend_request_sent', { friendshipId: `${user?.uid}_${targetUserId}` });
@@ -487,10 +498,13 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
       await queryClient.cancelQueries({ queryKey: queryKeys.sentRequests });
       const previousSent = queryClient.getQueryData(queryKeys.sentRequests);
 
-      queryClient.setQueryData(queryKeys.sentRequests, (old: any) => ({
-        ...old,
-        data: old.data.filter((s: any) => s.id !== friendshipId)
-      }));
+      queryClient.setQueryData(queryKeys.sentRequests, (old: any) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.filter((s: any) => s.id !== friendshipId)
+        };
+      });
 
       return { previousSent };
     },
@@ -508,6 +522,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
         queryClient.invalidateQueries({ queryKey: ['friends', 'sent'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friends', 'list'], refetchType: 'all' }),
         queryClient.invalidateQueries({ queryKey: ['friendshipStatus', friendId] }),
+        queryClient.invalidateQueries({ queryKey: ['userStats', user?.uid] }),
       ]);
 
       // ✅ Notificar outras abas (cross-tab sync)
@@ -545,6 +560,7 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
       toastSuccessClickable(message);
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['userStats', user?.uid] });
     },
     onError: (err: any) => {
       console.error('[bulkMutation] Erro:', err);

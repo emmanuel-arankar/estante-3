@@ -1,10 +1,14 @@
 const http = require('http');
 
+require('dotenv').config();
+const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+const region = process.env.VITE_FIREBASE_REGION || 'us-central1';
+
 const urls = [
     'http://127.0.0.1:5000/api/health', // Hosting Proxy
-    'http://127.0.0.1:5001/estante-virtual-805ef/us-central1/api/health', // Standard Function URL
-    'http://127.0.0.1:5001/estante-virtual-805ef/us-central1/api-api/health', // Potential conflict 1
-    'http://127.0.0.1:5001/estante-virtual-805ef/us-central1/backend-api-api/health', // Potential conflict 2
+    `http://127.0.0.1:5001/${projectId}/${region}/api/health`, // Standard Function URL
+    `http://127.0.0.1:5001/${projectId}/${region}/api-api/health`, // Potential conflict 1
+    `http://127.0.0.1:5001/${projectId}/${region}/backend-api-api/health`, // Potential conflict 2
     'http://127.0.0.1:5001/api/health' // Simplified
 ];
 

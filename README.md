@@ -72,6 +72,7 @@ cp .env.example .env
 VITE_FIREBASE_API_KEY=sua_api_key
 VITE_FIREBASE_AUTH_DOMAIN=seu_auth_domain
 VITE_FIREBASE_PROJECT_ID=seu_project_id
+VITE_FIREBASE_REGION=us-central1
 VITE_FIREBASE_STORAGE_BUCKET=seu_storage_bucket
 VITE_FIREBASE_MESSAGING_SENDER_ID=seu_messaging_sender_id
 VITE_FIREBASE_APP_ID=seu_app_id
@@ -140,6 +141,16 @@ Para fazer o build de produção:
 ```bash
 npm run build
 ```
+
+## ☁️ Troca de Projetos e Migrações (GCP)
+Se em algum momento o repositório mudar a infraestrutura para um novo projeto no **Google Cloud Platform (GCP) / Firebase**, certifique-se dos detalhes vitais de permissão que impedem o backend de congelar:
+
+1. **Service Account Key (`serviceAccountKey.json`)**: A conta atribuída deve obrigatoriamente possuir a GCP IAM Role `roles/serviceusage.serviceUsageConsumer`, senão ela sofrerá "Cloud 403 Forbidden" tentado Autenticar e validar novos registros.
+2. **Ativação de APIs Secundárias**: Um projeto limpo do Firebase não ativa ferramentas avançadas automaticamente. Pelo Console *GCP Viewer*, busque em *Library* e emita o **Enable** para as seguintes APIs essenciais não-documentadas:
+   * `Cloud Speech-to-Text API` (Processamento de Áudios de Chat)
+   * `Serverless VPC Access API` (Roteamento Privado e Redis)
+   * `Cloud Autoscaling`, `Cloud DNS` & `Network Connectivity API` (Estabilidade de Tráfego V2)
+3. **Cache de Região**: Em caso de mudanças de Data Center (ex: `us-central1` migrando para `nam5`), modifique a variável global `VITE_FIREBASE_REGION` no `.env`.
 
 ## 📄 Licença
 

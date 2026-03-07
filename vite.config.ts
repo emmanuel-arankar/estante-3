@@ -11,16 +11,19 @@ export default defineConfig(({ mode }) => {
   const useProdApi = env.VITE_USE_PROD_API === 'true';
   const useFirebaseEmulators = env.VITE_USE_FIREBASE_EMULATORS === 'true';
 
+  const projectId = env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+  const region = env.VITE_FIREBASE_REGION || 'us-central1';
+
   let apiTarget: string;
   let apiMode: string;
 
   if (useProdApi && !useFirebaseEmulators) {
     // Modo 1: Tudo em produção
-    apiTarget = 'https://us-central1-estante-virtual-805ef.cloudfunctions.net/api';
+    apiTarget = `https://${region}-${projectId}.cloudfunctions.net/api`;
     apiMode = 'PRODUÇÃO COMPLETA';
   } else if (!useProdApi && useFirebaseEmulators) {
     // Modo 2: Tudo em emuladores locais
-    apiTarget = 'http://127.0.0.1:5001/estante-virtual-805ef/us-central1/api';
+    apiTarget = `http://127.0.0.1:5001/${projectId}/${region}/api`;
     apiMode = 'EMULADORES LOCAIS';
   } else {
     // Modo 3: HÍBRIDO - Backend API local standalone + Firebase produção
@@ -66,6 +69,8 @@ export default defineConfig(({ mode }) => {
         },
 
         workbox: {
+          // Bloqueia a interceptação de rotas nativas do Firebase (ex: __/auth/handler) no ServiceWorker
+          navigateFallbackDenylist: [/^\/__/],
           runtimeCaching: [
             {
               // Cache Firebase Storage images

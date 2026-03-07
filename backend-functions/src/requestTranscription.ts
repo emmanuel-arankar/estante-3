@@ -12,7 +12,9 @@ if (getApps().length === 0) {
 const speech = new SpeechClient();
 
 export const requestTranscription = onCall({
-    vpcConnector: 'estante-connector',
+    // Referência do projeto antigo para reativar VPC do Redis/Memorystore futuramente:
+    // vpcConnector: 'projects/estante-virtual-805ef/locations/us-central1/connectors/estante-connector',
+    // vpcConnector: 'projects/estante-75463/locations/us-central1/connectors/<novo-nome-do-conector>',
     vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
 }, async (request) => {
     // 1. Verificação de Autenticação

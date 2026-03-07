@@ -515,7 +515,7 @@ describe('POST /api/notifications/:notificationId/read', () => {
 
     const res = await request(app).post('/api/notifications/n1/read');
     expect(res.status).toBe(403);
-    expect(res.body.error.error).toContain('permissão');
+    expect(res.body.error).toContain('permissão');
   });
 });
 

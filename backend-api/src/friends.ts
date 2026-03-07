@@ -20,6 +20,7 @@ import {
 } from './schemas/friends.schema';
 import { blockUserSchema, unblockUserSchema } from './schemas/blocking.schema';
 import { getCached, setCache, invalidatePattern, CacheKeys } from './lib/cache';
+import { generateSearchTerms } from './lib/search';
 import { ensureNotBlocked, isBlockedBy } from './services/block.service';
 import { AuditService } from './services/audit.service';
 
@@ -143,33 +144,23 @@ const updateMutualFriendsForNewFriendship = async (
 
   // Atualizar amizades afetadas em lotes
   // Para cada amigo em comum M, as amizades M-userId1 e M-userId2 agora têm +1 mútuo
+  // CORREÇÃO: usar batch.set() com merge:true — batch.update() falha se o doc não existir
   const batch = db.batch();
   const timestamp = admin.firestore.Timestamp.now();
+  const incrementPayload = { mutualFriendsCount: admin.firestore.FieldValue.increment(1), updatedAt: timestamp };
 
   for (const mutualId of mutualFriendIds) {
     // Amizade M ↔ userId1: agora têm userId2 como mútuo adicional
     const ref1a = db.collection('friendships').doc(`${mutualId}_${userId1}`);
     const ref1b = db.collection('friendships').doc(`${userId1}_${mutualId}`);
-    batch.update(ref1a, {
-      mutualFriendsCount: admin.firestore.FieldValue.increment(1),
-      updatedAt: timestamp,
-    });
-    batch.update(ref1b, {
-      mutualFriendsCount: admin.firestore.FieldValue.increment(1),
-      updatedAt: timestamp,
-    });
+    batch.set(ref1a, incrementPayload, { merge: true });
+    batch.set(ref1b, incrementPayload, { merge: true });
 
     // Amizade M ↔ userId2: agora têm userId1 como mútuo adicional
     const ref2a = db.collection('friendships').doc(`${mutualId}_${userId2}`);
     const ref2b = db.collection('friendships').doc(`${userId2}_${mutualId}`);
-    batch.update(ref2a, {
-      mutualFriendsCount: admin.firestore.FieldValue.increment(1),
-      updatedAt: timestamp,
-    });
-    batch.update(ref2b, {
-      mutualFriendsCount: admin.firestore.FieldValue.increment(1),
-      updatedAt: timestamp,
-    });
+    batch.set(ref2a, incrementPayload, { merge: true });
+    batch.set(ref2b, incrementPayload, { merge: true });
   }
 
   await batch.commit();
@@ -223,8 +214,10 @@ const updateMutualFriendsForRemovedFriendship = async (
 
   if (mutualFriendIds.length === 0) return;
 
+  // CORREÇÃO: usar batch.set() com merge:true — batch.update() falha se o doc não existir
   const batch = db.batch();
   const timestamp = admin.firestore.Timestamp.now();
+  const decrementPayload = { mutualFriendsCount: admin.firestore.FieldValue.increment(-1), updatedAt: timestamp };
 
   for (const mutualId of mutualFriendIds) {
     // Decrementar para amizades M ↔ userId1 e M ↔ userId2
@@ -236,10 +229,7 @@ const updateMutualFriendsForRemovedFriendship = async (
     ];
 
     for (const ref of refs) {
-      batch.update(ref, {
-        mutualFriendsCount: admin.firestore.FieldValue.increment(-1),
-        updatedAt: timestamp,
-      });
+      batch.set(ref, decrementPayload, { merge: true });
     }
   }
 
@@ -292,53 +282,28 @@ router.get('/findFriends', checkAuth, async (req: Request, res: Response, next) 
     const { searchTerm } = validationResult.data;
     logger.info('Iniciando busca de amigos', { userId: loggedInUserId, searchTerm });
 
-    const endTerm = searchTerm + '\uf8ff';
+    // Remover o "@" e normalizar a busca para NFD, tirando acentos igual ao gerador
+    let normalizedSearch = searchTerm.startsWith('@') ? searchTerm.substring(1) : searchTerm;
+    normalizedSearch = normalizedSearch
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
     const usersRef = admin.firestore().collection('users');
     const queryLimit = FIND_FRIENDS_LIMIT;
 
-    // Query 1: Buscar por displayName
-    const nameQuery = usersRef
-      .where('displayName', '>=', searchTerm)
-      .where('displayName', '<=', endTerm)
-      .limit(queryLimit);
+    // A busca mágica array-contains! Apenas 1 Query unificada e case-insensitive
+    const searchSnapshot = await usersRef
+      .where('searchTerms', 'array-contains', normalizedSearch)
+      .limit(queryLimit)
+      .get();
 
-    // Query 2: Buscar por nickname
-    // Remove o '@' se o usuário digitou, para buscar no campo 'nickname'
-    const nicknameSearch = searchTerm.startsWith('@')
-      ? searchTerm.substring(1)
-      : searchTerm;
-    const endNicknameTerm = nicknameSearch + '\uf8ff';
+    // Filtra o próprio usuário da resposta e extrai os dados
+    const users = searchSnapshot.docs
+      .filter(doc => doc.id !== loggedInUserId)
+      .map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const nicknameQuery = usersRef
-      .where('nickname', '>=', nicknameSearch)
-      .where('nickname', '<=', endNicknameTerm)
-      .limit(queryLimit);
-
-    // Executar ambas as queries em paralelo
-    const [nameSnapshot, nicknameSnapshot] = await Promise.all([
-      nameQuery.get(),
-      nicknameQuery.get(),
-    ]);
-
-    // Usar um Map para mesclar resultados e remover duplicatas
-    const usersMap = new Map();
-
-    // Adicionar resultados da busca por nome
-    nameSnapshot.docs.forEach(doc => {
-      if (doc.id !== loggedInUserId) { // Filtra o usuário logado
-        usersMap.set(doc.id, { id: doc.id, ...doc.data() });
-      }
-    });
-
-    // Adicionar resultados da busca por nickname (sobrescreve duplicatas)
-    nicknameSnapshot.docs.forEach(doc => {
-      if (doc.id !== loggedInUserId) { // Filtra o usuário logado
-        usersMap.set(doc.id, { id: doc.id, ...doc.data() });
-      }
-    });
-
-    // Converter o Map de volta para um array
-    const users = Array.from(usersMap.values());
     logger.info(`Busca de amigos concluída para ${loggedInUserId}. Retornando ${users.length} resultados.`);
     return res.status(200).json(users);
   } catch (error) {
@@ -407,21 +372,10 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
 
     // Filtros de busca e regras de ordenação
     if (search) {
-      // Busca Nativa por Prefixo (Escalável)
-      if (search.startsWith('@')) {
-        const term = search.substring(1);
-        query = query
-          .orderBy('friend.nickname')
-          .orderBy('__name__') // Tie breaker
-          .startAt(term)
-          .endAt(term + '\uf8ff');
-      } else {
-        query = query
-          .orderBy('friend.displayName')
-          .orderBy('__name__') // Tie breaker
-          .startAt(search)
-          .endAt(search + '\uf8ff');
-      }
+      // Busca por contains (filtragem server-side em memória)
+      // Como a lista de amigos é por usuário, o volume é seguro para filtrar em memória
+      // Ordenação por displayName para resultados consistentes
+      query = query.orderBy('friend.displayName').orderBy('__name__');
     } else {
       // Ordenação padrão
       if (sortBy === 'name') {
@@ -437,10 +391,12 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
     // Contagem de agregação paralela (otimizada pelo Firestore)
     const countQuery = query;
     const countSnapshot = await countQuery.count().get();
-    const total = countSnapshot.data().count;
+    let total = countSnapshot.data().count;
 
     // Configuração de paginação
-    query = query.limit(limit);
+    if (!search) {
+      query = query.limit(limit);
+    }
 
     if (cursor) {
       try {
@@ -463,58 +419,48 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
       } catch (e) {
         logger.warn('Cursor inválido ignorado', { cursor });
       }
-    } else if (page > 1) {
+    } else if (page > 1 && !search) {
       // Fallback para offset se não houver cursor (menos performático)
       query = query.offset((page - 1) * limit);
     }
 
     let snapshot = await query.get();
 
-    // FALLBACK DE BUSCA: Se busca por nome não retornou nada, tentar Capitalized (ex: "emma" -> "Emma")
-    if (snapshot.empty && search && !search.startsWith('@') && /^[a-z]/.test(search)) {
-      const capitalizedSearch = search.charAt(0).toUpperCase() + search.slice(1);
+    // Filtrar resultados server-side se houver busca
+    let filteredDocs = snapshot.docs;
+    if (search) {
+      const searchLower = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '');
+      filteredDocs = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        const displayName = (data.friend?.displayName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const nickname = (data.friend?.nickname || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return displayName.includes(searchLower) || nickname.includes(searchLower);
+      });
+      total = filteredDocs.length;
 
-      // Recriar a query com o termo capitalizado
-      // Nota: precisamos reconstruir a query base para não afetar a anterior
-      let fallbackQuery = db.collection('friendships')
-        .where('userId', '==', userId)
-        .where('status', '==', 'accepted');
-
-      fallbackQuery = fallbackQuery
-        .orderBy('friend.displayName')
-        .orderBy('__name__')
-        .startAt(capitalizedSearch)
-        .endAt(capitalizedSearch + '\uf8ff');
-
-      // Reaplicar paginação se necessário (limit apenas, cursor seria invalido se trocarmos a query base)
-      fallbackQuery = fallbackQuery.limit(limit);
-
-      const fallbackSnapshot = await fallbackQuery.get();
-      if (!fallbackSnapshot.empty) {
-        snapshot = fallbackSnapshot;
-      }
+      // Aplicar paginação manualmente sobre os filtrados respeitando a página atual
+      const startIndex = (page - 1) * limit;
+      filteredDocs = filteredDocs.slice(startIndex, startIndex + limit);
     }
 
-    const friends = snapshot.docs.map(doc => ({
+    const friends = filteredDocs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     }));
 
     // Geração de cursor para próxima página (serialização segura)
     let nextCursor = null;
-    if (snapshot.docs.length === limit) {
-      const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    if (search) {
+      // Quando é busca em memória, não usamos offset cursor base64 para page tokens nativos
+      // Usaremos o fato de page < totalPages
+    } else if (filteredDocs.length === limit) {
+      const lastDoc = filteredDocs[filteredDocs.length - 1];
       const data = lastDoc.data();
       const values = [];
 
-      if (search) {
-        if (search.startsWith('@')) values.push(data.friend?.nickname);
-        else values.push(data.friend?.displayName);
-      } else {
-        if (sortBy === 'name') values.push(data.friend?.displayName);
-        else if (sortBy === 'nickname') values.push(data.friend?.nickname);
-        else values.push(data.friendshipDate);
-      }
+      if (sortBy === 'name') values.push(data.friend?.displayName);
+      else if (sortBy === 'nickname') values.push(data.friend?.nickname);
+      else values.push(data.friendshipDate);
 
       values.push(lastDoc.id); // Critério de desempate (__name__)
 
@@ -902,6 +848,7 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
         friend: {
           displayName: toUserData?.displayName || '',
           nickname: toUserData?.nickname || '',
+          searchTerms: generateSearchTerms(toUserData?.displayName || '', toUserData?.nickname || ''),
           photoURL: toUserData?.photoURL || null,
           email: toUserData?.email || '',
           bio: toUserData?.bio || '',
@@ -923,6 +870,7 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
         friend: {
           displayName: fromUserData?.displayName || '',
           nickname: fromUserData?.nickname || '',
+          searchTerms: generateSearchTerms(fromUserData?.displayName || '', fromUserData?.nickname || ''),
           photoURL: fromUserData?.photoURL || null,
           email: fromUserData?.email || '',
           bio: fromUserData?.bio || '',
@@ -977,6 +925,7 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
         createdAt: admin.firestore.Timestamp.now(),
         metadata: {
           friendshipId: `${targetUserId}_${fromUserId}`,
+          actorNickname: fromUserData?.nickname || null,
         },
       });
 
@@ -1137,6 +1086,7 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
         createdAt: admin.firestore.Timestamp.now(),
         metadata: {
           friendshipId: `${friendId}_${userId}`,
+          actorNickname: acceptorData?.nickname || null,
         },
       });
 
@@ -1461,6 +1411,37 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
 
     logger.info(`Bulk accept: ${userId} aceitou ${results.accepted.length}/${friendIds.length} solicitações`);
 
+    // ==== ==== 4. NOTIFICAÇÕES (ASSÍNCRONO) ==== ====
+    if (results.accepted.length > 0) {
+      try {
+        const acceptorDoc = await db.collection('users').doc(userId).get();
+        const acceptorData = acceptorDoc.data();
+        const batchNotifs = db.batch();
+
+        results.accepted.forEach(friendId => {
+          const notifRef = db.collection('notifications').doc();
+          batchNotifs.set(notifRef, {
+            userId: friendId, // friendId é quem enviou a solicitação
+            type: 'friend_accepted',
+            actorId: userId, // userId é quem aceitou
+            actorName: acceptorData?.displayName || 'Alguém',
+            actorPhoto: acceptorData?.photoURL || null,
+            read: false,
+            createdAt: admin.firestore.Timestamp.now(),
+            metadata: {
+              friendshipId: `${friendId}_${userId}`,
+              actorNickname: acceptorData?.nickname || null,
+            },
+          });
+        });
+
+        await batchNotifs.commit();
+        logger.info(`Notificações de friend_accepted criadas para ${results.accepted.length} usuários.`);
+      } catch (notifError) {
+        logger.error('Erro ao criar notificações em lote (bulk accepted):', notifError);
+        // Não falhar a request se as notificações falharem
+      }
+    }
     // Invalidar cache do usuário atual e de todos os amigos aceitos
     const invalidations = [invalidatePattern(CacheKeys.allUserPattern(userId))];
     results.accepted.forEach(fId => invalidations.push(invalidatePattern(CacheKeys.allUserPattern(fId))));
@@ -1824,15 +1805,25 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
       });
     }
 
-    // ==== ==== BUSCAR AMIGOS EM PARALELO ==== ====
+    // ==== ==== CACHE: Verificar cache antes de buscar ==== ====
+    const cacheKey = CacheKeys.mutualFriends(currentUserId, targetUserId);
+    const cachedResult = await getCached<any>(cacheKey);
+    if (cachedResult) {
+      logger.info(`✅ [Cache] HIT mutual: ${currentUserId} & ${targetUserId}`);
+      return res.status(200).json(cachedResult);
+    }
+
+    // ==== ==== BUSCAR AMIGOS EM PARALELO (com .select para reduzir payload) ==== ====
     const [currentUserFriendsSnapshot, targetUserFriendsSnapshot] = await Promise.all([
       db.collection('friendships')
         .where('userId', '==', currentUserId)
         .where('status', '==', 'accepted')
+        .select('friendId')
         .get(),
       db.collection('friendships')
         .where('userId', '==', targetUserId)
         .where('status', '==', 'accepted')
+        .select('friendId', 'friend')
         .get(),
     ]);
 
@@ -1865,11 +1856,16 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
       }
     });
 
-    logger.info(`Amigos mútuos calculados: ${currentUserId} & ${targetUserId} = ${mutualFriends.length}`);
-    return res.status(200).json({
+    const result = {
       count: mutualFriends.length,
       friends: mutualFriends,
-    });
+    };
+
+    // ==== ==== CACHE: Salvar resultado por 5 minutos ==== ====
+    await setCache(cacheKey, result, 300);
+
+    logger.info(`Amigos mútuos calculados: ${currentUserId} & ${targetUserId} = ${mutualFriends.length}`);
+    return res.status(200).json(result);
   } catch (error) {
     logger.error('Erro ao calcular amigos mútuos:', error);
     return next(error);

@@ -10,6 +10,7 @@ interface OptimizedAvatarProps {
   fallback: string;
   className?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  isOnline?: boolean;
 }
 
 export const OptimizedAvatar = ({
@@ -17,7 +18,8 @@ export const OptimizedAvatar = ({
   alt,
   fallback,
   className = '',
-  size = 'md'
+  size = 'md',
+  isOnline
 }: OptimizedAvatarProps) => {
   const { isLoaded, hasError } = useImageCache(src);
   const [showImage, setShowImage] = useState(false);
@@ -28,6 +30,14 @@ export const OptimizedAvatar = ({
     md: 'h-12 w-12',
     lg: 'h-16 w-16',
     xl: 'h-32 w-32'
+  };
+
+  const textClasses = {
+    xs: 'text-[10px]',
+    sm: 'text-xs',
+    md: 'text-sm',
+    lg: 'text-2xl',
+    xl: 'text-5xl'
   };
 
   // ✅ Mostrar imagem apenas após breve delay para evitar flicker
@@ -65,10 +75,15 @@ export const OptimizedAvatar = ({
             className="object-cover"
           />
         ) : null}
-        <AvatarFallback className="bg-emerald-100 text-emerald-700 text-sm font-medium">
+        <AvatarFallback className={`bg-emerald-100 text-emerald-700 font-medium ${textClasses[size]}`}>
           {fallback.charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
+
+      {/* Status Online */}
+      {isOnline && (
+        <span className="absolute bottom-0 right-0 block h-1/4 w-1/4 rounded-full bg-green-500 ring-2 ring-white" />
+      )}
     </div>
   );
 };

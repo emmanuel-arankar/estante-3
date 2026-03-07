@@ -108,6 +108,7 @@ process.on('unhandledRejection', (reason: any) => {
  * Última linha de defesa antes de uma falha catastrófica do processo.
  */
 process.on('uncaughtException', (err: Error) => {
+  console.error('[NATIVE CRASH TRACE]:', err); // Print explícito para debug do Node.
   log.error('FATAL: Uncaught Exception detected', err, {
     type: 'uncaughtException',
     timestamp: new Date().toISOString()

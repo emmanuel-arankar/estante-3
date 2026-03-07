@@ -10,6 +10,7 @@ import { auth } from '@/services/firebase';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/services/apiClient';
 import { UserLocation } from '@estante/common-types';
+import { trackEvent } from '@/lib/analytics';
 
 export const editProfileAction = async ({ request }: any) => {
   const formData = await request.formData();
@@ -48,13 +49,22 @@ export const editProfileAction = async ({ request }: any) => {
   };
 
   try {
-    // 3. ATUALIZAÇÃO OTIMISTA: Atualizar cache local ANTES do banco
+    // 3. Persistir no backend (Aguardar reposta)
+    await apiClient('/users/me', {
+      method: 'PATCH',
+      data: {
+        ...updatedFields,
+        birthDate: updatedFields.birthDate ? updatedFields.birthDate.toISOString() : null,
+      },
+    });
+
+    // 4. Se chegou aqui, deu sucesso! Atualizar cache local
     queryClient.setQueryData(['users', user.uid], (oldData: any) => {
       if (!oldData) return oldData;
       return { ...oldData, ...updatedFields };
     });
 
-    // 4. Atualizar AuthStore imediatamente (para o Header/Avatar)
+    // 5. Atualizar AuthStore imediatamente (para o Header/Avatar)
     const currentAuthUser = useAuthStore.getState().user;
     if (currentAuthUser) {
       useAuthStore.getState().setUser({
@@ -63,33 +73,25 @@ export const editProfileAction = async ({ request }: any) => {
       } as any);
     }
 
-    // 5. Mostrar feedback imediato
+    // 6. Sincronizar amizades para propagar mudanças de nome/nickname (em background)
+    syncProfileAPI().catch(console.error);
+
+    // 7. Mostrar feedback
     toastSuccessClickable('Perfil salvo com sucesso!');
+    trackEvent('profile_updated');
 
-    // 6. Persistir no backend (Background)
-    apiClient('/users/me', {
-      method: 'PATCH',
-      data: {
-        ...updatedFields,
-        birthDate: updatedFields.birthDate ? updatedFields.birthDate.toISOString() : null,
-      },
-    })
-      .then(() => {
-        // Sincronizar amizades para propagar mudanças de nome/nickname
-        syncProfileAPI().catch(console.error);
-      })
-      .catch((error) => {
-        console.error('Erro ao salvar perfil no backend:', error);
-        // Rollback: invalidar cache para forçar refetch dos dados reais
-        queryClient.invalidateQueries({ queryKey: ['users', user.uid] });
-        toastErrorClickable('Erro ao sincronizar com o servidor. Recarregue.');
-      });
-
-    // 7. Redirecionar IMEDIATAMENTE
+    // 8. Redirecionar
     return redirect(PATHS.PROFILE_ME);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro na ação de perfil:', error);
-    toastErrorClickable('Erro ao processar as alterações.');
-    return { error: 'Falha ao processar' };
+
+    // Extrair mensagem de erro detalhada da API se existir
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Erro ao salvar perfil. Tente novamente.';
+
+    toastErrorClickable(errorMessage);
+    // Em caso de erro, forçamos um refetch invisível para limpar a sujeira otimista caso houvesse
+    queryClient.invalidateQueries({ queryKey: ['users', user.uid] });
+
+    return { error: errorMessage };
   }
 };

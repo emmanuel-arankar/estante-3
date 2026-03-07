@@ -1,0 +1,1 @@
+﻿{"status":"error","requestId":"4f3d1c52-1eb0-45dd-970a-e3a760a8d43c","error":{"error":"Configuração do servidor ausente (FIREBASE_API_KEY)."},"meta":{"timestamp":"2026-03-01T15:44:56.493Z","path":"/api/login","method":"POST","locale":"pt-BR"}}

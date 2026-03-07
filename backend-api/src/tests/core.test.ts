@@ -33,11 +33,11 @@ describe('Core Initialization', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.resetModules();
     });
 
     describe('Firebase Initialization (firebase.ts)', () => {
         it('deve inicializar o admin SDK se nenhum app existir', async () => {
+            vi.resetModules(); // Isolado apenas para este teste que testa estado inicial do core
             // Mock do estado interno para parecer que não há apps inicializados
             (admin as any).apps = [];
 
@@ -46,6 +46,7 @@ describe('Core Initialization', () => {
         });
 
         it('deve limpar variáveis do emulador se FUNCTIONS_EMULATOR for true', async () => {
+            vi.resetModules();
             process.env.FUNCTIONS_EMULATOR = 'true';
             process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
 
@@ -57,21 +58,30 @@ describe('Core Initialization', () => {
 
     describe('Express App Configuration (index.ts)', () => {
         it('deve responder 200 na rota de health check da API', async () => {
+            vi.resetModules();
+            // Isolando a importação do app
             const { app } = await import('../index');
-            const response = await request(app).get('/api/health');
+            const server = app.listen(0); // Força um ephemeral port fixo e garante fechamento na nossa mão
 
-            // Aceitamos 200 (sucesso) ou 500 (se o redis mock falhar no deploy do server)
-            // O importante é que a rota foi mapeada e respondeu
-            expect(response.status).not.toBe(404);
+            try {
+                const response = await request(server as any).get('/api/health');
+                expect(response.status).not.toBe(404);
+            } finally {
+                server.close();
+            }
         });
 
         it('deve ter o middleware de CORS habilitado (verifica header)', async () => {
+            vi.resetModules();
             const { app } = await import('../index');
-            const response = await request(app).get('/api/health');
+            const server = app.listen(0);
 
-            // Se o CORS estiver ativo e configurado, ele deve lidar com OPTIONS ou ter headers no GET
-            // Verificamos se o app está funcional
-            expect(app).toBeDefined();
+            try {
+                const response = await request(server as any).get('/api/health');
+                expect(app).toBeDefined();
+            } finally {
+                server.close();
+            }
         });
     });
 });

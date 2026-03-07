@@ -61,8 +61,8 @@ describe('Middleware de Validação (validate.middleware)', () => {
             .send({ name: 'ab' });
 
         expect(res.status).toBe(400);
-        expect(res.body.error.error).toContain('Dados inválidos');
-        expect(res.body.error.details.name).toBeDefined();
+        expect(res.body.error).toContain('Dados inválidos');
+        expect(res.body.details.name).toBeDefined();
     });
 
     it('deve retornar 400 para query inválida', async () => {
@@ -71,6 +71,6 @@ describe('Middleware de Validação (validate.middleware)', () => {
             .send({ name: 'Valid Name' });
 
         expect(res.status).toBe(400);
-        expect(res.body.error.details.id).toBeDefined();
+        expect(res.body.details.id).toBeDefined();
     });
 });

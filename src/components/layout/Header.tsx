@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   Bell,
@@ -26,6 +27,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { trackEvent } from '@/lib/analytics';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import {
   Sheet,
@@ -43,6 +45,10 @@ import { subscribeToTotalUnreadMessages } from '@/services/realtime';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
+import { searchUsersAPI } from '@/services/api';
+import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
+import { useQuery } from '@tanstack/react-query';
+import { getUserStatsAPI } from '@/services/friendshipsApi';
 
 interface HeaderProps {
   userProfile: User | null;
@@ -53,7 +59,13 @@ interface HeaderProps {
 
 export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = false, isAuthLoading = false }: HeaderProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
@@ -74,11 +86,66 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
     }
   }, [isAuthLoading, isAuthenticated, userProfile]);
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (debouncedSearch.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const results = await searchUsersAPI(debouncedSearch);
+        trackEvent('search_performed', { search_term: debouncedSearch });
+
+        // Proteção contra respostas que não são array plano
+        let usersArray = [];
+        if (Array.isArray(results)) {
+          usersArray = results;
+        } else if (results && typeof results === 'object') {
+          usersArray = (results as any).data || (results as any).users || Object.values(results) || [];
+          if (!Array.isArray(usersArray)) usersArray = [];
+        }
+
+        setSearchResults(usersArray.slice(0, 4)); // max 4 pra preview
+      } catch (e) {
+        console.error(e);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+    fetchResults();
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Apenas mostra loading se NÃO estivermos em modo de segurança
   const effectiveIsAuthLoading = isAuthLoading && !forceGuestMode;
 
-  // Contador de friend requests: usa campo do userProfile (atualizado atomicamente pela API)
-  const friendRequestsCount = userProfile?.pendingRequestsCount ?? initialFriendRequests;
+  // Buscando os stats de usuários reativamente via React Query para manter a UI (Optimistic UI) 100% sincronizada com a página de amigos
+  const { data: userStats } = useQuery({
+    queryKey: ['userStats', userProfile?.id],
+    queryFn: getUserStatsAPI,
+    enabled: !!userProfile?.id,
+    staleTime: 1000 * 60, // 1 minuto
+  });
+
+  const friendRequestsCount = userStats?.pendingRequests ?? userProfile?.pendingRequestsCount ?? initialFriendRequests;
 
   useEffect(() => {
     if (!userProfile?.id) {
@@ -135,12 +202,76 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
 
           {userProfile ? ( // # atualizado
             <>
-              <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-8">
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input type="text" placeholder="Buscar livros, autores, editoras ou usuários..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 pr-4 py-2 w-full bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 rounded-full font-sans" />
-                </div>
-              </form>
+              <div ref={searchRef} className="hidden md:flex flex-1 max-w-md mx-8 relative">
+                <form onSubmit={handleSearch} className="w-full">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Buscar livros, autores, editoras ou usuários..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onFocus={() => setIsSearchFocused(true)}
+                      className="pl-10 pr-4 py-2 w-full bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 rounded-full font-sans transition-all duration-200"
+                    />
+                  </div>
+                </form>
+
+                {/* Search Dropdown Preview */}
+                <AnimatePresence>
+                  {isSearchFocused && searchQuery.length >= 2 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden z-50"
+                    >
+                      {isSearching ? (
+                        <div className="p-2 space-y-1">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className="flex items-center space-x-3 p-3">
+                              <div className="h-10 w-10 rounded-full animate-shimmer" />
+                              <div className="flex-1 space-y-2">
+                                <div className="h-4 w-1/3 rounded animate-shimmer" />
+                                <div className="h-3 w-1/4 rounded animate-shimmer" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        <div className="p-2 flex flex-col">
+                          <span className="text-xs font-semibold text-gray-500 uppercase px-3 py-2">Usuários encontrados</span>
+                          {searchResults.map((user) => (
+                            <Link
+                              key={user.id}
+                              to={PATHS.PROFILE({ nickname: user.nickname })}
+                              onClick={() => { setIsSearchFocused(false); setSearchQuery(''); }}
+                              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors"
+                            >
+                              <OptimizedAvatar src={user.photoURL} alt={user.displayName} fallback={user.displayName} size="sm" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 truncate">{user.displayName}</p>
+                                <p className="text-xs text-gray-500 truncate">@{user.nickname}</p>
+                              </div>
+                            </Link>
+                          ))}
+                          <button
+                            onClick={handleSearch}
+                            className="text-sm text-center text-emerald-600 font-semibold p-3 mt-1 hover:bg-emerald-50 rounded-lg transition-colors border-t border-gray-100"
+                          >
+                            Ver todos os resultados
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center text-gray-500">
+                          <p className="text-sm">Nenhum resultado encontrado para "{searchQuery}"</p>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
 
               <div className="hidden md:flex items-center space-x-4">
@@ -152,8 +283,11 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                 >
                   <MessageCircle className="h-5 w-5" />
                   {unreadMessagesCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {unreadMessagesCount > 99 ? '+99' : unreadMessagesCount}
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 text-white text-[10px] font-bold items-center justify-center">
+                        {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                      </span>
                     </span>
                   )}
                 </Link>
@@ -165,8 +299,11 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                 >
                   <Users className="h-5 w-5" />
                   {friendRequestsCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {friendRequestsCount > 99 ? '+99' : friendRequestsCount}
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 text-white text-[10px] font-bold items-center justify-center">
+                        {friendRequestsCount > 99 ? '99+' : friendRequestsCount}
+                      </span>
                     </span>
                   )}
                 </Link>
@@ -243,17 +380,18 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
           ) : (
             <div className="hidden md:flex items-center space-x-4">
               <Button
-                variant="ghost"
+                variant={location.pathname === PATHS.LOGIN ? 'outline' : 'ghost'}
                 asChild
-                className="text-gray-600 hover:text-emerald-600 rounded-full font-sans"
+                className={`${location.pathname === PATHS.LOGIN ? 'border-emerald-600 text-emerald-600' : 'text-gray-600 hover:text-emerald-600'} rounded-full font-sans`}
               >
                 <Link to={PATHS.LOGIN}>
                   Entrar
                 </Link>
               </Button>
               <Button
+                variant={location.pathname === PATHS.REGISTER ? 'outline' : 'default'}
                 asChild
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6 font-sans"
+                className={`${location.pathname === PATHS.REGISTER ? 'border-emerald-600 text-emerald-600' : 'bg-emerald-600 hover:bg-emerald-700 text-white'} rounded-full px-6 font-sans`}
               >
                 <Link to={PATHS.REGISTER}>
                   Cadastrar

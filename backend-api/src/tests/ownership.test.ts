@@ -65,7 +65,7 @@ describe('Middleware de Propriedade (ownership.middleware)', () => {
         const res = await request(testApp).get('/test-ownership/doc-123');
 
         expect(res.status).toBe(403);
-        expect(res.body.error.error).toContain('Acesso negado');
+        expect(res.body.error).toContain('Acesso negado');
     });
 
     it('deve retornar 404 se o recurso não existir no Firestore', async () => {

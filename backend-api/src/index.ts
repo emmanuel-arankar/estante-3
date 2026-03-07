@@ -50,7 +50,8 @@ const allowedOrigins = isDevelopment
     'http://localhost:4000'
   ] // Desenvolvimento
   : [
-    'https://estante-virtual-805ef.web.app'
+    `https://${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}.web.app`,
+    `https://${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}.firebaseapp.com`
   ]; // Produção
 
 logger.info(`Configurando CORS`, { isDevelopment, isEmulator: process.env.FUNCTIONS_EMULATOR === 'true', allowedOrigins });
@@ -86,7 +87,7 @@ app.use(cors(corsOptions));
 app.use(compressionMiddleware(1024)); // Comprime respostas > 1kb
 
 // 4. Monitoramento de Performance (Detectar links lentos)
-app.use(performanceMiddleware(1000)); // Alerta se demorar mais que 1s
+app.use(performanceMiddleware(500)); // Alerta se demorar mais que 500ms
 
 // 5. Padronização de Respostas
 app.use(responseWrapper);
@@ -167,12 +168,10 @@ export { app };                             // Exportação nomeada para testes
  * 
  * @example
  * // Chamada via URL de produção ou emulador
- * https://us-central1-estante-virtual-805ef.cloudfunctions.net/api/health
+ * https://us-central1-estante-75463.cloudfunctions.net/api/health
  */
 export const api = onRequest({
-  vpcConnector: 'estante-connector',
-  vpcConnectorEgressSettings: 'PRIVATE_RANGES_ONLY',
-  region: 'us-central1',
+  region: process.env.VITE_FIREBASE_REGION || 'us-central1',
   memory: '512MiB',
   timeoutSeconds: 60,
 }, (req, res) => {

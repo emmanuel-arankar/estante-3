@@ -8,9 +8,12 @@ export const mockAuth = {
     signInWithEmailAndPassword: vi.fn(),
     createUserWithEmailAndPassword: vi.fn(),
     signOut: vi.fn(),
-    onAuthStateChanged: vi.fn((callback) => {
-        // Simula usuário autenticado
-        callback(null);
+    onAuthStateChanged: vi.fn((authOrCallback, callbackOrUndefined) => {
+        // Simula usuário autenticado de forma assíncrona (como a API real)
+        const callback = typeof authOrCallback === 'function' ? authOrCallback : callbackOrUndefined;
+        if (typeof callback === 'function') {
+            Promise.resolve().then(() => callback(null));
+        }
         return vi.fn(); // unsubscribe function
     }),
     updateProfile: vi.fn(),

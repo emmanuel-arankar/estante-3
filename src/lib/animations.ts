@@ -1,9 +1,9 @@
 import { Transition, Variants } from 'framer-motion';
 
 export const itemVariants: Variants = {
-  hidden: { opacity: 0, y: -5 }, 
+  hidden: { opacity: 0, y: -5 },
   visible: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 5 }, 
+  exit: { opacity: 0, y: 5 },
 };
 
 export const tabContentVariants: Variants = {
@@ -24,7 +24,7 @@ export const SMOOTH_TRANSITION: Transition = {
 };
 
 export const MAIN_PAGE_TRANSITION: Transition = {
-  duration: 0.3, 
-  ease: 'easeInOut',
+  duration: 0.15,
+  ease: 'easeOut',
 };
 

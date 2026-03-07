@@ -83,7 +83,7 @@ O sistema já está preparado. Por padrão, `VITE_CDN_DOMAIN` está vazio, entã
 1. **Criar Load Balancer no Google Cloud Console:**
    - Console → Network Services → Load Balancing
    - Create → Application Load Balancer (HTTP/HTTPS)
-   - Backend: Bucket `estante-virtual-805ef.appspot.com`
+   - Backend: Bucket `estante-75463.appspot.com`
    - ✅ **Enable Cloud CDN**
 
 2. **Configurar domínio customizado:**

@@ -16,6 +16,8 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { AuditService } from './services/audit.service';
 import { asyncHandler } from './middleware/asyncHandler';
+import { getCached, setCache, invalidatePattern, CacheKeys } from './lib/cache';
+import { generateSearchTerms } from './lib/search';
 
 const router = Router();
 
@@ -41,6 +43,11 @@ router.get('/users/by-nickname/:nickname', checkAuth, asyncHandler(async (req: R
   if (!nickname || typeof nickname !== 'string') {
     return res.status(400).json({ error: 'Nickname é obrigatório' });
   }
+
+  // Cache: perfil por nickname (2 min)
+  const cacheKey = CacheKeys.userByNickname(nickname.toLowerCase());
+  const cached = await getCached<any>(cacheKey);
+  if (cached) return res.json(cached);
 
   const snapshot = await db.collection('users')
     .where('nickname', '==', nickname.toLowerCase())
@@ -69,9 +76,11 @@ router.get('/users/by-nickname/:nickname', checkAuth, asyncHandler(async (req: R
     joinedAt: userData?.joinedAt?.toDate?.()?.toISOString() || userData?.joinedAt || userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
 
     // ==== ==== 2. CONTADORES DE ENGAJAMENTO ==== ====
-    friendsCount: userData?.friendsCount || 0,
+    // Proteção anti-negativo: FieldValue.increment(-1) não tem floor
+    friendsCount: Math.max(0, userData?.friendsCount || 0),
   };
 
+  await setCache(cacheKey, publicProfile, 120);
   return res.json(publicProfile);
 }));
 
@@ -127,53 +136,74 @@ router.get('/users/search', checkAuth, searchLimiter as any, asyncHandler(async 
 
   logger.info(`Buscando usuários com termo: "${searchTerm}"`);
 
-  // ==== ==== 1. BUSCA POR NICKNAME (PREFIX MATCH) ==== ====
-  const nicknameSnapshot = await db.collection('users')
-    .where('nickname', '>=', searchTerm)
-    .where('nickname', '<=', searchTerm + '\uf8ff')
+  // ==== ==== 1. BUSCA OTIMIZADA (array-contains) ==== ====
+  // Tenta usar searchTerms primeiro (1 query), fallback para prefix match legado
+  let snapshot = await db.collection('users')
+    .where('searchTerms', 'array-contains', searchTerm)
     .limit(searchLimit)
     .get();
 
-  // ==== ==== 2. BUSCA POR NOME DE EXIBIÇÃO (PREFIX MATCH) ==== ====
-  let nameSnapshot = await db.collection('users')
-    .where('displayNameLower', '>=', searchTerm)
-    .where('displayNameLower', '<=', searchTerm + '\uf8ff')
-    .limit(searchLimit)
-    .get();
-
-  // ==== ==== 3. FALLBACK: BUSCA CASE-SENSITIVE ==== ====
-  if (nameSnapshot.empty) {
-    const capitalizedTerm = searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1);
-    const nameSnapshotCapitalized = await db.collection('users')
-      .where('displayName', '>=', capitalizedTerm)
-      .where('displayName', '<=', capitalizedTerm + '\uf8ff')
+  // ==== ==== 2. FALLBACK: BUSCA LEGACY POR PREFIX ==== ====
+  // Para usuários que ainda não têm searchTerms populado
+  if (snapshot.empty) {
+    const nicknameSnapshot = await db.collection('users')
+      .where('nickname', '>=', searchTerm)
+      .where('nickname', '<=', searchTerm + '\uf8ff')
       .limit(searchLimit)
       .get();
-    if (!nameSnapshotCapitalized.empty) {
-      nameSnapshot = nameSnapshotCapitalized;
+
+    let nameSnapshot = await db.collection('users')
+      .where('displayNameLower', '>=', searchTerm)
+      .where('displayNameLower', '<=', searchTerm + '\uf8ff')
+      .limit(searchLimit)
+      .get();
+
+    if (nameSnapshot.empty) {
+      const capitalizedTerm = searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1);
+      const nameSnapshotCapitalized = await db.collection('users')
+        .where('displayName', '>=', capitalizedTerm)
+        .where('displayName', '<=', capitalizedTerm + '\uf8ff')
+        .limit(searchLimit)
+        .get();
+      if (!nameSnapshotCapitalized.empty) {
+        nameSnapshot = nameSnapshotCapitalized;
+      }
     }
+
+    // Combinar resultados do fallback
+    const seenIds = new Set<string>();
+    const results: Array<{ id: string; label: string; nickname: string; photoURL: string }> = [];
+
+    const addDoc = (doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+      if (seenIds.has(doc.id)) return;
+      seenIds.add(doc.id);
+      const data = doc.data();
+      results.push({
+        id: doc.id,
+        label: data.displayName || 'Usuário',
+        nickname: data.nickname || '',
+        photoURL: data.photoURL || '',
+      });
+    };
+
+    nicknameSnapshot.docs.forEach(addDoc);
+    nameSnapshot.docs.forEach(addDoc);
+
+    return res.json(results.slice(0, searchLimit));
   }
 
-  // ==== ==== 4. COMBINAR RESULTADOS SEM DUPLICATAS ==== ====
-  const seenIds = new Set<string>();
-  const results: Array<{ id: string; label: string; nickname: string; photoURL: string }> = [];
-
-  const addDoc = (doc: FirebaseFirestore.QueryDocumentSnapshot) => {
-    if (seenIds.has(doc.id)) return;
-    seenIds.add(doc.id);
+  // ==== ==== 3. FORMATAR RESULTADOS ==== ====
+  const results = snapshot.docs.map(doc => {
     const data = doc.data();
-    results.push({
+    return {
       id: doc.id,
       label: data.displayName || 'Usuário',
       nickname: data.nickname || '',
       photoURL: data.photoURL || '',
-    });
-  };
+    };
+  });
 
-  nicknameSnapshot.docs.forEach(addDoc);
-  nameSnapshot.docs.forEach(addDoc);
-
-  return res.json(results.slice(0, searchLimit));
+  return res.json(results);
 }));
 
 /**
@@ -251,6 +281,13 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
         }).catch(err => logger.error('Erro ao atualizar photoURL no Auth:', err));
       }
 
+      // 5. Gerar searchTerms para busca otimizada
+      if (finalUpdates.displayName || finalUpdates.nickname) {
+        const finalDisplayName = finalUpdates.displayName || userData?.displayName;
+        const finalNickname = finalUpdates.nickname || userData?.nickname;
+        finalUpdates.searchTerms = generateSearchTerms(finalDisplayName, finalNickname);
+      }
+
       transaction.update(userRef, finalUpdates);
     });
   } catch (error: any) {
@@ -265,6 +302,13 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
 
   logger.info(`Perfil do usuário ${currentUserId} atualizado com sucesso`);
 
+  // Invalidar cache de perfil (por ID e por nickname)
+  await invalidatePattern(CacheKeys.profilePattern(currentUserId));
+  if (updates.nickname) {
+    await invalidatePattern('nickname:*'); // Invalidar todos os nicknames em cache
+  }
+  await invalidatePattern(CacheKeys.userStats(currentUserId));
+
   // Audit Log: Perfil atualizado
   AuditService.logAuditEvent({
     userId: currentUserId,
@@ -275,6 +319,88 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
     userAgent: req.get('User-Agent')?.toString(),
     requestId: (req as any).requestId
   });
+
+  // ==== ==== CASCATA: Propagar dados atualizados para Notificações e Amizades ==== ====
+  // Executado de forma assíncrona (fire-and-forget) para não atrasar a resposta
+  const hasProfileFieldChanges = updates.displayName || updates.photoURL !== undefined || updates.nickname;
+
+  if (hasProfileFieldChanges) {
+    (async () => {
+      try {
+        // Buscar o documento final atualizado para pegar a nova array `searchTerms`
+        const updatedUserDoc = await db.collection('users').doc(currentUserId).get();
+        const updatedUserData = updatedUserDoc.data();
+
+        // 1. Atualizar notificações onde este usuário é o ator
+        const notifSnapshot = await db.collection('notifications')
+          .where('actorId', '==', currentUserId)
+          .get();
+
+        if (!notifSnapshot.empty) {
+          // Firestore batch suporta até 500 operações
+          const batches: admin.firestore.WriteBatch[] = [];
+          let currentBatch = db.batch();
+          let opCount = 0;
+
+          const notifUpdates: Record<string, any> = {};
+          if (updates.displayName) notifUpdates.actorName = updates.displayName;
+          if (updates.photoURL !== undefined) notifUpdates.actorPhoto = updates.photoURL || null;
+          if (updates.nickname) notifUpdates['metadata.actorNickname'] = updates.nickname;
+
+          for (const doc of notifSnapshot.docs) {
+            currentBatch.update(doc.ref, notifUpdates);
+            opCount++;
+            if (opCount >= 499) {
+              batches.push(currentBatch);
+              currentBatch = db.batch();
+              opCount = 0;
+            }
+          }
+          batches.push(currentBatch);
+
+          await Promise.all(batches.map(b => b.commit()));
+          logger.info(`Cascata: ${notifSnapshot.size} notificações atualizadas para ${currentUserId}`);
+        }
+
+        // 2. Atualizar documentos de amizade onde este usuário é o amigo
+        const friendshipSnapshot = await db.collection('friendships')
+          .where('friendId', '==', currentUserId)
+          .get();
+
+        if (!friendshipSnapshot.empty) {
+          const batches: admin.firestore.WriteBatch[] = [];
+          let currentBatch = db.batch();
+          let opCount = 0;
+
+          const friendUpdates: Record<string, any> = {};
+          if (updates.displayName) friendUpdates['friend.displayName'] = updates.displayName;
+          if (updates.photoURL !== undefined) friendUpdates['friend.photoURL'] = updates.photoURL || null;
+          if (updates.nickname) friendUpdates['friend.nickname'] = updates.nickname;
+
+          if ((updates.displayName || updates.nickname) && updatedUserData?.searchTerms) {
+            friendUpdates['friend.searchTerms'] = updatedUserData.searchTerms;
+          }
+
+          for (const doc of friendshipSnapshot.docs) {
+            currentBatch.update(doc.ref, friendUpdates);
+            opCount++;
+            if (opCount >= 499) {
+              batches.push(currentBatch);
+              currentBatch = db.batch();
+              opCount = 0;
+            }
+          }
+          batches.push(currentBatch);
+
+          await Promise.all(batches.map(b => b.commit()));
+          logger.info(`Cascata: ${friendshipSnapshot.size} amizades atualizadas para ${currentUserId}`);
+        }
+      } catch (cascadeError) {
+        logger.error('Erro na propagação em cascata (não-bloqueante):', cascadeError);
+        // Não falhar a resposta principal se a cascata tiver problemas
+      }
+    })();
+  }
 
   return res.json({ success: true });
 }));
@@ -294,6 +420,11 @@ router.get('/users/me/stats', checkAuth, asyncHandler(async (req: Request, res: 
   const authReq = req as AuthenticatedRequest;
   const currentUserId = authReq.user.uid;
 
+  // Cache: stats do usuário (1 min)
+  const cacheKey = CacheKeys.userStats(currentUserId);
+  const cached = await getCached<any>(cacheKey);
+  if (cached) return res.json(cached);
+
   const userDoc = await db.collection('users').doc(currentUserId).get();
 
   if (!userDoc.exists) {
@@ -302,11 +433,15 @@ router.get('/users/me/stats', checkAuth, asyncHandler(async (req: Request, res: 
 
   const data = userDoc.data();
 
-  return res.json({
-    totalFriends: data?.friendsCount || 0,
-    pendingRequests: data?.pendingRequestsCount || 0,
-    sentRequests: data?.sentRequestsCount || 0,
-  });
+  // Proteção anti-negativo: condições de corrida podem gerar valores < 0
+  const stats = {
+    totalFriends: Math.max(0, data?.friendsCount || 0),
+    pendingRequests: Math.max(0, data?.pendingRequestsCount || 0),
+    sentRequests: Math.max(0, data?.sentRequestsCount || 0),
+  };
+
+  await setCache(cacheKey, stats, 60);
+  return res.json(stats);
 }));
 
 /**
@@ -334,6 +469,18 @@ router.get('/users/:userId', checkAuth, asyncHandler(async (req: Request, res: R
   }
 
   const { userId: targetUserId } = validationResult.data;
+
+  // Cache: perfil por ID (2 min)
+  const cacheKey = CacheKeys.userProfile(targetUserId);
+  const cached = await getCached<any>(cacheKey);
+  if (cached) {
+    // Mesmo do cache, verificar bloqueio (sec check)
+    const isBlocked = await isBlockedBy(targetUserId, currentUserId);
+    if (isBlocked) {
+      return res.status(403).json({ error: 'Este perfil não está disponível' });
+    }
+    return res.json(cached);
+  }
 
   // Verificar se o usuário alvo bloqueou o usuário atual
   const isBlocked = await isBlockedBy(targetUserId, currentUserId);
@@ -368,9 +515,11 @@ router.get('/users/:userId', checkAuth, asyncHandler(async (req: Request, res: R
     joinedAt: userData?.joinedAt?.toDate?.()?.toISOString() || userData?.joinedAt || userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
 
     // ==== ==== 2. CONTADORES CONSOLIDADOS ==== ====
-    friendsCount: userData?.friendsCount || 0,
+    // Proteção anti-negativo: FieldValue.increment(-1) não tem floor
+    friendsCount: Math.max(0, userData?.friendsCount || 0),
   };
 
+  await setCache(cacheKey, publicProfile, 120);
   return res.json(publicProfile);
 }));
 

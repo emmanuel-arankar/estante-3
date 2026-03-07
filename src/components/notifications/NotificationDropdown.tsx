@@ -57,7 +57,7 @@ export const NotificationDropdown = () => {
                     ) : notifications.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
                             <Bell className="h-12 w-12 text-gray-300 mb-2" />
-                            <p className="text-sm text-gray-500">Nenhuma notificação nova</p>
+                            <p className="text-sm text-gray-500">Nenhuma notificação</p>
                         </div>
                     ) : (
                         <div className="divide-y">
@@ -72,19 +72,15 @@ export const NotificationDropdown = () => {
                     )}
                 </div>
 
-                {/* Footer */}
-                {notifications.length > 0 && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <div className="p-2">
-                            <Link to={PATHS.NOTIFICATIONS}>
-                                <Button variant="ghost" className="w-full text-sm text-blue-600 hover:text-blue-700">
-                                    Ver todas as notificações
-                                </Button>
-                            </Link>
-                        </div>
-                    </>
-                )}
+                {/* Footer - Sempre visível para acessar /notifications */}
+                <DropdownMenuSeparator />
+                <div className="p-2">
+                    <Link to={PATHS.NOTIFICATIONS}>
+                        <Button variant="ghost" className="w-full text-sm text-blue-600 hover:text-blue-700">
+                            Ver todas as notificações
+                        </Button>
+                    </Link>
+                </div>
             </DropdownMenuContent>
         </DropdownMenu>
     );

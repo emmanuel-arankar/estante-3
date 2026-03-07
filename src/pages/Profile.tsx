@@ -9,6 +9,8 @@ import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
 import { PhotoViewer } from '@/components/profile/PhotoViewer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { AvatarEditorModal } from '@/components/ui/avatar-editor-modal';
+import { trackEvent } from '@/lib/analytics';
+import { syncProfileAPI } from '@/services/friendshipsApi';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -295,6 +297,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     setActionLoading(true);
     try {
       await sendFriendRequestAPI(profileUser.id);
+      trackEvent('friend_request_sent', { target_uid: profileUser.id });
       toastSuccessClickable('Solicitação de amizade enviada!');
       // Invalida cache para atualizar o botão
       queryClient.invalidateQueries({ queryKey: ['friends'] });
@@ -328,6 +331,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     setActionLoading(true);
     try {
       await acceptFriendRequestAPI(`${currentUser.uid}_${profileUser.id}`);
+      trackEvent('friend_request_accepted', { target_uid: profileUser.id });
       toastSuccessClickable('Solicitação aceita!');
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       queryClient.invalidateQueries({ queryKey: ['friendshipStatus', profileUser.id] });
@@ -378,28 +382,27 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
     setShowPhotoEditor(false);
 
     if (isOwnProfile && currentUser) {
-      console.log('🔵 Refetching complete profile from Firestore...');
+      console.log('🔵 Otimizando UI no Zustand Store Auth...');
 
       try {
-        // Importar userQuery para buscar perfil completo
-        const { userQuery } = await import('@/features/users/user.queries');
+        // 1. Atualização Otimista Imediata no Zustand (Reflete no Header na hora)
+        const store = useAuthStore.getState();
+        if (store.userProfile) {
+          const freshProfile = { ...store.userProfile, photoURL: newPhotoURL };
+          store.setUserProfile(freshProfile);
 
-        // Refetch perfil completo do Firestore
-        const updatedProfile = await queryClient.fetchQuery(userQuery(currentUser.uid));
-
-        console.log('🔵 Fetched profile from Firestore:', updatedProfile);
-
-        if (updatedProfile) {
-          // Atualizar auth store com perfil completo
-          useAuthStore.getState().setUserProfile(updatedProfile);
-          console.log('🔵 Auth store updated with complete profile');
+          // 2. Injeta o novo avatar no cache do React Query
+          // Isso VETA o Router Loader (ensureQueryData) de ressuscitar a foto antiga
+          queryClient.setQueryData(['users', currentUser.uid], freshProfile);
         }
 
-        // Invalidate queries to refresh avatar across app
-        queryClient.invalidateQueries({ queryKey: ['user', currentUser.uid] });
-        console.log('🔵 Queries invalidated successfully');
+        // 3. Invalida a chave CORRETA ('users' em vez de 'user') para fetching cego em background
+        queryClient.invalidateQueries({ queryKey: ['users', currentUser.uid] });
+
+        // 4. Sincronizar amizades para propagar a nova foto para os cards dos amigos (background)
+        syncProfileAPI().catch(error => console.error('🔴 Erro ao sincronizar foto com amizades:', error));
       } catch (error) {
-        console.error('🔴 Error updating profile:', error);
+        console.error('🔴 Error updating profile cache:', error);
       }
     }
   };

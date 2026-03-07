@@ -464,29 +464,6 @@ describe('GET /api/findFriends', () => {
     expect(ids).not.toContain('current-user');
     expect(ids).toContain('user-2');
   });
-
-  /**
-   * @test Mesclagem de Resultados
-   * @summary Prevenção de duplicatas.
-   * @description Garante que a busca no nickname e no nome de exibição não retorne o mesmo usuário duas vezes.
-   * 
-   * @example
-   * const res = await request(app).get('/api/findFriends?searchTerm=alice');
-   * expect(res.body).toHaveLength(1);
-   */
-  it('deve mesclar resultados sem duplicatas', async () => {
-    state.queryResults['users:0'] = [
-      { id: 'user-2', displayName: 'João', nickname: 'joao' },
-    ];
-    state.queryResults['users:1'] = [
-      { id: 'user-2', displayName: 'João', nickname: 'joao' },
-      { id: 'user-3', displayName: 'José', nickname: 'jose' },
-    ];
-
-    const res = await request(app).get('/api/findFriends?searchTerm=Jo');
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(2);
-  });
 });
 
 /**
@@ -528,7 +505,7 @@ describe('POST /api/friendships/request', () => {
   it('deve retornar 400 se targetUserId estiver ausente', async () => {
     const res = await request(app).post('/api/friendships/request').send({});
     expect(res.status).toBe(400);
-    expect(res.body.error).toHaveProperty('error');
+    expect(res.body).toHaveProperty('error');
   });
 
   /**
@@ -543,7 +520,7 @@ describe('POST /api/friendships/request', () => {
   it('deve retornar 400 ao enviar solicitação para si mesmo', async () => {
     const res = await request(app).post('/api/friendships/request').send({ targetUserId: 'current-user' });
     expect(res.status).toBe(400);
-    expect(res.body.error.error).toContain('si mesmo');
+    expect(res.body.error).toContain('si mesmo');
   });
 
   /**
@@ -564,7 +541,7 @@ describe('POST /api/friendships/request', () => {
 
     const res = await request(app).post('/api/friendships/request').send({ targetUserId: 'target-user' });
     expect(res.status).toBe(409);
-    expect(res.body.error.error).toContain('já existe');
+    expect(res.body.error).toContain('já existe');
   });
 
   /**
@@ -599,7 +576,7 @@ describe('POST /api/friendships/request', () => {
     const res = await request(app).post('/api/friendships/request').send({ targetUserId: 'target-user' });
     // Reiniciar Mock do admin SDK para garantir isolamento.
     expect(res.status).toBe(403);
-    expect(res.body.error.error).toContain('bloqueio');
+    expect(res.body.error).toContain('bloqueio');
   });
 });
 
@@ -622,7 +599,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
   it('deve retornar 403 se o usuário não for dono da amizade', async () => {
     const res = await request(app).post('/api/friendships/other-user_friend/accept');
     expect(res.status).toBe(403);
-    expect(res.body.error.error).toContain('permissão');
+    expect(res.body.error).toContain('permissão');
   });
 
   /**
@@ -637,7 +614,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
   it('deve retornar 400 se a solicitação não existir', async () => {
     const res = await request(app).post('/api/friendships/current-user_friend-user/accept');
     expect(res.status).toBe(400);
-    expect(res.body.error.error).toContain('não encontrada');
+    expect(res.body.error).toContain('não encontrada');
   });
 
   /**
@@ -661,7 +638,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
 
     const res = await request(app).post('/api/friendships/current-user_friend-user/accept');
     expect(res.status).toBe(400);
-    expect(res.body.error.error).toContain('pendente');
+    expect(res.body.error).toContain('pendente');
   });
 
   /**
@@ -685,7 +662,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
 
     const res = await request(app).post('/api/friendships/current-user_friend-user/accept');
     expect(res.status).toBe(400);
-    expect(res.body.error.error).toContain('própria');
+    expect(res.body.error).toContain('própria');
   });
 
   /**
@@ -984,7 +961,7 @@ describe('GET /api/friendships', () => {
 
     // [ASSERT] Validações
     expect(res.status).toBe(400);
-    expect(res.body.error).toHaveProperty('error');
+    expect(res.body).toHaveProperty('error');
   });
 
   /**
@@ -1304,7 +1281,7 @@ describe('POST /api/friendships/bulk-accept', () => {
   it('deve retornar 400 se friendIds estiver ausente', async () => {
     const res = await request(app).post('/api/friendships/bulk-accept').send({});
     expect(res.status).toBe(400);
-    expect(res.body.error).toHaveProperty('error');
+    expect(res.body).toHaveProperty('error');
   });
 
   /**
@@ -1320,7 +1297,7 @@ describe('POST /api/friendships/bulk-accept', () => {
   it('deve retornar 400 se friendIds estiver vazio', async () => {
     const res = await request(app).post('/api/friendships/bulk-accept').send({ friendIds: [] });
     expect(res.status).toBe(400);
-    expect(res.body.error).toHaveProperty('error');
+    expect(res.body).toHaveProperty('error');
   });
 
   /**
@@ -1622,7 +1599,7 @@ describe('POST /api/friendships/sync-profile', () => {
   it('deve retornar 404 se the usuário não existir', async () => {
     const res = await request(app).post('/api/friendships/sync-profile');
     expect(res.status).toBe(404);
-    expect(res.body.error.error).toContain('não encontrado');
+    expect(res.body.error).toContain('não encontrado');
   });
 
   /**

@@ -150,6 +150,7 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
           if (f.op === '==') return val === f.val;
           if (f.op === '>=') return val >= f.val;
           if (f.op === '<=') return val <= f.val;
+          if (f.op === 'array-contains') return Array.isArray(val) && val.includes(f.val);
           return true;
         });
       }

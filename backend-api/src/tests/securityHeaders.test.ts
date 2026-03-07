@@ -26,13 +26,15 @@ describe('Security Headers Middleware', () => {
 
     it('deve incluir a política de segurança de conteúdo (CSP) restritiva', async () => {
         const res = await request(app).get('/test');
-        expect(res.headers['content-security-policy']).toContain("default-src 'none'");
+        expect(res.headers['content-security-policy']).toContain("default-src 'self'");
         expect(res.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+        expect(res.headers['content-security-policy']).toContain("base-uri 'self'");
+        expect(res.headers['content-security-policy']).toContain("form-action 'self'");
     });
 
-    it('deve incluir o cabeçalho Referrer-Policy: no-referrer', async () => {
+    it('deve incluir o cabeçalho Referrer-Policy: strict-origin-when-cross-origin', async () => {
         const res = await request(app).get('/test');
-        expect(res.headers['referrer-policy']).toBe('no-referrer');
+        expect(res.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
     });
 
     it('deve incluir o cabeçalho Permissions-Policy restritivo', async () => {

@@ -108,10 +108,10 @@ O TypeScript já deve ter recompilado automaticamente. Verifique o terminal:
 
 ```bash
 # No navegador ou Postman:
-GET http://localhost:5001/estante-virtual-805ef/us-central1/api/api/health
+GET http://localhost:5001/estante-75463/us-central1/api/api/health
 
 # Ou via curl:
-curl http://localhost:5001/estante-virtual-805ef/us-central1/api/api/health
+curl http://localhost:5001/estante-75463/us-central1/api/api/health
 ```
 
 ### 3. Verificar logs no terminal
@@ -339,6 +339,55 @@ O overhead de logging é **mínimo** (<5ms por request). Se precisar reduzir:
 
 ---
 
+## 🚀 Validação em Produção
+
+### Passo 1: Verificar formato dos logs
+
+Após deploy, confirme que os logs aparecem com formato JSON no Cloud Logging:
+
+```bash
+gcloud logging read \
+  'resource.type="cloud_run_revision" jsonPayload.message="API Response"' \
+  --project=estante-75463 \
+  --limit=5 \
+  --format=json
+```
+
+### Passo 2: Verificar métricas de latência
+
+```bash
+gcloud logging read \
+  'resource.type="cloud_run_revision" jsonPayload.message=~"METRICA"' \
+  --project=estante-75463 \
+  --limit=10 \
+  --format=json
+```
+
+### Passo 3: Verificar alertas de slow requests
+
+```bash
+gcloud logging read \
+  'resource.type="cloud_run_revision" jsonPayload.message=~"Slow Request"' \
+  --project=estante-75463 \
+  --limit=5 \
+  --format=json
+```
+
+### Passo 4: Configurar Log Sink (opcional)
+
+Para exportar logs para BigQuery ou Cloud Storage:
+
+```bash
+gcloud logging sinks create estante-errors-sink \
+  bigquery.googleapis.com/projects/estante-75463/datasets/error_logs \
+  --log-filter='resource.type="cloud_run_revision" severity>=ERROR' \
+  --project=estante-75463
+```
+
+> 📖 **Guia completo de métricas e alertas**: Veja [METRICS_SETUP.md](./METRICS_SETUP.md)
+
+---
+
 ## ✅ Checklist de Verificação
 
 - [ ] Servidor reiniciou sem erros
@@ -348,6 +397,8 @@ O overhead de logging é **mínimo** (<5ms por request). Se precisar reduzir:
 - [ ] Erros têm stack trace completo
 - [ ] Dashboard criado no Cloud Monitoring
 - [ ] Alertas configurados
+- [ ] Log-based metrics criadas (ver METRICS_SETUP.md)
+- [ ] Logs validados em produção (comandos acima)
 - [ ] Docs lidas e entendidas
 
 🎉 **Parabéns!** Você agora tem observabilidade completa do backend!

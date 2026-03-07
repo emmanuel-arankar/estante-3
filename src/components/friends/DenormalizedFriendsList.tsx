@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isAfter, subMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, UserPlus, Clock, RefreshCw } from 'lucide-react';
+import { Search, Users, UserPlus, Clock, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
 import { SortDropdown } from '@/components/friends/SortDropdown';
 import {
   AlertDialog,
@@ -112,7 +112,7 @@ const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count
                   {[...Array(Math.min(count, 3))].map((_, index) => (
                     <div
                       key={index}
-                      className="relative w-6 h-6 rounded-full bg-gray-200 animate-pulse ring-2 ring-white"
+                      className="relative w-6 h-6 rounded-full animate-shimmer ring-2 ring-white"
                       style={{ zIndex: 3 - index }}
                     />
                   ))}
@@ -220,12 +220,12 @@ const DynamicMutualFriendsIndicator: React.FC<{ userId: string; friendId: string
           {[...Array(2)].map((_, index) => (
             <div
               key={index}
-              className="w-6 h-6 rounded-full bg-gray-200 animate-pulse ring-2 ring-white"
+              className="w-6 h-6 rounded-full animate-shimmer ring-2 ring-white"
               style={{ zIndex: 2 - index }}
             />
           ))}
         </div>
-        <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-20 rounded animate-shimmer" />
       </div>
     );
   }
@@ -247,7 +247,7 @@ const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFr
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow flex flex-col h-full"
+        className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200 flex flex-col h-full"
       >
         <div className="flex items-start space-x-3 mb-3">
           <OptimizedAvatar
@@ -256,6 +256,7 @@ const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFr
             fallback={friend.displayName}
             size="md"
             className="flex-shrink-0"
+            isOnline={friend.lastActive ? isAfter(new Date(friend.lastActive), subMinutes(new Date(), 5)) : false}
           />
 
           <div className="flex-1 min-w-0">
@@ -299,9 +300,9 @@ const RequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedF
     const { friend, friendId } = friendship;
 
     return (
-      <motion.div ref={ref} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow flex flex-col h-full">
+      <motion.div ref={ref} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200 flex flex-col h-full">
         <div className="flex items-start space-x-3 mb-3">
-          <OptimizedAvatar src={friend.photoURL} alt={friend.displayName} fallback={friend.displayName} size="md" className="flex-shrink-0" />
+          <OptimizedAvatar src={friend.photoURL} alt={friend.displayName} fallback={friend.displayName} size="md" className="flex-shrink-0" isOnline={friend.lastActive ? isAfter(new Date(friend.lastActive), subMinutes(new Date(), 5)) : false} />
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 truncate">
               <PrefetchLink
@@ -334,9 +335,9 @@ const SentRequestCard = React.forwardRef<HTMLDivElement, { friendship: Denormali
     const { friend, friendId } = friendship;
 
     return (
-      <motion.div ref={ref} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow flex flex-col h-full">
+      <motion.div ref={ref} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200 flex flex-col h-full">
         <div className="flex items-start space-x-3 mb-3">
-          <OptimizedAvatar src={friend.photoURL} alt={friend.displayName} fallback={friend.displayName} size="md" className="flex-shrink-0" />
+          <OptimizedAvatar src={friend.photoURL} alt={friend.displayName} fallback={friend.displayName} size="md" className="flex-shrink-0" isOnline={friend.lastActive ? isAfter(new Date(friend.lastActive), subMinutes(new Date(), 5)) : false} />
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 truncate">
               <PrefetchLink
@@ -366,10 +367,10 @@ const FriendListItem = ({ friendship, userId, onAction }: { friendship: Denormal
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+    className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200"
   >
     <div className="flex items-center space-x-4">
-      <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" />
+      <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
       <div className="flex-1 min-w-0">
         <PrefetchLink
           to={PATHS.PROFILE({ nickname: friendship.friend.nickname })}
@@ -393,9 +394,9 @@ const FriendListItem = ({ friendship, userId, onAction }: { friendship: Denormal
 
 // # atualizado: RequestListItem com PrefetchLink, amigos em comum e tooltip
 const RequestListItem = ({ friendship, userId, onAccept, onReject }: { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }) => (
-  <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+  <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200">
     <div className="flex items-center space-x-4">
-      <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" />
+      <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
       <div className="flex-1 min-w-0">
         <PrefetchLink
           to={PATHS.PROFILE({ nickname: friendship.friend.nickname })}
@@ -422,9 +423,9 @@ const RequestListItem = ({ friendship, userId, onAccept, onReject }: { friendshi
 
 // # atualizado: SentRequestListItem com PrefetchLink, amigos em comum e tooltip
 const SentRequestListItem = ({ friendship, userId, onCancel }: { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }) => (
-  <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+  <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200">
     <div className="flex items-center space-x-4">
-      <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" />
+      <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
       <div className="flex-1 min-w-0">
         <PrefetchLink
           to={PATHS.PROFILE({ nickname: friendship.friend.nickname })}
@@ -447,8 +448,20 @@ const SentRequestListItem = ({ friendship, userId, onCancel }: { friendship: Den
 );
 
 // Estado Vazio e Ações em Massa
-const EmptyState = ({ icon: Icon, title, description }: { icon: React.ComponentType<{ className?: string }>, title: string, description: string }) => (
-  <div className="text-center py-12"><Icon className="h-12 w-12 text-gray-400 mx-auto mb-4" /><h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3><p className="text-gray-600">{description}</p></div>
+const EmptyState = ({ icon: Icon, title, description, actionLabel, onAction }: { icon: React.ComponentType<{ className?: string }>, title: string, description: string, actionLabel?: string, onAction?: () => void }) => (
+  <div className="text-center py-12">
+    <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+      <Icon className="h-8 w-8 text-gray-400" />
+    </div>
+    <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+    <p className="text-gray-500 mb-4 max-w-sm mx-auto">{description}</p>
+    {actionLabel && onAction && (
+      <Button onClick={onAction} variant="outline" className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+        <ArrowUpRight className="h-4 w-4" />
+        {actionLabel}
+      </Button>
+    )}
+  </div>
 );
 
 const BulkActions = ({ onAction, actionLabel, count, variant = 'default', loading = false, disabled = false }: { onAction: () => void, actionLabel: string, count: number, variant?: 'default' | 'destructive', loading?: boolean, disabled?: boolean }) => {
@@ -557,17 +570,24 @@ export const DenormalizedFriendsList: React.FC = () => {
     finally { setIsProcessingAll(false); }
   };
 
-  // Loading inicial com skeletons
+  // Barra de busca sempre renderizada (nunca desmontada pelo loading guard)
+  const searchBar = (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+      <Input type="text" placeholder="Buscar por nome ou alcunha..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-white border-gray-300 rounded-full" />
+    </div>
+  );
+
+  // Loading inicial com skeletons (campo de busca permanece visível)
   if (loading && friends.length === 0 && requests.length === 0 && sentRequests.length === 0) {
     return (
       <div className="space-y-6">
-        {/* Barra de busca skeleton */}
-        <div className="h-10 bg-gray-200 rounded animate-pulse" />
+        {searchBar}
 
         {/* Skeleton list baseado na aba ativa */}
         <Card>
           <CardHeader>
-            <div className="h-6 bg-gray-200 rounded w-48 animate-pulse" />
+            <div className="h-6 rounded w-48 animate-shimmer" />
           </CardHeader>
           <CardContent>
             {activeTab === 'requests' ? (
@@ -587,92 +607,97 @@ export const DenormalizedFriendsList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-        <Input type="text" placeholder="Buscar por nome ou alcunha..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-white border-gray-300 rounded-full" />
-      </div>
+      {searchBar}
 
-      {activeTab === 'friends' && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg">{searchQuery ? 'Amigos encontrados' : 'Todos os amigos'}<span className="text-sm font-normal text-gray-500 ml-2">({searchQuery ? friends.length : stats.totalFriends})</span></CardTitle>
-            <div className="flex items-center space-x-2 flex-shrink-0">
-              <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={(field, direction) => { setSortField(field); setSortDirection(direction); }} />
-              <Button onClick={refreshData} variant="outline" size="icon" className="h-8 w-8" title="Recarregar amigos"><RefreshCw className="h-4 w-4" /></Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {friends.length === 0 ? <EmptyState icon={Users} title={searchQuery ? 'Nenhum amigo encontrado' : 'Nenhum amigo ainda'} description={searchQuery ? 'Tente buscar por outro termo' : 'Comece adicionando amigos'} /> : (
-              <>
-                <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
-                  <AnimatePresence>
-                    {friends.map((friendship) => (
-                      viewMode === 'grid'
-                        ? <FriendCard key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAction={removeFriend} />
-                        : <FriendListItem key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAction={removeFriend} />
-                    ))}
-                  </AnimatePresence>
+      <AnimatePresence mode="wait">
+        {activeTab === 'friends' && (
+          <motion.div key="friends" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-lg">{searchQuery ? 'Amigos encontrados' : 'Todos os amigos'}<span className="text-sm font-normal text-gray-500 ml-2">({searchQuery ? friends.length : stats.totalFriends})</span></CardTitle>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={(field, direction) => { setSortField(field); setSortDirection(direction); }} />
+                  <Button onClick={refreshData} variant="outline" size="icon" className="h-8 w-8" title="Recarregar amigos"><RefreshCw className="h-4 w-4" /></Button>
                 </div>
-                {hasMoreFriends && !searchQuery && friends.length > 0 && (
-                  <div className="text-center mt-6">
-                    <Button onClick={loadMoreFriends} variant="outline" disabled={loadingMore}>{loadingMore ? <><LoadingSpinner size="sm" className="mr-2" />Carregando...</> : 'Carregar mais amigos'}</Button>
+              </CardHeader>
+              <CardContent>
+                {friends.length === 0 ? <EmptyState icon={Users} title={searchQuery ? 'Nenhum amigo encontrado' : 'Nenhum amigo ainda'} description={searchQuery ? 'Tente buscar por outro termo' : 'Encontre leitores e comece a compartilhar suas leituras!'} actionLabel={!searchQuery ? 'Descobrir Leitores' : undefined} onAction={!searchQuery ? () => setSearchQuery('') : undefined} /> : (
+                  <>
+                    <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
+                      <AnimatePresence>
+                        {friends.map((friendship) => (
+                          viewMode === 'grid'
+                            ? <FriendCard key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAction={removeFriend} />
+                            : <FriendListItem key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAction={removeFriend} />
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                    {hasMoreFriends && !searchQuery && friends.length > 0 && (
+                      <div className="text-center mt-6">
+                        <Button onClick={loadMoreFriends} variant="outline" disabled={loadingMore}>{loadingMore ? <><LoadingSpinner size="sm" className="mr-2" />Carregando...</> : 'Carregar mais amigos'}</Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {activeTab === 'requests' && (
+          <motion.div key="requests" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-lg">{searchQuery ? 'Solicitações encontradas' : 'Solicitações recebidas'}<span className="text-sm font-normal text-gray-500 ml-2">({requests.length})</span></CardTitle>
+                <RequestsBulkActions
+                  onAcceptAll={() => setShowAcceptAllConfirm(true)}
+                  onRejectAll={() => setShowRejectAllConfirm(true)}
+                  count={requests.length}
+                  loading={isProcessingAll}
+                  disabled={requests.length === 0}
+                />
+              </CardHeader>
+              <CardContent>
+                {requests.length === 0 ? <EmptyState icon={UserPlus} title={searchQuery ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação pendente'} description={searchQuery ? 'Tente buscar por outro termo' : 'Quando alguém quiser ser seu amigo, a solicitação aparecerá aqui'} /> : (
+                  <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
+                    <AnimatePresence>
+                      {requests.map((friendship) => (
+                        viewMode === 'grid'
+                          ? <RequestCard key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAccept={acceptFriendRequest} onReject={rejectFriendRequest} />
+                          : <RequestListItem key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAccept={acceptFriendRequest} onReject={rejectFriendRequest} />
+                      ))}
+                    </AnimatePresence>
                   </div>
                 )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-      {activeTab === 'requests' && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg">{searchQuery ? 'Solicitações encontradas' : 'Solicitações recebidas'}<span className="text-sm font-normal text-gray-500 ml-2">({requests.length})</span></CardTitle>
-            <RequestsBulkActions
-              onAcceptAll={() => setShowAcceptAllConfirm(true)}
-              onRejectAll={() => setShowRejectAllConfirm(true)}
-              count={requests.length}
-              loading={isProcessingAll}
-              disabled={requests.length === 0}
-            />
-          </CardHeader>
-          <CardContent>
-            {requests.length === 0 ? <EmptyState icon={UserPlus} title={searchQuery ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação pendente'} description={searchQuery ? 'Tente buscar por outro termo' : 'Quando alguém enviar uma solicitação, ela aparecerá aqui'} /> : (
-              <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
-                <AnimatePresence>
-                  {requests.map((friendship) => (
-                    viewMode === 'grid'
-                      ? <RequestCard key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAccept={acceptFriendRequest} onReject={rejectFriendRequest} />
-                      : <RequestListItem key={friendship.id} friendship={friendship} userId={user?.uid || ''} onAccept={acceptFriendRequest} onReject={rejectFriendRequest} />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === 'sent' && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-lg">{searchQuery ? 'Solicitações encontradas' : 'Solicitações enviadas'}<span className="text-sm font-normal text-gray-500 ml-2">({sentRequests.length})</span></CardTitle>
-            <BulkActions onAction={() => setShowDeleteConfirm(true)} actionLabel="Excluir" count={sentRequests.length} variant="destructive" disabled={sentRequests.length === 0} />
-          </CardHeader>
-          <CardContent>
-            {sentRequests.length === 0 ? <EmptyState icon={Clock} title={searchQuery ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação enviada'} description={searchQuery ? 'Tente buscar por outro termo' : 'Solicitações que você enviou aparecerão aqui'} /> : (
-              <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
-                <AnimatePresence>
-                  {sentRequests.map((friendship) => (
-                    viewMode === 'grid'
-                      ? <SentRequestCard key={friendship.id} friendship={friendship} userId={user?.uid || ''} onCancel={cancelSentRequest} />
-                      : <SentRequestListItem key={friendship.id} friendship={friendship} userId={user?.uid || ''} onCancel={cancelSentRequest} />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        {activeTab === 'sent' && (
+          <motion.div key="sent" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-lg">{searchQuery ? 'Solicitações encontradas' : 'Solicitações enviadas'}<span className="text-sm font-normal text-gray-500 ml-2">({sentRequests.length})</span></CardTitle>
+                <BulkActions onAction={() => setShowDeleteConfirm(true)} actionLabel="Excluir" count={sentRequests.length} variant="destructive" disabled={sentRequests.length === 0} />
+              </CardHeader>
+              <CardContent>
+                {sentRequests.length === 0 ? <EmptyState icon={Clock} title={searchQuery ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação enviada'} description={searchQuery ? 'Tente buscar por outro termo' : 'Busque seus amigos e envie solicitações de amizade!'} /> : (
+                  <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
+                    <AnimatePresence>
+                      {sentRequests.map((friendship) => (
+                        viewMode === 'grid'
+                          ? <SentRequestCard key={friendship.id} friendship={friendship} userId={user?.uid || ''} onCancel={cancelSentRequest} />
+                          : <SentRequestListItem key={friendship.id} friendship={friendship} userId={user?.uid || ''} onCancel={cancelSentRequest} />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <DeleteConfirmationModal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} onConfirm={handleDeleteAllSentRequests} count={sentRequests.length} loading={isDeletingAll} />
       <AcceptAllConfirmationModal isOpen={showAcceptAllConfirm} onClose={() => setShowAcceptAllConfirm(false)} onConfirm={handleAcceptAllRequests} count={requests.length} loading={isProcessingAll} />

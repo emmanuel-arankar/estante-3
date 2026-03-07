@@ -56,7 +56,11 @@ export const apiClient = async <T = any>(
         let errorMessage = `Erro da API (${response.status})`;
         try {
             const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
+            errorMessage = errorData.error?.message || errorData.error?.error || errorData.message || errorData.error || errorMessage;
+
+            if (typeof errorMessage === 'object') {
+                errorMessage = JSON.stringify(errorMessage);
+            }
         } catch (e) {
             // Falha ao ler JSON, usa status text
             errorMessage = `${errorMessage}: ${response.statusText}`;

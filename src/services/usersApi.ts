@@ -7,7 +7,8 @@ import { apiClient } from '@/services/apiClient';
  */
 export const getUserProfileAPI = async (userId: string) => {
     try {
-        return await apiClient<any>(`/users/${userId}`);
+        const res = await apiClient<any>(`/users/${userId}`);
+        return res.data || res;
     } catch (error: any) {
         // Adaptar erro do apiClient para o formato esperado pelo loader (com propriedade response)
         // O apiClient já coloca error.status

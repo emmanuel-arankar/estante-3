@@ -94,21 +94,21 @@ export const log = {
    * @description Captura erros fatais, incluindo stack trace e detalhes da exceção.
    * 
    * @params {string} message - Descrição do erro
-   * @params {Error} error - Objeto de erro original para captura de stack trace
+   * @params {Error} [error] - Objeto de erro original para captura de stack trace
    * @params {LogContext} [context] - Dados adicionais para contexto
    * 
    * @note Severidade ERROR deve ser usada apenas para falhas que interrompem o fluxo esperado
    */
-  error: (message: string, error: Error, context?: LogContext) => {
+  error: (message: string, error?: Error | any, context?: LogContext) => {
     logger.error(message, {
       ...context,
       severity: 'ERROR',
       timestamp: new Date().toISOString(),
-      error: {
-        message: error.message,
+      error: error ? {
+        message: error.message || error.toString(),
         stack: error.stack,
-        name: error.name,
-      },
+        name: error.name || 'Error',
+      } : undefined,
     });
   },
 

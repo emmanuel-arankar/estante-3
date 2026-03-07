@@ -17,6 +17,16 @@ vi.mock('../lib/logger', () => ({
     },
 }));
 
+vi.mock('../lib/i18n', () => ({
+    t: vi.fn((key: string) => {
+        const translations: Record<string, string> = {
+            'common.validationError': 'Dados inválidos na requisição',
+            'common.internalError': 'Erro interno do servidor',
+        };
+        return translations[key] || key;
+    }),
+}));
+
 describe('ErrorMiddleware (errorHandler)', () => {
     let req: any;
     let res: any;
@@ -55,6 +65,7 @@ describe('ErrorMiddleware (errorHandler)', () => {
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({
+            status: 'error',
             error: 'Erro inesperado',
             code: 'INTERNAL_ERROR',
             details: undefined,
@@ -71,6 +82,7 @@ describe('ErrorMiddleware (errorHandler)', () => {
 
         expect(res.status).toHaveBeenCalledWith(404);
         expect(res.json).toHaveBeenCalledWith({
+            status: 'error',
             error: 'Não encontrado',
             code: 'USER_NOT_FOUND',
             details: undefined,
@@ -87,7 +99,6 @@ describe('ErrorMiddleware (errorHandler)', () => {
             {
                 code: 'invalid_type',
                 expected: 'string',
-                received: 'number',
                 path: ['email'],
                 message: 'Email deve ser string',
             },
@@ -130,6 +141,7 @@ describe('ErrorMiddleware (errorHandler)', () => {
         errorHandler(error, req, res, next);
 
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            status: 'error',
             details: expect.stringContaining('Error: Erro com stack'),
         }));
     });
