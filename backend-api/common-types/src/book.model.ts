@@ -16,17 +16,6 @@ export type ContributorRole =
   | 'cover-artist' | 'editor' | 'proofreader' | 'preface'
   | 'postface' | 'epilogue' | 'narrator' | 'revisor';
 
-export type MedalTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
-
-export type MedalCategory =
-  | 'genre'       // Leitura por gênero
-  | 'pioneer'     // Primeiros cadastrados
-  | 'profile'     // Perfil completo
-  | 'trade'       // Trocas realizadas
-  | 'social'      // Resenhas, amigos, recomendações
-  | 'streak'      // Dias consecutivos lendo
-  | 'marathon';   // Quantidade em período
-
 export type SuggestionType = 'work' | 'edition' | 'person' | 'group'
   | 'publisher' | 'series' | 'genre' | 'format';
 
@@ -43,17 +32,14 @@ export interface Work {
   coverUrl?: string;
   ageRating?: AgeRating;
 
-  // Relações (desnormalizadas)
   primaryAuthorIds: string[];
   primaryAuthorNames: string[];
   primaryAuthorType: ('person' | 'group')[];
   genreIds: string[];
   genreNames: string[];
 
-  // Séries (N:N)
   seriesEntries: WorkSeriesEntry[];
 
-  // Estatísticas agregadas (de TODAS as edições)
   averageRating: number;
   ratingsCount: number;
   reviewsCount: number;
@@ -75,7 +61,7 @@ export interface Work {
 export interface WorkSeriesEntry {
   seriesId: string;
   seriesName: string;
-  position: string; // "1", "Única", "1-3", "2.5"
+  position: string;
 }
 
 // =============================================================================
@@ -93,29 +79,22 @@ export interface Edition {
   asin?: string;
   coverUrl?: string;
 
-  // Formato (referência ao JSON cadastrado)
-  formatCategoryId: string;  // 'physical', 'digital', 'audio'
-  formatId: string;          // 'paperback', 'kindle', 'audible'
+  formatCategoryId: string;
+  formatId: string;
 
-  // Publicação
   publisherId?: string;
   publisherName?: string;
   imprintId?: string;
   imprintName?: string;
-  publicationDate?: string;  // YYYY-MM-DD
-  language: string;          // ex: 'pt-BR'
+  publicationDate?: string;
+  language: string;
 
-  // Detalhes
   pages?: number;
-  duration?: number;         // Minutos (audiobooks)
+  duration?: number;
 
-  // Contribuidores
   contributors: EditionContributor[];
-
-  // Links de compra
   purchaseLinks: PurchaseLink[];
 
-  // Stats desta edição
   averageRating: number;
   ratingsCount: number;
   reviewsCount: number;
@@ -125,14 +104,14 @@ export interface Edition {
 }
 
 export interface EditionContributor {
-  personId?: string;    // Mutuamente exclusivo
-  groupId?: string;     // Mutuamente exclusivo
-  name: string;         // Desnormalizado
+  personId?: string;
+  groupId?: string;
+  name: string;
   role: ContributorRole;
 }
 
 export interface PurchaseLink {
-  platform: string;     // 'amazon', 'magalu', etc.
+  platform: string;
   originalUrl: string;
   affiliateUrl?: string;
   lastPrice?: number;
@@ -141,7 +120,7 @@ export interface PurchaseLink {
 }
 
 // =============================================================================
-// PESSOA (autor, tradutor, ilustrador, etc.)
+// PESSOA
 // =============================================================================
 
 export interface Person {
@@ -158,7 +137,6 @@ export interface Person {
   website?: string;
   socialLinks: SocialLink[];
   encyclopediaLinks: EncyclopediaLink[];
-
   worksCount: number;
   followersCount: number;
   searchTerms: string[];
@@ -174,18 +152,18 @@ export interface PersonLocation {
 }
 
 export interface SocialLink {
-  platform: string; // 'twitter', 'instagram', etc.
+  platform: string;
   url: string;
 }
 
 export interface EncyclopediaLink {
-  source: string;    // 'wikipedia', 'wikidata', etc.
+  source: string;
   url: string;
   language?: string;
 }
 
 // =============================================================================
-// GRUPO DE AUTORES (ex: CLAMP)
+// GRUPO DE AUTORES
 // =============================================================================
 
 export interface AuthorGroup {
@@ -212,18 +190,19 @@ export interface Publisher {
   website?: string;
   logoUrl?: string;
   imprints: PublisherImprint[];
+  searchTerms: string[];
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface PublisherImprint {
   id: string;
-  name: string;          // Ex: "Panini Mangás", "Selo Ink"
+  name: string;
   description?: string;
 }
 
 // =============================================================================
-// SÉRIE
+// SÉRIE / COLEÇÃO
 // =============================================================================
 
 export interface Series {
@@ -235,6 +214,14 @@ export interface Series {
   primaryAuthorName?: string;
   primaryAuthorType?: 'person' | 'group';
   coverUrl?: string;
+
+  // Séries relacionadas (ex: tankobon vs omnibus do mesmo título)
+  relatedSeriesIds: string[];
+  relatedSeriesNames: string[];
+  seriesType?: string;           // 'tankobon', 'omnibus', 'kanzenban', 'bunko', etc.
+  originalSeriesId?: string;     // Se derivada, qual a série original
+
+  searchTerms: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -244,12 +231,12 @@ export interface Series {
 // =============================================================================
 
 export interface Genre {
-  id: string;          // slug ('dark-fantasy')
-  name: string;        // 'Dark Fantasy'
-  parentId?: string;   // 'fantasy'
+  id: string;
+  name: string;
+  parentId?: string;
   parentName?: string;
   description?: string;
-  depth: number;       // 0=raiz, 1=filho
+  depth: number;
 }
 
 // =============================================================================
@@ -259,44 +246,41 @@ export interface Genre {
 export interface ShelfTags {
   owned: boolean;
   wishlist: boolean;
-  yearlyGoal?: number;   // Ano da meta (ex: 2026)
+  yearlyGoal?: number;
   forTrade: boolean;
   forSale: boolean;
 }
 
 export interface UserShelf {
-  id: string;                // `{userId}_{editionId}`
+  id: string;
   userId: string;
   editionId: string;
   workId: string;
   status: UserBookStatus;
-  rating?: number;           // 0.5 a 5
+  rating?: number;
   timesRead: number;
   isFavorite: boolean;
   sortOrder: number;
   tags: ShelfTags;
   customShelfIds: string[];
   customTagIds: string[];
-
-  // Dados desnormalizados
   bookTitle: string;
   bookCoverUrl?: string;
   authorNames: string[];
-
   createdAt: Date;
   updatedAt: Date;
 }
 
 // =============================================================================
-// PRATELEIRAS PERSONALIZADAS + TAGS CUSTOMIZÁVEIS
+// PRATELEIRAS PERSONALIZADAS + TAGS
 // =============================================================================
 
 export interface CustomShelf {
   id: string;
   userId: string;
-  name: string;            // "Terror", "HQs", "Mangás"
+  name: string;
   description?: string;
-  color?: string;          // Hex
+  color?: string;
   icon?: string;
   bookCount: number;
   sortOrder: number;
@@ -307,7 +291,7 @@ export interface CustomShelf {
 export interface CustomTag {
   id: string;
   userId: string;
-  name: string;            // "Favoritos 2026", "Emprestado"
+  name: string;
   color?: string;
   bookCount: number;
   createdAt: Date;
@@ -322,7 +306,7 @@ export interface ReadingSession {
   shelfItemId: string;
   userId: string;
   editionId: string;
-  sessionNumber: number;     // 1ª leitura, 2ª...
+  sessionNumber: number;
   startedAt?: Date;
   completedAt?: Date;
   status: 'active' | 'completed' | 'abandoned';
@@ -348,9 +332,9 @@ export interface ProgressUpdate {
 // =============================================================================
 
 export interface ReadingDay {
-  id: string;                // `{userId}_{YYYY-MM-DD}`
+  id: string;
   userId: string;
-  date: string;              // 'YYYY-MM-DD'
+  date: string;
   minutesRead?: number;
   pagesRead?: number;
   sessionsActive: string[];
@@ -358,11 +342,11 @@ export interface ReadingDay {
 }
 
 export interface ReadingStreak {
-  id: string;                // `{userId}`
+  id: string;
   userId: string;
   currentStreak: number;
   longestStreak: number;
-  lastReadDate: string;      // 'YYYY-MM-DD'
+  lastReadDate: string;
   totalDaysRead: number;
   updatedAt: Date;
 }
@@ -374,24 +358,17 @@ export interface ReadingStreak {
 export interface Review {
   id: string;
   userId: string;
-  editionId: string;         // Review é da EDIÇÃO
-  workId: string;            // Desnormalizado para agregação
+  editionId: string;
+  workId: string;
   rating: number;
-
-  // Dados do autor da review (desnormalizados)
   userName: string;
   userNickname: string;
   userPhotoUrl?: string;
-
-  // Conteúdo rich text
   title?: string;
-  content: string;           // HTML sanitizado (rich text)
+  content: string;
   containsSpoiler: boolean;
-
-  // Engajamento
   likesCount: number;
   commentsCount: number;
-
   createdAt: Date;
   updatedAt: Date;
 }
@@ -399,14 +376,14 @@ export interface Review {
 export interface ReviewComment {
   id: string;
   reviewId: string;
-  parentCommentId?: string;  // Para replies
+  parentCommentId?: string;
   userId: string;
   userName: string;
   userNickname: string;
   userPhotoUrl?: string;
   content: string;
   likesCount: number;
-  depth: number;             // 0=top-level, 1=reply, 2=tréplica...
+  depth: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -417,8 +394,8 @@ export interface ReviewComment {
 
 export interface Award {
   id: string;
-  name: string;              // "Hugo Award"
-  organization?: string;     // "World Science Fiction Society"
+  name: string;
+  organization?: string;
   logoUrl?: string;
   createdAt: Date;
 }
@@ -429,12 +406,11 @@ export interface BookAward {
   awardId: string;
   awardName: string;
   year: number;
-  category?: string;         // "Best Novel"
-  won: boolean;              // true=ganhou, false=indicado
+  category?: string;
+  won: boolean;
   createdAt: Date;
 }
 
-// Book Choice Awards da Estante de Bolso
 export interface BookChoiceAward {
   id: string;
   year: number;
@@ -449,7 +425,7 @@ export interface BookChoiceAward {
 
 export interface BookChoiceCategory {
   id: string;
-  name: string;              // "Melhor Fantasia"
+  name: string;
   genreId?: string;
 }
 
@@ -465,7 +441,7 @@ export interface BookChoiceNomination {
 }
 
 export interface BookChoiceVote {
-  id: string;                // `{userId}_{categoryId}_{year}`
+  id: string;
   userId: string;
   awardId: string;
   categoryId: string;
@@ -473,53 +449,6 @@ export interface BookChoiceVote {
   year: number;
   createdAt: Date;
 }
-
-// =============================================================================
-// MEDALHAS (PIXEL ART)
-// =============================================================================
-
-export interface Medal {
-  id: string;                // slug: 'genre-fantasy-gold', 'pioneer-100'
-  name: string;              // "Mestre da Fantasia"
-  description: string;       // "Leu 200 livros de Fantasia"
-  category: MedalCategory;
-  tier?: MedalTier;
-  iconUrl: string;           // Pixel art illustration URL
-  requirement: MedalRequirement;
-  createdAt: Date;
-}
-
-export interface MedalRequirement {
-  type: 'genre_books' | 'registration_order' | 'profile_complete'
-  | 'trades_count' | 'reviews_count' | 'friends_count'
-  | 'streak_days' | 'books_in_period' | 'recommendations';
-  genreId?: string;
-  threshold: number;
-  period?: 'month' | 'year';
-}
-
-export interface UserMedal {
-  id: string;                // `{userId}_{medalId}`
-  userId: string;
-  medalId: string;
-  medalName: string;
-  medalIconUrl: string;
-  category: MedalCategory;
-  tier?: MedalTier;
-  multiplier: number;        // 1x, 2x...
-  achievedAt: Date;
-  seen: boolean;             // false = mostrar popup
-}
-
-export const GENRE_MEDAL_THRESHOLDS: Record<MedalTier, number> = {
-  bronze: 50,
-  silver: 100,
-  gold: 200,
-  platinum: 350,
-  diamond: 500,
-};
-
-export const MULTIPLIER_INTERVAL = 500;
 
 // =============================================================================
 // MODERAÇÃO (SUGESTÕES)

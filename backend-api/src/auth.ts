@@ -338,7 +338,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
 router.post('/login', authLimiter as any, validate({ body: loginSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const updates = req.body;
-    const apiKey = getFirebaseApiKey() || 'AIzaSyDqCNnrZNJG_Os_0sBhogbZ4-UZlHPqE1k';
+    const apiKey = getFirebaseApiKey();
     if (!apiKey) {
       return res.status(500).json({ error: 'Configuração do servidor ausente (FIREBASE_API_KEY).' });
     }
@@ -406,7 +406,7 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
  */
 router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const apiKey = getFirebaseApiKey() || 'AIzaSyDqCNnrZNJG_Os_0sBhogbZ4-UZlHPqE1k';
+    const apiKey = getFirebaseApiKey();
     if (!apiKey) {
       return res.status(500).json({ error: 'Configuração do servidor ausente (FIREBASE_API_KEY).' });
     }

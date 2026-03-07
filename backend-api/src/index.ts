@@ -17,6 +17,7 @@ import notificationsRouter from './notifications';
 import chatRouter from './chat';
 import storageRouter from './storage';
 import healthRouter from './health';
+import booksRouter from './books';
 import { requestIdMiddleware } from './middleware/requestId.middleware';
 import { responseWrapper } from './middleware/response.middleware';
 import { performanceMiddleware } from './middleware/performance.middleware';
@@ -150,6 +151,7 @@ app.use('/api', notificationsRouter);       // Rotas de notificações
 app.use('/api', chatRouter);                // Rotas de chat
 app.use('/api', storageRouter);             // Rotas de storage
 app.use('/api', healthRouter);              // Health check
+app.use('/api', booksRouter);               // Rotas de livros
 
 // ==== ==== TRATAMENTO DE ERROS ==== ====
 app.use(errorHandler);

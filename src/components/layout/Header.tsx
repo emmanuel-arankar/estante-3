@@ -46,6 +46,7 @@ import { NotificationDropdown } from '@/components/notifications/NotificationDro
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
 import { searchUsersAPI } from '@/services/api';
+import { searchWorksAPI } from '@/services/booksApi';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { useQuery } from '@tanstack/react-query';
 import { getUserStatsAPI } from '@/services/friendshipsApi';
@@ -61,7 +62,8 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searchWorks, setSearchWorks] = useState<any[]>([]);
+  const [searchUsers, setSearchUsers] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -96,27 +98,34 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
   useEffect(() => {
     const fetchResults = async () => {
       if (debouncedSearch.length < 2) {
-        setSearchResults([]);
+        setSearchWorks([]);
+        setSearchUsers([]);
         return;
       }
       setIsSearching(true);
       try {
-        const results = await searchUsersAPI(debouncedSearch);
+        const [worksRes, usersRes] = await Promise.all([
+          searchWorksAPI(debouncedSearch, 1, 3).catch(() => ({ data: [] })),
+          searchUsersAPI(debouncedSearch).catch(() => [])
+        ]);
+
         trackEvent('search_performed', { search_term: debouncedSearch });
 
-        // Proteção contra respostas que não são array plano
+        setSearchWorks(worksRes.data || []);
+
         let usersArray = [];
-        if (Array.isArray(results)) {
-          usersArray = results;
-        } else if (results && typeof results === 'object') {
-          usersArray = (results as any).data || (results as any).users || Object.values(results) || [];
+        if (Array.isArray(usersRes)) {
+          usersArray = usersRes;
+        } else if (usersRes && typeof usersRes === 'object') {
+          usersArray = (usersRes as any).data || (usersRes as any).users || Object.values(usersRes) || [];
           if (!Array.isArray(usersArray)) usersArray = [];
         }
 
-        setSearchResults(usersArray.slice(0, 4)); // max 4 pra preview
+        setSearchUsers(usersArray.slice(0, 2));
       } catch (e) {
         console.error(e);
-        setSearchResults([]);
+        setSearchWorks([]);
+        setSearchUsers([]);
       } finally {
         setIsSearching(false);
       }
@@ -239,23 +248,57 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                             </div>
                           ))}
                         </div>
-                      ) : searchResults.length > 0 ? (
+                      ) : (searchWorks.length > 0 || searchUsers.length > 0) ? (
                         <div className="p-2 flex flex-col">
-                          <span className="text-xs font-semibold text-gray-500 uppercase px-3 py-2">Usuários encontrados</span>
-                          {searchResults.map((user) => (
-                            <Link
-                              key={user.id}
-                              to={PATHS.PROFILE({ nickname: user.nickname })}
-                              onClick={() => { setIsSearchFocused(false); setSearchQuery(''); }}
-                              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors"
-                            >
-                              <OptimizedAvatar src={user.photoURL} alt={user.displayName} fallback={user.displayName} size="sm" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">{user.displayName}</p>
-                                <p className="text-xs text-gray-500 truncate">@{user.nickname}</p>
-                              </div>
-                            </Link>
-                          ))}
+
+                          {/* SESSÃO DE LIVROS */}
+                          {searchWorks.length > 0 && (
+                            <>
+                              <span className="text-xs font-semibold text-gray-500 uppercase px-3 py-2">Livros</span>
+                              {searchWorks.map((work) => (
+                                <Link
+                                  key={work.id}
+                                  to={`/search?q=${encodeURIComponent(work.title)}`}
+                                  onClick={() => { setIsSearchFocused(false); setSearchQuery(''); }}
+                                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors"
+                                >
+                                  <div className="w-10 h-14 bg-gray-100 rounded shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                    {work.coverUrl ? (
+                                      <img src={work.coverUrl} alt={work.title} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <BookOpen className="w-5 h-5 text-gray-300" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">{work.title}</p>
+                                    <p className="text-xs text-gray-500 truncate">{work.primaryAuthorNames?.join(', ')}</p>
+                                  </div>
+                                </Link>
+                              ))}
+                            </>
+                          )}
+
+                          {/* SESSÃO DE USUÁRIOS */}
+                          {searchUsers.length > 0 && (
+                            <>
+                              <span className="text-xs font-semibold text-gray-500 uppercase px-3 py-2 mt-2 border-t border-gray-50">Usuários</span>
+                              {searchUsers.map((user) => (
+                                <Link
+                                  key={user.id}
+                                  to={PATHS.PROFILE({ nickname: user.nickname })}
+                                  onClick={() => { setIsSearchFocused(false); setSearchQuery(''); }}
+                                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors"
+                                >
+                                  <OptimizedAvatar src={user.photoURL} alt={user.displayName} fallback={user.displayName} size="sm" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">{user.displayName}</p>
+                                    <p className="text-xs text-gray-500 truncate">@{user.nickname}</p>
+                                  </div>
+                                </Link>
+                              ))}
+                            </>
+                          )}
+
                           <button
                             onClick={handleSearch}
                             className="text-sm text-center text-emerald-600 font-semibold p-3 mt-1 hover:bg-emerald-50 rounded-lg transition-colors border-t border-gray-100"

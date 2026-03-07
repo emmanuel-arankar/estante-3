@@ -1,0 +1,94 @@
+{
+    "categories": [
+        {
+            "id": "physical",
+            "name": "Físico",
+            "formats": [
+                {
+                    "id": "paperback",
+                    "name": "Brochura"
+                },
+                {
+                    "id": "hardcover",
+                    "name": "Capa Dura"
+                },
+                {
+                    "id": "mass-market-paperback",
+                    "name": "Edição de Bolso"
+                },
+                {
+                    "id": "library-binding",
+                    "name": "Encadernação de Biblioteca"
+                },
+                {
+                    "id": "board-book",
+                    "name": "Livro Cartonado"
+                },
+                {
+                    "id": "leather-bound",
+                    "name": "Encadernação em Couro"
+                },
+                {
+                    "id": "spiral-bound",
+                    "name": "Espiral"
+                },
+                {
+                    "id": "unbound",
+                    "name": "Sem Encadernação"
+                },
+                {
+                    "id": "unknown-binding",
+                    "name": "Encadernação Desconhecida"
+                }
+            ]
+        },
+        {
+            "id": "digital",
+            "name": "Digital",
+            "formats": [
+                {
+                    "id": "kindle",
+                    "name": "Kindle"
+                },
+                {
+                    "id": "nook",
+                    "name": "Nook"
+                },
+                {
+                    "id": "ebook",
+                    "name": "eBook"
+                },
+                {
+                    "id": "cd-rom",
+                    "name": "CD-ROM"
+                }
+            ]
+        },
+        {
+            "id": "audio",
+            "name": "Áudio",
+            "formats": [
+                {
+                    "id": "audiobook",
+                    "name": "Audiolivro"
+                },
+                {
+                    "id": "audio-cd",
+                    "name": "CD de Áudio"
+                },
+                {
+                    "id": "audio-cassette",
+                    "name": "Fita Cassete"
+                },
+                {
+                    "id": "audible",
+                    "name": "Audible"
+                },
+                {
+                    "id": "mp3-cd",
+                    "name": "MP3 CD"
+                }
+            ]
+        }
+    ]
+}

@@ -108,5 +108,169 @@ service cloud.firestore {
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
+
+    // =========================================================================
+    // SISTEMA DE LIVROS
+    // =========================================================================
+
+    // WORKS (Obras) - Leitura pública, escrita via backend
+    match /works/{workId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false; // Via backend
+    }
+
+    // EDITIONS (Edições) - Leitura pública, escrita via backend
+    match /editions/{editionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // PERSONS (Autores/Tradutores) - Leitura pública
+    match /persons/{personId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // AUTHOR GROUPS (Grupos de autores) - Leitura pública
+    match /authorGroups/{groupId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // PUBLISHERS (Editoras) - Leitura pública
+    match /publishers/{publisherId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // SERIES (Séries/Coleções) - Leitura pública
+    match /series/{seriesId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // GENRES (Gêneros) - Leitura pública
+    match /genres/{genreId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // USER SHELVES (Estante) - Dono lê/escreve, outros leem
+    match /userShelves/{shelfItemId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && resource == null
+        ? true
+        : resource.data.userId == request.auth.uid;
+    }
+
+    // CUSTOM SHELVES (Prateleiras personalizadas)
+    match /customShelves/{shelfId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // CUSTOM TAGS
+    match /customTags/{tagId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // READING SESSIONS
+    match /readingSessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false; // Via backend
+    }
+
+    // PROGRESS UPDATES
+    match /progressUpdates/{progressId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // REVIEWS
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // REVIEW COMMENTS
+    match /reviewComments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // AWARDS
+    match /awards/{awardId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // BOOK AWARDS
+    match /bookAwards/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // BOOK CHOICE AWARDS
+    match /bookChoiceAwards/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // BOOK CHOICE NOMINATIONS
+    match /bookChoiceNominations/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // BOOK CHOICE VOTES
+    match /bookChoiceVotes/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // MEDALS (Definições)
+    match /medals/{medalId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // USER MEDALS (Conquistas)
+    match /userMedals/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // READING DAYS (Calendário diário)
+    match /readingDays/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // READING STREAKS
+    match /readingStreaks/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // CONTENT SUGGESTIONS (Moderação)
+    match /contentSuggestions/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // MERGE REQUESTS (Deduplicação)
+    match /mergeRequests/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+
+    // BOOK RECOMMENDATIONS
+    match /bookRecommendations/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
   }
 }

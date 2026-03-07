@@ -20,6 +20,7 @@ import {
   protectedProfileRoutes,
   friendsRoutes,
   protectedChatRoutes,
+  booksRoutes,
 } from '@/features/routes';
 
 const Home = lazy(() => import('@/pages/Home').then(module => ({ default: module.Home })));
@@ -45,6 +46,7 @@ export const routes: RouteObject[] = [
         },
       },
       ...authRoutes,
+      ...booksRoutes,
 
       // --- Rotas de Gestão (Perfil Protegido, Admin, etc.) ---
       {

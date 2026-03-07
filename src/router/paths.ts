@@ -1,11 +1,15 @@
 export const ROUTE_PATTERNS = {
   PROFILE: '/profile/:nickname',
   CHAT: '/chat/:receiverId',
+  BOOK_DETAIL: '/book/:editionId',
+  AUTHOR_DETAIL: '/author/:personId',
 };
 
 type RouteParams = {
   profile: { nickname: string };
   chat: { receiverId: string };
+  book: { editionId: string };
+  author: { personId: string };
 };
 
 export const PATHS = {
@@ -13,6 +17,9 @@ export const PATHS = {
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
+
+  // Rotas de Livros e Autores
+  BOOKS_SEARCH: '/books/search',
 
   // Rotas de Perfil
   PROFILE_ME: '/profile/me',
@@ -37,4 +44,6 @@ export const PATHS = {
   SETTINGS_BLOCKED: '/settings/blocked',
   PROFILE: (params: RouteParams['profile']) => `/profile/${params.nickname}`,
   CHAT: (params: RouteParams['chat']) => `/chat/${params.receiverId}`,
+  BOOK: (params: RouteParams['book']) => `/book/${params.editionId}`,
+  AUTHOR: (params: RouteParams['author']) => `/author/${params.personId}`,
 };
