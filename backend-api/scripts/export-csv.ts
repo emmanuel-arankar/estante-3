@@ -41,15 +41,16 @@ async function getFields(collectionName: string) {
 }
 
 // Achatar JSON
-function flatten(data: any): any {
-    const result: any = {};
+function flatten(data: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
     for (const key in data) {
         const val = data[key];
         if (val && typeof val === 'object') {
-            if (val._seconds !== undefined && val._nanoseconds !== undefined) {
-                result[key] = new Date(val._seconds * 1000).toISOString();
-            } else if (val.toDate && typeof val.toDate === 'function') {
-                result[key] = val.toDate().toISOString();
+            const v = val as Record<string, unknown>;
+            if (v._seconds !== undefined && v._nanoseconds !== undefined) {
+                result[key] = new Date((v._seconds as number) * 1000).toISOString();
+            } else if (typeof v.toDate === 'function') {
+                result[key] = (v.toDate as () => Date)().toISOString();
             } else {
                 result[key] = JSON.stringify(val);
             }
@@ -60,7 +61,7 @@ function flatten(data: any): any {
     return result;
 }
 
-function escapeCsv(value: any): string {
+function escapeCsv(value: unknown): string {
     if (value === null || value === undefined) return '';
     const str = String(value);
     if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
