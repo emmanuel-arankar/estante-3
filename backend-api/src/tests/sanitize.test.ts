@@ -17,7 +17,6 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
         });
 
         it('deve neutralizar atributos de eventos (onclick, onerror)', () => {
-            const input = '<img src=x onerror=alert(1) onclick="console.log(2)">';
             // Como removemos <...>, o resultado deve ser vazio,
             // mas testamos a regex de atributos em strings que não parecem tags
             const rawAttr = 'onclick=alert(1)';

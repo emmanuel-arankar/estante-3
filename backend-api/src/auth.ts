@@ -88,7 +88,7 @@ const router = Router();
  * para garantir estabilidade em ambientes de emulação ou proxies.
  * 
  * @property {number} windowMs - Janela de observação de 1 hora.
- * @property {number} max - Limit máximo de 300 requisições por janela.
+ * @property {number} max - Limite máximo de 300 requisições por janela.
  * @property {boolean} standardHeaders - Habilita headers modernos de RateLimit.
  * @property {Object} message - Resposta padronizada em caso de bloqueio.
  * @name Duração da Sessão

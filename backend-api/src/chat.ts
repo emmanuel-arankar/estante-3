@@ -93,7 +93,8 @@ router.post('/chat/transcription', checkAuth, async (req: Request, res: Response
             return res.status(400).json({ error: 'Dados inválidos', details: validData.error.flatten() });
         }
 
-        const { chatId: _chatId, messageId: _messageId } = validData.data;
+        // chatId e messageId validados mas não utilizados no placeholder
+        // const { chatId, messageId } = validData.data;
 
         // Nota: O Admin SDK não possui httpsCallable como o Client SDK.
         // Em um ambiente real, poderíamos chamar via HTTP ou via Task Queue.
@@ -167,7 +168,7 @@ router.post('/chat/messages', checkAuth, async (req: Request, res: Response, nex
         };
 
         // 3. Compor Atualização Multimodo (Multi-path update)
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
 
         // A. A Mensagem em si
         updates[`chats/${chatId}/messages/${messageId}`] = {
@@ -224,7 +225,7 @@ router.patch('/chat/messages/:messageId', checkAuth, async (req: Request, res: R
         const chatId = getChatId(myId, otherId);
         const messageRef = rtdb.ref(`chats/${chatId}/messages/${messageId}`);
 
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
         const timestamp = admin.database.ServerValue.TIMESTAMP;
 
         if (content !== undefined) {
@@ -261,7 +262,7 @@ router.post('/chat/read-all', checkAuth, async (req: Request, res: Response, nex
         if (!otherId) return res.status(400).json({ error: 'otherId é obrigatório' });
 
         // Atualizar RTDB
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
         updates[`userChats/${myId}/${otherId}/unreadCount`] = 0;
         updates[`userChats/${myId}/${otherId}/lastMessageRead`] = true;
 
@@ -361,7 +362,7 @@ router.delete('/chat/messages/:messageId', checkAuth, async (req: Request, res: 
             metadata: { chatId, otherId: String(otherId) },
             ip: req.ip,
             userAgent: req.get('User-Agent')?.toString(),
-            requestId: (req as any).requestId
+            requestId: (req as Request & { requestId?: string }).requestId
         });
 
         return res.json({ success: true });
@@ -383,7 +384,7 @@ router.delete('/chat/:otherId', checkAuth, async (req: Request, res: Response, n
 
         const chatId = getChatId(myId, String(otherId));
 
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
         updates[`userChats/${myId}/${otherId}`] = null;
         // Para manter a privacidade mútua, deletamos as mensagens do canal principal
         // Mas apenas se ambos deletarem? Por enquanto removemos o canal principal (hard delete das msgs)
@@ -400,7 +401,7 @@ router.delete('/chat/:otherId', checkAuth, async (req: Request, res: Response, n
             metadata: { otherId: String(otherId) },
             ip: req.ip,
             userAgent: req.get('User-Agent')?.toString(),
-            requestId: (req as any).requestId
+            requestId: (req as Request & { requestId?: string }).requestId
         });
 
         return res.json({ success: true });
