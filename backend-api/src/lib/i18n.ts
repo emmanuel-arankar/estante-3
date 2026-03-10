@@ -14,9 +14,9 @@ export function t(key: string, lang: LocaleCode = DEFAULT_LOCALE): string {
     const dictionary = locales[lang] || locales[DEFAULT_LOCALE];
 
     // Navegação dinâmica por chaves (dot-notation)
-    const result = key.split('.').reduce((obj: any, part) => {
-        return obj && obj[part];
-    }, dictionary);
+    const result = key.split('.').reduce((obj: Record<string, unknown> | null, part) => {
+        return obj && (obj[part] as Record<string, unknown> | null);
+    }, dictionary as Record<string, unknown>);
 
     if (typeof result === 'string') {
         return result;

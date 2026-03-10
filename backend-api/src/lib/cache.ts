@@ -51,7 +51,7 @@ export async function getCached<T>(key: string): Promise<T | null> {
  * @see {@link getCached} para operação de leitura correspondente.
  * 
  * @params {string} key - Chave do cache
- * @params {any} value - Valor a ser armazenado (será serializado para JSON)
+ * @params {unknown} value - Valor a ser armazenado (será serializado para JSON)
  * @params {number} [ttl=300] - Tempo de vida em segundos
  * @default 300
  * @returns {Promise<void>}
@@ -60,7 +60,7 @@ export async function getCached<T>(key: string): Promise<T | null> {
  */
 export async function setCache(
   key: string,
-  value: any,
+  value: unknown,
   ttl: number = DEFAULT_TTL
 ): Promise<void> {
   try {
@@ -176,7 +176,7 @@ export const CacheKeys = {
  * {@link getCached} e {@link setCache}.
  * 
  * @template T - Tipo do dado retornado pela função original
- * @template {any[]} Args - Tipos dos argumentos da função original
+ * @template {unknown[]} Args - Tipos dos argumentos da função original
  * @params {Function} fn - Função original do tipo Promise
  * @params {Function} keyGenerator - Função que gera a chave baseada nos argumentos
  * @params {number} [ttl=300] - Tempo de vida do cache
@@ -186,7 +186,7 @@ export const CacheKeys = {
  * // Envolve uma função de busca no banco com cache automático de 5 minutos
  * const getSlowDataWithCache = withCache(getSlowData, (id) => CacheKeys.data(id));
  */
-export function withCache<T, Args extends any[]>(
+export function withCache<T, Args extends unknown[]>(
   fn: (...args: Args) => Promise<T>,
   keyGenerator: (...args: Args) => string,
   ttl: number = DEFAULT_TTL

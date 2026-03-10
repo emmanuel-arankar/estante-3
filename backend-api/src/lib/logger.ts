@@ -28,7 +28,7 @@ export interface LogContext {
   method?: string;
   path?: string;
   ip?: string;
-  [key: string]: any;    // Permite metadados flexíveis para fluxos específicos
+  [key: string]: unknown;    // Permite metadados flexíveis para fluxos específicos
 }
 
 // =============================================================================
@@ -99,15 +99,16 @@ export const log = {
    * 
    * @note Severidade ERROR deve ser usada apenas para falhas que interrompem o fluxo esperado
    */
-  error: (message: string, error?: Error | any, context?: LogContext) => {
+  error: (message: string, error?: Error | unknown, context?: LogContext) => {
+    const err = error as Error;
     logger.error(message, {
       ...context,
       severity: 'ERROR',
       timestamp: new Date().toISOString(),
       error: error ? {
-        message: error.message || error.toString(),
-        stack: error.stack,
-        name: error.name || 'Error',
+        message: err.message || String(err),
+        stack: err.stack,
+        name: err.name || 'Error',
       } : undefined,
     });
   },
