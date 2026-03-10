@@ -14,6 +14,7 @@
 
 import * as admin from 'firebase-admin';
 import * as path from 'path';
+import * as fs from 'fs';
 
 // =============================================================================
 // INICIALIZAÇÃO (mínima, apenas Firestore)
@@ -28,7 +29,8 @@ if (admin.apps.length === 0) {
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         try {
             const credentialPath = path.resolve(__dirname, '..', process.env.GOOGLE_APPLICATION_CREDENTIALS);
-            credential = admin.credential.cert(require(credentialPath));
+            const saContent = JSON.parse(fs.readFileSync(credentialPath, 'utf8'));
+            credential = admin.credential.cert(saContent);
             console.log(`✅ Credenciais carregadas de: ${credentialPath}`);
         } catch {
             credential = admin.credential.applicationDefault();

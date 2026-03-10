@@ -4,7 +4,7 @@ export interface ChatMessage {
     receiverId: string;
     content: string;
     type: 'text' | 'image' | 'audio' | 'book' | 'viewOnce';
-    createdAt: any;
+    createdAt: Date | { seconds: number; nanoseconds: number };
     isDeleted?: boolean;
     status?: 'sending' | 'sent' | 'error';
     replyTo?: {
@@ -15,17 +15,17 @@ export interface ChatMessage {
         senderName: string;
     };
     reactions?: Record<string, string[]>;
-    editedAt?: any;
-    readAt?: any;
+    editedAt?: Date | { seconds: number; nanoseconds: number };
+    readAt?: Date | { seconds: number; nanoseconds: number };
     images?: string[];
     caption?: string;
     viewOnce?: boolean;
     isViewed?: boolean;
-    viewedAt?: any;
+    viewedAt?: Date | { seconds: number; nanoseconds: number };
     transcription?: string;
     transcriptions?: Record<string, string>;
     isTemporary?: boolean;
-    playedAt?: any;
+    playedAt?: Date | { seconds: number; nanoseconds: number };
     duration?: number;
     waveform?: number[];
     uploadProgress?: number;

@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 const imageCache = new Map<string, HTMLImageElement>();
 
 export const useImageCache = (src?: string) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // ✅ Initialize based on cache to avoid unnecessary "loading" state for already cached images
+  const [isLoaded, setIsLoaded] = useState(() => !src || imageCache.has(src));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -16,6 +17,7 @@ export const useImageCache = (src?: string) => {
     // ✅ Verificar se já está no cache
     if (imageCache.has(src)) {
       setIsLoaded(true);
+      setHasError(false);
       return;
     }
 

@@ -5,6 +5,7 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * @name Gestão de Ambiente
@@ -44,7 +45,6 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
  * - Caso falhe, recorre ao Application Default Credentials (ADC).
  */
 if (admin.apps.length === 0) {
-  const fs = require('fs');
   const saPath = path.resolve(__dirname, '..', 'serviceAccountKey.json');
 
   // Se estamos no Cloud Run / Functions V2, ou Cloud Functions G1, as variáveis de gerência estarão ativas.
@@ -54,13 +54,15 @@ if (admin.apps.length === 0) {
   // Usar JSON apenas localmente ou explícito pelo emulador (ignora se estiver fisicamente na nuvem para usar ADC nativo do Compute Engine)
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
-      const credential = admin.credential.cert(require(saPath));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+      const saContent = JSON.parse(fs.readFileSync(saPath, 'utf8'));
+      const credential = admin.credential.cert(saContent);
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || saContent.project_id;
+      const databaseURL = process.env.FIREBASE_DATABASE_URL || (projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined);
 
       admin.initializeApp({
         projectId,
         credential,
-        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+        databaseURL
       });
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
@@ -69,7 +71,13 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+    const databaseURL = process.env.FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.firebaseio.com`;
+
+    admin.initializeApp({
+      projectId,
+      databaseURL
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }

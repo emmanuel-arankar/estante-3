@@ -53,7 +53,7 @@ interface RedisClient {
    * @param {string} event - Nome do evento (ex: 'connect', 'error')
    * @param {RedisEventCallback} callback - Função de retorno
    */
-  on(event: string, callback: (...args: any[]) => void): RedisClient;
+  on(event: string, callback: (...args: unknown[]) => void): RedisClient;
   quit(): Promise<'OK'>;
 }
 
@@ -68,7 +68,7 @@ interface RedisClient {
  */
 interface RedisPipeline {
   del(key: string): RedisPipeline;
-  exec(): Promise<any[]>;
+  exec(): Promise<unknown[]>;
 }
 
 // Singleton da conexão: Mantém uma única instância aberta para reaproveitamento do pool de sockets.
@@ -120,6 +120,7 @@ export function getRedis(): RedisClient {
  */
 function createRealRedis(host: string, port: number): RedisClient {
   // Importação dinâmica: carrega ioredis apenas se necessário (produção)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Redis = require('ioredis');
 
   /**
@@ -251,7 +252,7 @@ function createMockRedis(): RedisClient {
     },
 
     pipeline: () => {
-      const operations: Array<() => Promise<any>> = [];
+      const operations: Array<() => Promise<unknown>> = [];
 
       const pipeline: RedisPipeline = {
         del: (key: string) => {
@@ -266,7 +267,7 @@ function createMockRedis(): RedisClient {
       return pipeline;
     },
 
-    on: (_event: string, _callback: (...args: any[]) => void) => {
+    on: () => {
       return mockClient;
     },
 

@@ -57,7 +57,7 @@ async function migrateCollection(collectionName: string) {
         if (snapshot.empty) break;
 
         const batch = newDb.batch();
-        snapshot.docs.forEach((doc: any) => {
+        snapshot.docs.forEach((doc) => {
             const data = doc.data();
             batch.set(newDb.collection(collectionName).doc(doc.id), data);
             totalMigrated++;
@@ -65,7 +65,7 @@ async function migrateCollection(collectionName: string) {
 
         await batch.commit();
         console.log(`  ✅ ${totalMigrated} documentos migrados...`);
-        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        lastDoc = snapshot.docs[snapshot.docs.length - 1] as admin.firestore.QueryDocumentSnapshot;
     }
     console.log(`✨ Coleção ${collectionName} finalizada: ${totalMigrated} docs.`);
 }

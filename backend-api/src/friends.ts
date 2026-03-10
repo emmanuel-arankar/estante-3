@@ -77,11 +77,11 @@ const calculateMutualFriends = async (
       .get(),
   ]);
 
-  const friends1Set = new Set(friends1Snapshot.docs.map(doc => doc.data().friendId));
+  const friends1Set = new Set(friends1Snapshot.docs.map(doc => (doc.data() as { friendId: string }).friendId));
   const mutualIds: string[] = [];
 
   for (const doc of friends2Snapshot.docs) {
-    const friendId = doc.data().friendId;
+    const friendId = (doc.data() as { friendId: string }).friendId;
     if (friends1Set.has(friendId)) {
       mutualIds.push(friendId);
     }
@@ -129,12 +129,12 @@ const updateMutualFriendsForNewFriendship = async (
       .get(),
   ]);
 
-  const friends1Set = new Set(friends1Snapshot.docs.map(doc => doc.data().friendId));
+  const friends1Set = new Set(friends1Snapshot.docs.map(doc => (doc.data() as { friendId: string }).friendId));
   const mutualFriendIds: string[] = [];
 
   // Identificação da interseção
   for (const doc of friends2Snapshot.docs) {
-    const friendId = doc.data().friendId;
+    const friendId = (doc.data() as { friendId: string }).friendId;
     if (friends1Set.has(friendId)) {
       mutualFriendIds.push(friendId);
     }
@@ -202,11 +202,11 @@ const updateMutualFriendsForRemovedFriendship = async (
       .get(),
   ]);
 
-  const friends1Set = new Set(friends1Snapshot.docs.map(doc => doc.data().friendId));
+  const friends1Set = new Set(friends1Snapshot.docs.map(doc => (doc.data() as { friendId: string }).friendId));
   const mutualFriendIds: string[] = [];
 
   for (const doc of friends2Snapshot.docs) {
-    const friendId = doc.data().friendId;
+    const friendId = (doc.data() as { friendId: string }).friendId;
     if (friends1Set.has(friendId)) {
       mutualFriendIds.push(friendId);
     }
@@ -359,14 +359,14 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
 
     // Tentar buscar do cache (apenas se for página 1, sem busca, sem cursor e ordenação padrão)
     if (page === 1 && !cursor && !search && sortBy === 'friendshipDate' && sortDirection === 'desc') {
-      const cachedData = await getCached<any>(cacheKey);
+      const cachedData = await getCached<Record<string, unknown>>(cacheKey);
       if (cachedData) {
         logger.info(`✅ [Cache] HIT: ${cacheKey}`);
         return res.status(200).json(cachedData);
       }
     }
 
-    let query = db.collection('friendships')
+    let query: admin.firestore.Query = db.collection('friendships')
       .where('userId', '==', userId)
       .where('status', '==', 'accepted');
 
@@ -400,13 +400,14 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
 
     if (cursor) {
       try {
-        const startAfterValues = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+        const startAfterValues = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8')) as unknown[];
 
         // Reidratar datas e Timestamps (precisão de nanosegundos)
-        const hydratedValues = startAfterValues.map((val: any) => {
+        const hydratedValues = startAfterValues.map((val: unknown) => {
           // Timestamp do Firestore customizado
-          if (val && typeof val === 'object' && val._type === 'ts') {
-            return new admin.firestore.Timestamp(val.s, val.n);
+          if (val && typeof val === 'object' && (val as Record<string, unknown>)._type === 'ts') {
+            const vts = val as { s: number; n: number };
+            return new admin.firestore.Timestamp(vts.s, vts.n);
           }
           // Regex simples para detectar ISO string de data (fallback)
           if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
@@ -416,7 +417,7 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
         });
 
         query = query.startAfter(...hydratedValues);
-      } catch (e) {
+      } catch {
         logger.warn('Cursor inválido ignorado', { cursor });
       }
     } else if (page > 1 && !search) {
@@ -424,7 +425,7 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
       query = query.offset((page - 1) * limit);
     }
 
-    let snapshot = await query.get();
+    const snapshot = await query.get();
 
     // Filtrar resultados server-side se houver busca
     let filteredDocs = snapshot.docs;
@@ -449,14 +450,14 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
     }));
 
     // Geração de cursor para próxima página (serialização segura)
-    let nextCursor = null;
+    let nextCursor: string | null = null;
     if (search) {
       // Quando é busca em memória, não usamos offset cursor base64 para page tokens nativos
       // Usaremos o fato de page < totalPages
     } else if (filteredDocs.length === limit) {
       const lastDoc = filteredDocs[filteredDocs.length - 1];
       const data = lastDoc.data();
-      const values = [];
+      const values: unknown[] = [];
 
       if (sortBy === 'name') values.push(data.friend?.displayName);
       else if (sortBy === 'nickname') values.push(data.friend?.nickname);
@@ -467,8 +468,9 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
       // Serializar valores para dates/timestamps se necessário
       const serializedValues = values.map(v => {
         // Preservar precisão do Timestamp (segundos + nanosegundos)
-        if (v && typeof v.toMillis === 'function' && 'seconds' in v && 'nanoseconds' in v) {
-          return { _type: 'ts', s: v.seconds, n: v.nanoseconds };
+        const vTs = v as admin.firestore.Timestamp;
+        if (vTs && typeof vTs.toMillis === 'function' && 'seconds' in vTs && 'nanoseconds' in vTs) {
+          return { _type: 'ts', s: vTs.seconds, n: vTs.nanoseconds };
         }
         // Fallback para Date (se for Date nativo do JS)
         if (v instanceof Date) {
@@ -484,13 +486,20 @@ router.get('/friendships', checkAuth, async (req: Request, res: Response, next) 
 
     // Convertendo datas para serialização JSON
     // (O Express faz isso, mas se tiver Timestamps crus, vira objeto estranho)
-    const sanitizedFriends = friends.map((f: any) => ({
-      ...f,
-      friendshipDate: f.friendshipDate?.toDate?.() || f.friendshipDate,
-      createdAt: f.createdAt?.toDate?.() || f.createdAt,
-      updatedAt: f.updatedAt?.toDate?.() || f.updatedAt,
-      lastActive: f.lastActive?.toDate?.() || f.lastActive,
-    }));
+    const sanitizedFriends = friends.map((f: Record<string, unknown>) => {
+      const friendshipDate = f.friendshipDate as { toDate?: () => Date } | null;
+      const createdAt = f.createdAt as { toDate?: () => Date } | null;
+      const updatedAt = f.updatedAt as { toDate?: () => Date } | null;
+      const lastActive = f.lastActive as { toDate?: () => Date } | null;
+
+      return {
+        ...f,
+        friendshipDate: friendshipDate?.toDate?.() || f.friendshipDate,
+        createdAt: createdAt?.toDate?.() || f.createdAt,
+        updatedAt: updatedAt?.toDate?.() || f.updatedAt,
+        lastActive: lastActive?.toDate?.() || f.lastActive,
+      };
+    });
 
     const response = {
       data: sanitizedFriends,
@@ -546,7 +555,7 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
 
     const { page, limit, search, cursor } = validationResult.data;
 
-    let query = db.collection('friendships')
+    let query: admin.firestore.Query = db.collection('friendships')
       .where('userId', '==', userId)
       .where('status', '==', 'pending');
     // .where('requestedBy', '!=', userId); // REMOVIDO: Causa erro com orderBy('createdAt')
@@ -572,9 +581,9 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
 
     if (cursor) {
       try {
-        const values = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+        const values = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8')) as unknown[];
         query = query.startAfter(...values);
-      } catch (e) { }
+      } catch { /* ignore */ }
     } else if (page > 1) {
       query = query.offset((page - 1) * limit);
     }
@@ -585,7 +594,7 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
     if (snapshot.empty && search && !search.startsWith('@') && /^[a-z]/.test(search)) {
       const capitalizedSearch = search.charAt(0).toUpperCase() + search.slice(1);
 
-      let fallbackQuery = db.collection('friendships')
+      let fallbackQuery: admin.firestore.Query = db.collection('friendships')
         .where('userId', '==', userId)
         .where('status', '==', 'pending');
 
@@ -606,14 +615,14 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
     // Filtro em memória para separar solicitações recebidas
     const requests = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter((doc: any) => doc.requestedBy !== userId);
+      .filter((doc: Record<string, unknown>) => doc.requestedBy !== userId);
 
     // Geração de cursor de paginação
-    let nextCursor = null;
+    let nextCursor: string | null = null;
     if (snapshot.docs.length === limit) {
       const lastDoc = snapshot.docs[snapshot.docs.length - 1];
       const data = lastDoc.data();
-      const values = [];
+      const values: unknown[] = [];
       if (search) {
         values.push(data.friend?.displayName);
       } else {
@@ -624,11 +633,16 @@ router.get('/friendships/requests', checkAuth, async (req: Request, res: Respons
     }
 
     const totalPages = Math.ceil(total / limit);
-    const sanitizedRequests = requests.map((f: any) => ({
-      ...f,
-      createdAt: f.createdAt?.toDate?.() || f.createdAt,
-      updatedAt: f.updatedAt?.toDate?.() || f.updatedAt,
-    }));
+    const sanitizedRequests = requests.map((f: Record<string, unknown>) => {
+      const createdAt = f.createdAt as { toDate?: () => Date } | null;
+      const updatedAt = f.updatedAt as { toDate?: () => Date } | null;
+
+      return {
+        ...f,
+        createdAt: createdAt?.toDate?.() || f.createdAt,
+        updatedAt: updatedAt?.toDate?.() || f.updatedAt,
+      };
+    });
 
     return res.status(200).json({
       data: sanitizedRequests,
@@ -667,7 +681,7 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
 
     const { page, limit, search, cursor } = validationResult.data;
 
-    let query = db.collection('friendships')
+    let query: admin.firestore.Query = db.collection('friendships')
       .where('userId', '==', userId)
       .where('status', '==', 'pending')
       .where('requestedBy', '==', userId); // Apenas Enviadas
@@ -692,9 +706,9 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
 
     if (cursor) {
       try {
-        const values = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+        const values = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8')) as unknown[];
         query = query.startAfter(...values);
-      } catch (e) { }
+      } catch { /* ignore */ }
     } else if (page > 1) {
       query = query.offset((page - 1) * limit);
     }
@@ -705,7 +719,7 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
     if (snapshot.empty && search && !search.startsWith('@') && /^[a-z]/.test(search)) {
       const capitalizedSearch = search.charAt(0).toUpperCase() + search.slice(1);
 
-      let fallbackQuery = db.collection('friendships')
+      let fallbackQuery: admin.firestore.Query = db.collection('friendships')
         .where('userId', '==', userId)
         .where('status', '==', 'pending')
         .where('requestedBy', '==', userId);
@@ -725,11 +739,11 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
     }
     const sent = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    let nextCursor = null;
+    let nextCursor: string | null = null;
     if (snapshot.docs.length === limit) {
       const lastDoc = snapshot.docs[snapshot.docs.length - 1];
       const data = lastDoc.data();
-      const values = [];
+      const values: unknown[] = [];
       if (search) {
         values.push(data.friend?.displayName);
       } else {
@@ -740,11 +754,16 @@ router.get('/friendships/sent', checkAuth, async (req: Request, res: Response, n
     }
 
     const totalPages = Math.ceil(total / limit);
-    const sanitizedSent = sent.map((f: any) => ({
-      ...f,
-      createdAt: f.createdAt?.toDate?.() || f.createdAt,
-      updatedAt: f.updatedAt?.toDate?.() || f.updatedAt,
-    }));
+    const sanitizedSent = sent.map((f: Record<string, unknown>) => {
+      const createdAt = f.createdAt as { toDate?: () => Date } | null;
+      const updatedAt = f.updatedAt as { toDate?: () => Date } | null;
+
+      return {
+        ...f,
+        createdAt: createdAt?.toDate?.() || f.createdAt,
+        updatedAt: updatedAt?.toDate?.() || f.updatedAt,
+      };
+    });
 
     return res.status(200).json({
       data: sanitizedSent,
@@ -907,7 +926,7 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
       resourceId: targetUserId,
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     // Registro de notificação fora da transação de escrita (eventual consistency)
@@ -942,13 +961,14 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
     ]);
 
     return res.status(201).json({ message: 'Solicitação enviada com sucesso' });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Erro ao enviar solicitação de amizade:', error);
-    if (error.message === 'Relação de amizade já existe') {
-      return res.status(409).json({ error: error.message });
+    const err = error as Error;
+    if (err.message === 'Relação de amizade já existe') {
+      return res.status(409).json({ error: err.message });
     }
-    if (error.message === 'Ação não permitida devido a bloqueio.') {
-      return res.status(403).json({ error: error.message });
+    if (err.message === 'Ação não permitida devido a bloqueio.') {
+      return res.status(403).json({ error: err.message });
     }
     return next(error);
   }
@@ -1110,14 +1130,15 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
       resourceId: friendId,
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'Solicitação aceita com sucesso' });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Erro ao aceitar solicitação:', error);
-    if (error.message.includes('não encontrada') || error.message.includes('pendente') || error.message.includes('própria')) {
-      return res.status(400).json({ error: error.message });
+    const err = error as Error;
+    if (err.message.includes('não encontrada') || err.message.includes('pendente') || err.message.includes('própria')) {
+      return res.status(400).json({ error: err.message });
     }
     return next(error);
   }
@@ -1275,14 +1296,15 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
       metadata: { previousStatus: status },
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'Relação removida com sucesso' });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Erro ao remover relação:', error);
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({ error: error.message });
+    const err = error as Error;
+    if (err.message.includes('não encontrada')) {
+      return res.status(404).json({ error: err.message });
     }
     return next(error);
   }
@@ -1807,7 +1829,7 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
 
     // ==== ==== CACHE: Verificar cache antes de buscar ==== ====
     const cacheKey = CacheKeys.mutualFriends(currentUserId, targetUserId);
-    const cachedResult = await getCached<any>(cacheKey);
+    const cachedResult = await getCached<Record<string, unknown>>(cacheKey);
     if (cachedResult) {
       logger.info(`✅ [Cache] HIT mutual: ${currentUserId} & ${targetUserId}`);
       return res.status(200).json(cachedResult);
@@ -1830,7 +1852,7 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
     // ==== ==== CRIAR SET DE IDs PARA BUSCA ==== ====
     const currentUserFriendIds = new Set<string>();
     currentUserFriendsSnapshot.docs.forEach(doc => {
-      currentUserFriendIds.add(doc.data().friendId);
+      currentUserFriendIds.add((doc.data() as { friendId: string }).friendId);
     });
 
     // ==== ==== ENCONTRAR INTERSEÇÃO ==== ====
@@ -1842,16 +1864,16 @@ router.get('/friendships/mutual/:userId', checkAuth, async (req: Request, res: R
     }> = [];
 
     targetUserFriendsSnapshot.docs.forEach(doc => {
-      const data = doc.data();
+      const data = doc.data() as { friendId: string, friend?: Record<string, unknown> };
       const friendId = data.friendId;
 
       if (currentUserFriendIds.has(friendId)) {
         const friendData = data.friend || {};
         mutualFriends.push({
           id: friendId,
-          displayName: friendData.displayName || 'Usuário',
-          nickname: friendData.nickname || '',
-          photoURL: friendData.photoURL || null,
+          displayName: (friendData.displayName as string) || 'Usuário',
+          nickname: (friendData.nickname as string) || '',
+          photoURL: (friendData.photoURL as string) || null,
         });
       }
     });
@@ -2098,7 +2120,7 @@ router.post('/friendships/block', checkAuth, async (req: Request, res: Response,
       resourceId: targetUserId,
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'Usuário bloqueado com sucesso', blockId });
@@ -2156,7 +2178,7 @@ router.post('/friendships/unblock', checkAuth, async (req: Request, res: Respons
       resourceId: targetUserId,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'Usuário desbloqueado com sucesso' });
@@ -2209,7 +2231,7 @@ router.get('/friendships/blocking/list', checkAuth, async (req: Request, res: Re
       return res.json({ data: [] });
     }
 
-    // Usar Promise.all com get() individual para maior compatibilidade/robez
+    // Usar Promise.all com get() individual para maior compatibilidade/robustez
     const usersSnapshot = await Promise.all(blockedUsersRefs.map(ref => ref.get()));
 
     const blockedUsers = usersSnapshot
