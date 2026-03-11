@@ -1,94 +1,161 @@
 {
-    "categories": [
+  "categories": [
+    {
+      "id": "physical",
+      "name": "Físico",
+      "icon": "book-open",
+      "formats": [
         {
-            "id": "physical",
-            "name": "Físico",
-            "formats": [
-                {
-                    "id": "paperback",
-                    "name": "Brochura"
-                },
-                {
-                    "id": "hardcover",
-                    "name": "Capa Dura"
-                },
-                {
-                    "id": "mass-market-paperback",
-                    "name": "Edição de Bolso"
-                },
-                {
-                    "id": "library-binding",
-                    "name": "Encadernação de Biblioteca"
-                },
-                {
-                    "id": "board-book",
-                    "name": "Livro Cartonado"
-                },
-                {
-                    "id": "leather-bound",
-                    "name": "Encadernação em Couro"
-                },
-                {
-                    "id": "spiral-bound",
-                    "name": "Espiral"
-                },
-                {
-                    "id": "unbound",
-                    "name": "Sem Encadernação"
-                },
-                {
-                    "id": "unknown-binding",
-                    "name": "Encadernação Desconhecida"
-                }
-            ]
+          "id": "paperback",
+          "name": "Brochura"
         },
         {
-            "id": "digital",
-            "name": "Digital",
-            "formats": [
-                {
-                    "id": "kindle",
-                    "name": "Kindle"
-                },
-                {
-                    "id": "nook",
-                    "name": "Nook"
-                },
-                {
-                    "id": "ebook",
-                    "name": "eBook"
-                },
-                {
-                    "id": "cd-rom",
-                    "name": "CD-ROM"
-                }
-            ]
+          "id": "hardcover",
+          "name": "Capa dura"
         },
         {
-            "id": "audio",
-            "name": "Áudio",
-            "formats": [
-                {
-                    "id": "audiobook",
-                    "name": "Audiolivro"
-                },
-                {
-                    "id": "audio-cd",
-                    "name": "CD de Áudio"
-                },
-                {
-                    "id": "audio-cassette",
-                    "name": "Fita Cassete"
-                },
-                {
-                    "id": "audible",
-                    "name": "Audible"
-                },
-                {
-                    "id": "mp3-cd",
-                    "name": "MP3 CD"
-                }
-            ]
+          "id": "mass-market-paperback",
+          "name": "Edição de bolso"
+        },
+        {
+          "id": "trade-paperback",
+          "name": "Brochura comercial"
+        },
+        {
+          "id": "library-binding",
+          "name": "Encadernação de biblioteca"
+        },
+        {
+          "id": "board-book",
+          "name": "Livro cartonado"
+        },
+        {
+          "id": "leather-bound",
+          "name": "Encadernação em couro"
+        },
+        {
+          "id": "spiral-bound",
+          "name": "Espiral"
+        },
+        {
+          "id": "ring-bound",
+          "name": "Encadernação em anel"
+        },
+        {
+          "id": "loose-leaf",
+          "name": "Folhas soltas"
+        },
+        {
+          "id": "boxed-set",
+          "name": "Box / coleção"
+        },
+        {
+          "id": "large-print",
+          "name": "Fonte ampliada"
+        },
+        {
+          "id": "unbound",
+          "name": "Sem encadernação"
+        },
+        {
+          "id": "unknown-binding",
+          "name": "Encadernação desconhecida"
         }
-    ]
+      ]
+    },
+    {
+      "id": "digital",
+      "name": "Digital",
+      "icon": "tablet",
+      "formats": [
+        {
+          "id": "ebook",
+          "name": "eBook"
+        },
+        {
+          "id": "epub",
+          "name": "EPUB"
+        },
+        {
+          "id": "pdf",
+          "name": "PDF"
+        },
+        {
+          "id": "mobi",
+          "name": "MOBI"
+        },
+        {
+          "id": "azw",
+          "name": "AZW / Kindle"
+        },
+        {
+          "id": "kindle",
+          "name": "Kindle"
+        },
+        {
+          "id": "nook",
+          "name": "Nook"
+        },
+        {
+          "id": "kobo",
+          "name": "Kobo"
+        },
+        {
+          "id": "apple-books",
+          "name": "Apple Books"
+        },
+        {
+          "id": "google-play-books",
+          "name": "Google Play Books"
+        },
+        {
+          "id": "interactive-ebook",
+          "name": "eBook interativo"
+        },
+        {
+          "id": "cd-rom",
+          "name": "CD-ROM"
+        }
+      ]
+    },
+    {
+      "id": "audio",
+      "name": "Áudio",
+      "icon": "headphones",
+      "formats": [
+        {
+          "id": "audiobook",
+          "name": "Audiolivro"
+        },
+        {
+          "id": "audio-cd",
+          "name": "CD de áudio"
+        },
+        {
+          "id": "audio-cassette",
+          "name": "Fita cassete"
+        },
+        {
+          "id": "mp3-cd",
+          "name": "CD MP3"
+        },
+        {
+          "id": "digital-audio",
+          "name": "Áudio digital"
+        },
+        {
+          "id": "audible",
+          "name": "Audible"
+        },
+        {
+          "id": "podcast-series",
+          "name": "Série em podcast"
+        },
+        {
+          "id": "streaming-audio",
+          "name": "Streaming de áudio"
+        }
+      ]
+    }
+  ]
 }

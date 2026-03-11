@@ -17,15 +17,20 @@ import { sanitize, sanitizeRichText } from '../lib/sanitize';
 export const createWorkSchema = z.object({
     title: z.string().min(1, 'Título é obrigatório').max(500)
         .transform(val => sanitize(val)),
+    subtitle: z.string().max(500).optional()
+        .transform(val => val ? sanitize(val) : val),
     originalTitle: z.string().max(500).optional()
         .transform(val => val ? sanitize(val) : val),
     originalLanguage: z.string().max(10).optional(),
+    originalPublicationDate: z.string().regex(/^\d{4}(-\d{2}(-\d{2})?)?$/, 'Data inválida (YYYY, YYYY-MM ou YYYY-MM-DD)').optional(),
     description: z.string().max(5000).optional()
         .transform(val => val ? sanitizeRichText(val) : val),
     ageRating: z.enum(['L', '10', '12', '14', '16', '18']).optional(),
     primaryAuthorIds: z.array(z.string().min(1)).min(1, 'Pelo menos um autor é obrigatório'),
     primaryAuthorType: z.array(z.enum(['person', 'group'])).min(1),
     genreIds: z.array(z.string().min(1)).optional().default([]),
+    themeIds: z.array(z.string().min(1)).optional().default([]),
+    settingIds: z.array(z.string().min(1)).optional().default([]),
     seriesEntries: z.array(z.object({
         seriesId: z.string().min(1),
         seriesName: z.string().min(1),
@@ -81,10 +86,12 @@ export const createEditionSchema = z.object({
     formatId: z.string().min(1, 'Formato é obrigatório'),
     publisherId: z.string().optional(),
     imprintId: z.string().optional(),
+    editionNumber: z.number().int().min(1).optional(),
     publicationDate: z.string().regex(/^\d{4}(-\d{2}(-\d{2})?)?$/, 'Data inválida (YYYY, YYYY-MM ou YYYY-MM-DD)').optional(),
     language: z.string().min(2, 'Idioma é obrigatório').max(10),
     pages: z.number().int().min(1).optional(),
     duration: z.number().int().min(1).optional(),
+    dimensions: z.string().max(100).optional(),
     contributors: z.array(z.object({
         personId: z.string().optional(),
         groupId: z.string().optional(),
@@ -139,19 +146,33 @@ export const createPersonSchema = z.object({
     bio: z.string().max(5000).optional()
         .transform(val => val ? sanitizeRichText(val) : val),
     photoUrl: z.string().url().optional(),
+    alternateNames: z.object({
+        birthName: z.string().optional(),
+        native: z.string().optional(),
+        romaji: z.string().optional(),
+        katakana: z.string().optional(),
+        legalName: z.string().optional(),
+        posthumousName: z.string().optional(),
+        other: z.array(z.string()).optional(),
+    }).optional(),
+    pseudonyms: z.array(z.string()).optional().default([]),
     birthDate: z.string().optional(),
     deathDate: z.string().optional(),
     birthPlace: z.object({
         city: z.string().optional(),
+        district: z.string().optional(),
         state: z.string().optional(),
         stateCode: z.string().optional(),
         country: z.string().min(1),
+        displayFormat: z.string().optional(),
     }).optional(),
     deathPlace: z.object({
         city: z.string().optional(),
+        district: z.string().optional(),
         state: z.string().optional(),
         stateCode: z.string().optional(),
         country: z.string().min(1),
+        displayFormat: z.string().optional(),
     }).optional(),
     nationality: z.string().max(100).optional(),
     website: z.string().url().or(z.literal('')).optional(),
@@ -367,12 +388,10 @@ export type SessionIdParam = z.infer<typeof sessionIdParamSchema>;
  */
 export const createReviewSchema = z.object({
     editionId: z.string().min(1, 'editionId é obrigatório'),
-    rating: z.number().min(0.5).max(5).multipleOf(0.5),
-    title: z.string().max(200).optional()
-        .transform(val => val ? sanitize(val) : val),
-    content: z.string().min(10, 'Conteúdo mínimo de 10 caracteres').max(50000)
-        .transform(val => sanitizeRichText(val)),
-    containsSpoiler: z.boolean().default(false),
+    rating: z.number().min(0).max(5).multipleOf(0.5).optional().nullable(),
+    title: z.any().transform(val => typeof val === 'string' ? sanitize(val) : val),
+    content: z.any().transform(val => typeof val === 'string' ? sanitizeRichText(val) : val),
+    containsSpoiler: z.boolean().default(false).optional(),
 });
 
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
@@ -381,11 +400,9 @@ export type CreateReviewInput = z.infer<typeof createReviewSchema>;
  * @name Schema de Atualização de Review
  */
 export const updateReviewSchema = z.object({
-    rating: z.number().min(0.5).max(5).multipleOf(0.5).optional(),
-    title: z.string().max(200).optional()
-        .transform(val => val ? sanitize(val) : val),
-    content: z.string().min(10).max(50000).optional()
-        .transform(val => val ? sanitizeRichText(val) : val),
+    rating: z.number().min(0).max(5).multipleOf(0.5).optional().nullable(),
+    title: z.any().transform(val => typeof val === 'string' ? sanitize(val) : val),
+    content: z.any().transform(val => typeof val === 'string' ? sanitizeRichText(val) : val),
     containsSpoiler: z.boolean().optional(),
 });
 

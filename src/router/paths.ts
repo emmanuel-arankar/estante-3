@@ -3,6 +3,8 @@ export const ROUTE_PATTERNS = {
   CHAT: '/chat/:receiverId',
   BOOK_DETAIL: '/book/:editionId',
   AUTHOR_DETAIL: '/author/:personId',
+  GROUP_DETAIL: '/group/:groupId',
+  WORK_REDIRECT: '/work/:workId',
 };
 
 type RouteParams = {
@@ -10,6 +12,8 @@ type RouteParams = {
   chat: { receiverId: string };
   book: { editionId: string };
   author: { personId: string };
+  group: { groupId: string };
+  work: { workId: string };
 };
 
 export const PATHS = {
@@ -46,4 +50,6 @@ export const PATHS = {
   CHAT: (params: RouteParams['chat']) => `/chat/${params.receiverId}`,
   BOOK: (params: RouteParams['book']) => `/book/${params.editionId}`,
   AUTHOR: (params: RouteParams['author']) => `/author/${params.personId}`,
+  GROUP: (params: RouteParams['group']) => `/group/${params.groupId}`,
+  WORK: (params: RouteParams['work']) => `/work/${params.workId}`,
 };

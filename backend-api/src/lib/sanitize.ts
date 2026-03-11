@@ -30,7 +30,8 @@ const DEFAULT_ALLOWED_TAGS: string[] = [];
  */
 const RICH_TEXT_ALLOWED_TAGS: string[] = [
     'p', 'br', 'b', 'i', 'em', 'strong', 'u', 's', 'strike',
-    'ul', 'ol', 'li', 'blockquote', 'a', 'span', 'h1', 'h2', 'h3',
+    'ul', 'ol', 'li', 'blockquote', 'a', 'span', 'h1', 'h2', 'h3', 'img',
+    'sub', 'sup', 'code', 'pre', 'mark'
 ];
 
 /**
@@ -145,7 +146,9 @@ export function sanitizeRichText(input: string): string {
         allowedTags: RICH_TEXT_ALLOWED_TAGS,
         allowedAttributes: {
             a: ['href', 'target', 'rel'],
-            span: ['class'],
+            span: ['class', 'style'],
+            mark: ['data-color', 'style'],
+            img: ['src', 'alt', 'title', 'width', 'height', 'style', 'class'],
         },
     });
 }

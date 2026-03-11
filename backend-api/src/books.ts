@@ -166,10 +166,16 @@ router.get('/books/works/:workId/editions', checkAuth, async (req: Request, res:
 
         const snapshot = await db.collection('editions')
             .where('workId', '==', v.data.workId)
-            .orderBy('publicationDate', 'desc')
             .get();
 
         const editions = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
+
+        editions.sort((a: any, b: any) => {
+            const dateA = a.publicationDate || '';
+            const dateB = b.publicationDate || '';
+            return dateB.localeCompare(dateA);
+        });
+
         return res.status(200).json(editions);
     } catch (error) { return next(error); }
 });
@@ -286,6 +292,30 @@ router.get('/books/persons/:personId', checkAuth, async (req: Request, res: Resp
 });
 
 /**
+ * @route GET /api/books/persons/:personId/editions
+ * @summary Buscar edições relacionadas a uma pessoa
+ */
+router.get('/books/persons/:personId/editions', checkAuth, async (req: Request, res: Response, next) => {
+    try {
+        const v = personIdParamSchema.safeParse(req.params);
+        if (!v.success) return res.status(400).json({ error: 'personId inválido' });
+
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 50;
+
+        const snapshot = await db.collection('editions').orderBy('createdAt', 'desc').get();
+        let editions = snapshot.docs
+            .map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }))
+            .filter((ed: any) => ed.contributors && ed.contributors.some((c: any) => c.personId === v.data.personId));
+
+        return res.status(200).json({
+            data: editions.slice((page - 1) * limit, page * limit),
+            pagination: { page, limit, total: editions.length, totalPages: Math.ceil(editions.length / limit) }
+        });
+    } catch (error) { return next(error); }
+});
+
+/**
  * @route POST /api/books/persons
  * @summary Criar pessoa (autor, tradutor, etc.)
  */
@@ -328,6 +358,23 @@ router.get('/books/groups/:groupId', checkAuth, async (req: Request, res: Respon
         if (!doc.exists) return res.status(404).json({ error: 'Grupo não encontrado' });
 
         return res.status(200).json({ id: doc.id, ...sanitizeTimestamps(doc.data()) });
+    } catch (error) { return next(error); }
+});
+
+/**
+ * @route GET /api/books/groups/:groupId/editions
+ */
+router.get('/books/groups/:groupId/editions', checkAuth, async (req: Request, res: Response, next) => {
+    try {
+        const v = groupIdParamSchema.safeParse(req.params);
+        if (!v.success) return res.status(400).json({ error: 'groupId inválido' });
+
+        const snapshot = await db.collection('editions').orderBy('createdAt', 'desc').get();
+        let editions = snapshot.docs
+            .map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }))
+            .filter((ed: any) => ed.contributors && ed.contributors.some((c: any) => c.groupId === v.data.groupId));
+
+        return res.status(200).json({ data: editions });
     } catch (error) { return next(error); }
 });
 
@@ -870,19 +917,24 @@ router.post('/books/reviews', checkAuth, async (req: Request, res: Response, nex
         const docRef = await db.collection('reviews').add(reviewData);
 
         // Atualizar contadores na edição e obra
-        const ratingField = `ratings${Math.floor(data.rating)}` as string;
         const batch = db.batch();
-        batch.update(db.collection('editions').doc(data.editionId), {
+        const editionUpdates: any = {
             reviewsCount: admin.firestore.FieldValue.increment(1),
-            ratingsCount: admin.firestore.FieldValue.increment(1),
             updatedAt: timestamp,
-        });
-        batch.update(db.collection('works').doc(workId), {
+        };
+        const workUpdates: any = {
             reviewsCount: admin.firestore.FieldValue.increment(1),
-            ratingsCount: admin.firestore.FieldValue.increment(1),
-            [ratingField]: admin.firestore.FieldValue.increment(1),
             updatedAt: timestamp,
-        });
+        };
+
+        if (typeof data.rating === 'number') {
+            editionUpdates.ratingsCount = admin.firestore.FieldValue.increment(1);
+            workUpdates.ratingsCount = admin.firestore.FieldValue.increment(1);
+            workUpdates[`ratings${Math.floor(data.rating)}`] = admin.firestore.FieldValue.increment(1);
+        }
+
+        batch.update(db.collection('editions').doc(data.editionId), editionUpdates);
+        batch.update(db.collection('works').doc(workId), workUpdates);
         await batch.commit();
 
         return res.status(201).json({ id: docRef.id, message: 'Review criada' });

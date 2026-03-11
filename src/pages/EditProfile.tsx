@@ -185,7 +185,7 @@ export const EditProfile = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Bio</label>
                 <input type="hidden" name="bio" value={bioContent} />
-                <RichTextEditor content={bioContent} onChange={setBioContent} maxLength={500} />
+                <RichTextEditor value={bioContent} onChange={setBioContent} maxLength={500} variant="minimal" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -26,8 +26,10 @@ export type SuggestionType = 'work' | 'edition' | 'person' | 'group'
 export interface Work {
   id: string;
   title: string;
+  subtitle?: string;
   originalTitle?: string;
   originalLanguage?: string;
+  originalPublicationDate?: string;
   description?: string;
   coverUrl?: string;
   ageRating?: AgeRating;
@@ -35,8 +37,14 @@ export interface Work {
   primaryAuthorIds: string[];
   primaryAuthorNames: string[];
   primaryAuthorType: ('person' | 'group')[];
+
+  // Taxonomia Profunda
   genreIds: string[];
   genreNames: string[];
+  themeIds: string[];
+  themeNames: string[];
+  settingIds: string[];
+  settingNames: string[];
 
   seriesEntries: WorkSeriesEntry[];
 
@@ -86,11 +94,13 @@ export interface Edition {
   publisherName?: string;
   imprintId?: string;
   imprintName?: string;
+  editionNumber?: number;
   publicationDate?: string;
   language: string;
 
   pages?: number;
   duration?: number;
+  dimensions?: string;
 
   contributors: EditionContributor[];
   purchaseLinks: PurchaseLink[];
@@ -108,6 +118,7 @@ export interface EditionContributor {
   groupId?: string;
   name: string;
   role: ContributorRole;
+  photoUrl?: string;
 }
 
 export interface PurchaseLink {
@@ -123,9 +134,21 @@ export interface PurchaseLink {
 // PESSOA
 // =============================================================================
 
+export interface PersonAlternateNames {
+  birthName?: string;   // Nome de nascimento
+  native?: string;      // Kanji, Hangul, Cirílico
+  romaji?: string;      // Romanização
+  katakana?: string;    // Fonética
+  legalName?: string;   // Nome legal (se diferente)
+  posthumousName?: string; // Nome póstumo (comum no oriente)
+  other?: string[];     // Outras variações
+}
+
 export interface Person {
   id: string;
   name: string;
+  alternateNames?: PersonAlternateNames;
+  pseudonyms?: string[];
   gender: PersonGender;
   bio?: string;
   photoUrl?: string;
@@ -146,9 +169,11 @@ export interface Person {
 
 export interface PersonLocation {
   city?: string;
+  district?: string;
   state?: string;
   stateCode?: string;
   country: string;
+  displayFormat?: string;
 }
 
 export interface SocialLink {

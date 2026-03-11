@@ -258,7 +258,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                               {searchWorks.map((work) => (
                                 <Link
                                   key={work.id}
-                                  to={`/search?q=${encodeURIComponent(work.title)}`}
+                                  to={PATHS.WORK({ workId: work.id })}
                                   onClick={() => { setIsSearchFocused(false); setSearchQuery(''); }}
                                   className="flex items-center space-x-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors"
                                 >

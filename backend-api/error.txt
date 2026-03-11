@@ -1,0 +1,24 @@
+{"severity":"INFO","message":"Rodando em ambiente de produção ou sem emuladores definidos para backend-api."}
+{"severity":"INFO","message":"Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais)."}
+{"severity":"WARNING","message":"FB_API_KEY não definida no .env. Login com senha e recuperação falharão."}
+{"severity":"INFO","message":"Usando duração do cookie de sessão: 1209600000 ms"}
+{"severity":"INFO","message":"Usando limite de busca de amigos: 10"}
+C:\Users\emman\estante-3\node_modules\ts-node\src\index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/reviews.ts(5,18): error TS6133: 'Request' is declared but its value is never read.
+src/reviews.ts(5,27): error TS6133: 'Response' is declared but its value is never read.
+
+    at createTSError (C:\Users\emman\estante-3\node_modules\ts-node\src\index.ts:859:12)
+    at reportTSError (C:\Users\emman\estante-3\node_modules\ts-node\src\index.ts:863:19)
+    at getOutput (C:\Users\emman\estante-3\node_modules\ts-node\src\index.ts:1077:36)
+    at Object.compile (C:\Users\emman\estante-3\node_modules\ts-node\src\index.ts:1433:41)
+    at Module.m._compile (C:\Users\emman\estante-3\node_modules\ts-node\src\index.ts:1617:30)
+    at node:internal/modules/cjs/loader:1893:10
+    at Object.require.extensions.<computed> [as .ts] (C:\Users\emman\estante-3\node_modules\ts-node\src\index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14) {
+  diagnosticCodes: [ 6133, 6133 ]
+}

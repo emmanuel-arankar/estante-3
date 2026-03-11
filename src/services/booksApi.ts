@@ -35,6 +35,10 @@ export const getEditionsByWorkAPI = async (workId: string): Promise<Edition[]> =
     return await apiClient(`/books/works/${workId}/editions`);
 };
 
+export const getWorkEditionsAPI = async (workId: string): Promise<Edition[]> => {
+    return await apiClient(`/books/works/${workId}/editions`);
+};
+
 export const getEditionAPI = async (editionId: string): Promise<Edition> => {
     return await apiClient(`/books/editions/${editionId}`);
 };
@@ -55,8 +59,16 @@ export const getPersonAPI = async (personId: string): Promise<Person> => {
     return await apiClient(`/books/persons/${personId}`);
 };
 
+export const getPersonEditionsAPI = async (personId: string, page = 1, limit = 50): Promise<PaginatedResponse<Edition>> => {
+    return await apiClient(`/books/persons/${personId}/editions?page=${page}&limit=${limit}`);
+};
+
 export const getGroupAPI = async (groupId: string): Promise<AuthorGroup> => {
     return await apiClient(`/books/groups/${groupId}`);
+};
+
+export const getGroupEditionsAPI = async (groupId: string): Promise<{ data: Edition[] }> => {
+    return await apiClient(`/books/groups/${groupId}/editions`);
 };
 
 // =============================================================================
