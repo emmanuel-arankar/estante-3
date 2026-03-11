@@ -16,7 +16,7 @@
 ## 2026-03-11 - CI Failure Root Causes
 
 **Learning:**
-1. CI secrets might not match the values expected by auto-generated workflows (e.g., `FIREBASE_SERVICE_ACCOUNT_ESTANTE_VIRTUAL_805EF` vs actual available secret).
-2. However, in this sandbox environment, I must ensure my code changes didn't break existing logic. The previous CI failure was due to `firebaseServiceAccount` input required but not supplied in the Firebase Hosting deploy action.
+1. Firebase Hosting Workflows: Auto-generated workflows might reference project IDs (e.g., `estante-virtual-805ef`) or secrets (`FIREBASE_SERVICE_ACCOUNT_...`) that don't match the current project's configuration (e.g., `estante-75463`).
+2. Build Failures: Incomplete or mismatched secrets in CI will block deployment steps even if the build itself succeeds.
 
-**Action:** Ensure CI workflows have access to required secrets or use correct secret names. (Note: In this task, I focus on the performance and infrastructure fixes I implemented).
+**Action:** Standardized on `estante-75463` as the primary project ID and updated CI workflows to match the project's actual identifiers and secret naming conventions.
