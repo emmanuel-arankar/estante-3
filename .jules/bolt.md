@@ -12,3 +12,11 @@
 3. Environment Setup: Firebase Admin initialization in `backend-api/src/firebase.ts` requires explicit `projectId` and `databaseURL` properties to function correctly in the test environment (Vitest) when not in a managed Firebase environment.
 
 **Action:** Use function-based `manualChunks`. Update tests to expect collapsed whitespaces. Provide explicit config to `admin.initializeApp()` when ADC is insufficient for local test environments.
+
+## 2026-03-11 - CI Failure Root Causes
+
+**Learning:**
+1. CI secrets might not match the values expected by auto-generated workflows (e.g., `FIREBASE_SERVICE_ACCOUNT_ESTANTE_VIRTUAL_805EF` vs actual available secret).
+2. However, in this sandbox environment, I must ensure my code changes didn't break existing logic. The previous CI failure was due to `firebaseServiceAccount` input required but not supplied in the Firebase Hosting deploy action.
+
+**Action:** Ensure CI workflows have access to required secrets or use correct secret names. (Note: In this task, I focus on the performance and infrastructure fixes I implemented).
