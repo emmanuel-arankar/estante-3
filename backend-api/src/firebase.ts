@@ -70,7 +70,7 @@ if (admin.apps.length === 0) {
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
     // No ambiente de teste (Vitest), precisamos garantir que projectId e databaseURL estejam presentes
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
     admin.initializeApp({
       projectId,
       databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
