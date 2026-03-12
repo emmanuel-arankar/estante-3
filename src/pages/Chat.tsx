@@ -337,7 +337,7 @@ export const Chat = () => {
     } else {
       setCurrentSearchIndex(0);
     }
-  }, [searchQuery, searchMatches.length]);
+  }, [searchQuery, searchMatches, scrollToMessage]);
 
   // Agrupa mensagens por data (não mais filtrado por busca)
   // O(N) optimization: messages are sorted, so we only need to compare with the last group
