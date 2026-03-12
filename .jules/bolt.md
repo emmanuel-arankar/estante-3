@@ -1,0 +1,3 @@
+## 2026-03-12 - [Chat Performance Optimization]
+**Learning:** In high-frequency rendering contexts like a chat message list, `React.memo` is only effective if combined with stable function references for callbacks. Using `useRef` to track the latest state within a `useCallback` allows the callback to remain stable even when the state (e.g., the messages array) changes, preventing cascading re-renders. Additionally, for sorted datasets, O(N) grouping logic is significantly more efficient than O(N*G) searches.
+**Action:** Always ensure callbacks passed to memoized list items are stable using identifiers and `useRef` for data access. Use single-pass O(N) grouping for sorted lists.
