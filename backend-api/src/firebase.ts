@@ -69,7 +69,12 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    // No ambiente de teste (Vitest), precisamos garantir que projectId e databaseURL estejam presentes
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+    admin.initializeApp({
+      projectId,
+      databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }

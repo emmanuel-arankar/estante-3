@@ -130,12 +130,23 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            // Vendor chunks - separados para melhor caching
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-            'ui-vendor': ['framer-motion', 'lucide-react'],
-            'query-vendor': ['@tanstack/react-query'],
+          manualChunks(id) {
+            // Function-based implementation to avoid SSR issues with externalized modules like 'react'
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'react-vendor';
+              }
+              if (id.includes('firebase')) {
+                return 'firebase-vendor';
+              }
+              if (id.includes('framer-motion') || id.includes('lucide-react')) {
+                return 'ui-vendor';
+              }
+              if (id.includes('@tanstack/react-query')) {
+                return 'query-vendor';
+              }
+              return 'vendor';
+            }
           }
         }
       },
