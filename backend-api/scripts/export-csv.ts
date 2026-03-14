@@ -41,15 +41,16 @@ async function getFields(collectionName: string) {
 }
 
 // Achatar JSON
-function flatten(data: any): any {
-    const result: any = {};
+function flatten(data: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
     for (const key in data) {
         const val = data[key];
         if (val && typeof val === 'object') {
-            if (val._seconds !== undefined && val._nanoseconds !== undefined) {
-                result[key] = new Date(val._seconds * 1000).toISOString();
-            } else if (val.toDate && typeof val.toDate === 'function') {
-                result[key] = val.toDate().toISOString();
+            const obj = val as Record<string, unknown>;
+            if (obj._seconds !== undefined && obj._nanoseconds !== undefined) {
+                result[key] = new Date((obj._seconds as number) * 1000).toISOString();
+            } else if (typeof obj.toDate === 'function') {
+                result[key] = (obj as { toDate: () => Date }).toDate().toISOString();
             } else {
                 result[key] = JSON.stringify(val);
             }
@@ -60,7 +61,7 @@ function flatten(data: any): any {
     return result;
 }
 
-function escapeCsv(value: any): string {
+function escapeCsv(value: unknown): string {
     if (value === null || value === undefined) return '';
     const str = String(value);
     if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
@@ -85,7 +86,7 @@ async function exportCollection(collectionName: string) {
         lines.push(fields.map(escapeCsv).join(','));
 
         querySnapshot.docs.forEach(doc => {
-            const flatData = flatten(doc.data());
+            const flatData = flatten(doc.data() as Record<string, unknown>);
             const rowStr = fields.map(f => {
                 if (f === 'id') return escapeCsv(doc.id);
                 return escapeCsv(flatData[f]);

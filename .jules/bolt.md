@@ -1,0 +1,3 @@
+## 2026-03-14 - [Chat Performance Optimization]
+**Learning:** For chronologically sorted lists (like chat messages), grouping logic can be optimized to O(N) by only comparing the current item with the last group, avoiding nested searches. Also, high-frequency components like `ChatBubble` must have referentially stable callbacks to make `React.memo` effective.
+**Action:** Always check if a dataset is already sorted before implementing grouping/filtering. When using `React.memo`, ensure all passed functions are wrapped in `useCallback` and avoid depending on large arrays by using `useRef` patterns.
