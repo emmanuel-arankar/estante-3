@@ -250,7 +250,7 @@ export const Chat = () => {
 
   const handleSendMessage = useCallback(async (
     content: string,
-    type: string = 'text',
+    type: ChatMessage['type'] = 'text',
     isTemporary?: boolean,
     file?: Blob,
     waveform?: number[],
@@ -259,7 +259,7 @@ export const Chat = () => {
     viewOnce?: boolean,
     images?: Blob[]
   ) => {
-    await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
+    await sendMessage(content, type, isTemporary, file, waveform, duration, caption, viewOnce, images);
   }, [sendMessage]);
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
@@ -728,7 +728,7 @@ export const Chat = () => {
           {/* Input de Mensagem */}
           <div className="border-t border-gray-200 p-4 bg-white shrink-0">
             <ChatInput
-              onSendMessage={handleSendMessage as any}
+              onSendMessage={handleSendMessage}
               onTyping={updateTyping}
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
