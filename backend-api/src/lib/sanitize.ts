@@ -128,9 +128,8 @@ export function sanitize(input: string, options: SanitizeOptions = {}): string {
     output = output.replace(/on\w+\s*=/gi, 'x-event=');
     output = output.replace(/(javascript|data|vbscript):/gi, 'x-$1:');
 
-    // 7. Reduzir excesso abusivo de quebras de linha e espaços
+    // 7. Reduzir excesso abusivo de quebras de linha
     output = output.replace(/\n{3,}/g, '\n\n'); // Max 2 quebras sucessivas
-    output = output.replace(/[ \t]{2,}/g, ' '); // Trava duplo espaço
 
     return output.trim();
 }

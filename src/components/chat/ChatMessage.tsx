@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useMemo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -59,6 +59,8 @@ interface ChatMessageProps {
 import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
+
+const WAVEFORM_FALLBACK_ARRAY = Array.from({ length: 30 });
 
 const AudioPlayer = ({
     src,
@@ -196,7 +198,7 @@ const AudioPlayer = ({
         setDragProgress(getProgressFromEvent(clientX));
     };
 
-    const handleSeekEnd = () => {
+    const handleSeekEnd = useCallback(() => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
@@ -205,7 +207,7 @@ const AudioPlayer = ({
         setProgress(dragProgress);
         setCurrentTime((dragProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, getAudioElement, id, duration, dragProgress]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -224,7 +226,7 @@ const AudioPlayer = ({
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, dragProgress, duration, handleSeekEnd]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -275,7 +277,7 @@ const AudioPlayer = ({
                         )}
                     >
                         {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+                            const bars = waveform && waveform.length > 0 ? waveform : WAVEFORM_FALLBACK_ARRAY;
                             const MAX_BARS = 35;
                             const step = Math.ceil(bars.length / MAX_BARS);
                             const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
@@ -425,7 +427,7 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
     );
 };
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +460,9 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
-export const ChatBubble = ({
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -968,4 +970,4 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
