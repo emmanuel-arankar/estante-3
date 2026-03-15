@@ -33,7 +33,11 @@ export const useChat = (receiverId?: string) => {
   const [hasOlderMessages, setHasOlderMessages] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const loadingOlderRef = useRef(false); // ref síncrona para bloquear re-triggers
+  const messagesRef = useRef<ChatMessage[]>([]);
 
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     if (receiverId) {
@@ -350,7 +354,7 @@ export const useChat = (receiverId?: string) => {
     if (!user || !receiverId || !hasOlderMessages) return;
     // Bloqueio síncrono via ref para evitar re-triggers do scroll event
     if (loadingOlderRef.current) return;
-    const oldestId = messages[0]?.id;
+    const oldestId = messagesRef.current[0]?.id;
     if (!oldestId) return;
 
     loadingOlderRef.current = true;

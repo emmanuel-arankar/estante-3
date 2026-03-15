@@ -1,0 +1,3 @@
+## 2024-03-15 - [Efficient Grouping & Stability]
+**Learning:** Performance in a real-time chat can be significantly improved by ensuring that high-frequency data (messages) is processed in $O(N)$ by leveraging existing order (time-sorted). Additionally, `React.memo` is only effective if the parent provides referentially stable callbacks via `useCallback` or `useRef`.
+**Action:** Always check if data is already sorted before using `.find()` or `.filter()` in a loop. Use `useRef` to maintain latest state in callbacks that shouldn't trigger re-renders.
