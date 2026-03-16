@@ -30,6 +30,9 @@ jobs:
       
       - name: Run tests
         run: npm run test:run
+        env:
+          VITE_FIREBASE_PROJECT_ID: estante-75463
+          FIREBASE_DATABASE_URL: https://estante-75463-default-rtdb.firebaseio.com
       
       - name: Generate coverage
         run: npm run test:coverage
