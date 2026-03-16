@@ -196,7 +196,7 @@ const AudioPlayer = ({
         setDragProgress(getProgressFromEvent(clientX));
     };
 
-    const handleSeekEnd = () => {
+    const handleSeekEnd = useCallback((_id: string) => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
@@ -205,7 +205,7 @@ const AudioPlayer = ({
         setProgress(dragProgress);
         setCurrentTime((dragProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, getAudioElement, id, duration, dragProgress]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -213,7 +213,7 @@ const AudioPlayer = ({
             const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
             setDragProgress(getProgressFromEvent(clientX));
         };
-        const handleGlobalEnd = () => handleSeekEnd();
+        const handleGlobalEnd = () => handleSeekEnd(id);
         window.addEventListener('mousemove', handleGlobalMove);
         window.addEventListener('mouseup', handleGlobalEnd);
         window.addEventListener('touchmove', handleGlobalMove);

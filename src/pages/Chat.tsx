@@ -331,7 +331,12 @@ export const Chat = () => {
   }, [searchQuery, searchMatches.length]);
 
   // Agrupa mensagens por data (não mais filtrado por busca)
-  // O(N) single-pass approach since messages are already sorted by date
+  /**
+   * PERFORMANCE OPTIMIZATION (Bolt ⚡):
+   * Single-pass O(N) grouping logic.
+   * Since messages are already sorted by date, we only need to compare with the tail
+   * of the groups array, avoiding O(N*G) complexity from nested searches.
+   */
   const groupedMessages = useMemo(() => {
     const groups: { date: Date; messages: ChatMessage[] }[] = [];
     messages.forEach((msg) => {
@@ -615,6 +620,12 @@ export const Chat = () => {
                           }}
                           className="transition-colors duration-500 rounded-lg p-1"
                         >
+                          {/**
+                            * PERFORMANCE OPTIMIZATION (Bolt ⚡):
+                            * ChatBubble is wrapped in React.memo and props are referentially stable.
+                            * This prevents unnecessary re-renders of the entire message list
+                            * when typing or other state updates occur.
+                            */}
                           <ChatBubble
                             message={message}
                             isOwn={message.senderId === user.uid}
