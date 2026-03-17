@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChatBubble } from '@/components/chat/ChatMessage';
+import { MemoizedChatBubble } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatGallery } from '@/components/chat/ChatGallery';
 import { PageMetadata } from '@/common/PageMetadata';
@@ -108,6 +108,12 @@ export const Chat = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const { setActiveId } = useAudioStore();
+
+  // Keep messages in a ref for stable callbacks
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Helper to check if user is at the bottom
   const isAtBottom = () => {
@@ -243,7 +249,7 @@ export const Chat = () => {
     }
   }, [user, receiverId, navigate]);
 
-  const handleSendMessage = async (
+  const handleSendMessage = useCallback(async (
     content: string,
     type: string = 'text',
     isTemporary?: boolean,
@@ -255,29 +261,30 @@ export const Chat = () => {
     images?: Blob[]
   ) => {
     await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
-  };
+  }, [sendMessage]);
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
-  const handleMarkTemporaryAsPlayed = async (messageId: string) => {
+  const handleMarkTemporaryAsPlayed = useCallback(async (messageId: string) => {
     if (!user || !receiverId) return;
     await markTemporaryAudioAsPlayed(user.uid, receiverId, messageId);
-  };
+  }, [user, receiverId]);
 
-  const handlePlayNext = (currentMessageId: string) => {
-    const currentIndex = messages.findIndex(m => m.id === currentMessageId);
+  const handlePlayNext = useCallback((currentMessageId: string) => {
+    const currentMessages = messagesRef.current;
+    const currentIndex = currentMessages.findIndex(m => m.id === currentMessageId);
     if (currentIndex !== -1) {
       // Find next audio (sequential playback)
-      for (let i = currentIndex + 1; i < messages.length; i++) {
-        const msg = messages[i];
+      for (let i = currentIndex + 1; i < currentMessages.length; i++) {
+        const msg = currentMessages[i];
         if (msg.type === 'audio' && !msg.isDeleted) {
           setActiveId(msg.id);
           break;
         }
       }
     }
-  };
+  }, [setActiveId]);
 
-  const scrollToMessage = (messageId: string) => {
+  const scrollToMessage = useCallback((messageId: string) => {
     const element = document.getElementById(`msg-${messageId}`);
     if (element) {
       // Pequeno delay para garantir que eventuais menus/popovers fecharam
@@ -286,9 +293,8 @@ export const Chat = () => {
         element.classList.add('bg-orange-50');
         setTimeout(() => element.classList.remove('bg-orange-50'), 2000);
       }, 50);
-
     }
-  };
+  }, []);
 
 
   // Helper para formatar a data do grupo
@@ -298,19 +304,38 @@ export const Chat = () => {
     return format(date, "d 'de' MMMM", { locale: ptBR });
   };
 
-  const handleSearchNext = () => {
+  const handleSearchNext = useCallback(() => {
     if (searchMatches.length === 0) return;
     const nextIndex = (currentSearchIndex + 1) % searchMatches.length;
     setCurrentSearchIndex(nextIndex);
     scrollToMessage(searchMatches[nextIndex]);
-  };
+  }, [searchMatches, currentSearchIndex, scrollToMessage]);
 
-  const handleSearchPrev = () => {
+  const handleSearchPrev = useCallback(() => {
     if (searchMatches.length === 0) return;
     const prevIndex = (currentSearchIndex - 1 + searchMatches.length) % searchMatches.length;
     setCurrentSearchIndex(prevIndex);
     scrollToMessage(searchMatches[prevIndex]);
-  };
+  }, [searchMatches, currentSearchIndex, scrollToMessage]);
+
+  // Stable callbacks for ChatBubble to avoid re-renders
+  const handleReply = useCallback((m: ChatMessage) => {
+    setEditingMessage(null);
+    setReplyingTo(m);
+  }, [setEditingMessage, setReplyingTo]);
+
+  const handleDelete = useCallback((id: string) => {
+    deleteMessage(id);
+  }, [deleteMessage]);
+
+  const handleReact = useCallback((id: string, emoji: string) => {
+    reactToMessage(id, emoji);
+  }, [reactToMessage]);
+
+  const handleEdit = useCallback((m: ChatMessage) => {
+    setReplyingTo(null);
+    setEditingMessage(m);
+  }, [setEditingMessage, setReplyingTo]);
 
   // Resetar index quando query mudar (começar do mais recente = último index)
   useEffect(() => {
@@ -324,13 +349,15 @@ export const Chat = () => {
   }, [searchQuery, searchMatches.length]);
 
   // Agrupa mensagens por data (não mais filtrado por busca)
+  // Optimization: O(N) single-pass grouping instead of O(N*G) search
   const groupedMessages = useMemo(() => {
     const groups: { date: Date; messages: ChatMessage[] }[] = [];
     messages.forEach((msg) => {
       const msgDate = new Date(msg.createdAt);
-      const group = groups.find((g) => isSameDay(g.date, msgDate));
-      if (group) {
-        group.messages.push(msg);
+      const lastGroup = groups[groups.length - 1];
+
+      if (lastGroup && isSameDay(lastGroup.date, msgDate)) {
+        lastGroup.messages.push(msg);
       } else {
         groups.push({ date: msgDate, messages: [msg] });
       }
@@ -592,50 +619,48 @@ export const Chat = () => {
                         </span>
                       </div>
 
-                      {group.messages.map((message, index) => (
-                        <motion.div
-                          key={message.id}
-                          id={`msg-${message.id}`}
-                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 400,
-                            damping: 30,
-                            opacity: { duration: 0.2 }
-                          }}
-                          className="transition-colors duration-500 rounded-lg p-1"
-                        >
-                          <ChatBubble
-                            message={message}
-                            isOwn={message.senderId === user.uid}
-                            onReply={() => {
-                              setEditingMessage(null);
-                              setReplyingTo(message);
-                            }}
-                            onDelete={() => deleteMessage(message.id)}
-                            onMarkAsViewed={markMessageAsViewed}
-                            onReact={(emoji: string) => reactToMessage(message.id, emoji)}
-                            onMarkTemporaryAsPlayed={handleMarkTemporaryAsPlayed}
-                            currentUserId={user.uid}
-                            showAvatar={
-                              index === 0 ||
-                              group.messages[index - 1].senderId !== message.senderId
-                            }
-                            senderName={message.senderId === user.uid ? 'Você' : displayReceiverName}
-                            senderPhoto={message.senderId === user.uid ? (user.photoURL || undefined) : (displayReceiverPhoto || undefined)}
-                            onPlayNext={() => handlePlayNext(message.id)}
-                            onEdit={() => {
-                              setReplyingTo(null);
-                              setEditingMessage(message);
-                            }}
-                            onJumpToMessage={scrollToMessage}
-                            searchQuery={searchQuery}
-                            isCurrentMatch={searchMatches[currentSearchIndex] === message.id}
-                          />
+                      {group.messages.map((message, index) => {
+                        const isOwn = message.senderId === user.uid;
+                        const showAvatar = index === 0 || group.messages[index - 1].senderId !== message.senderId;
+                        const senderName = isOwn ? 'Você' : displayReceiverName;
+                        const senderPhoto = isOwn ? (user.photoURL || undefined) : (displayReceiverPhoto || undefined);
+                        const isCurrentMatch = searchMatches[currentSearchIndex] === message.id;
 
-                        </motion.div>
-                      ))}
+                        return (
+                          <motion.div
+                            key={message.id}
+                            id={`msg-${message.id}`}
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 400,
+                              damping: 30,
+                              opacity: { duration: 0.2 }
+                            }}
+                            className="transition-colors duration-500 rounded-lg p-1"
+                          >
+                            <MemoizedChatBubble
+                              message={message}
+                              isOwn={isOwn}
+                              onReply={handleReply}
+                              onDelete={handleDelete}
+                              onMarkAsViewed={markMessageAsViewed}
+                              onReact={handleReact}
+                              onMarkTemporaryAsPlayed={handleMarkTemporaryAsPlayed}
+                              currentUserId={user.uid}
+                              showAvatar={showAvatar}
+                              senderName={senderName}
+                              senderPhoto={senderPhoto}
+                              onPlayNext={handlePlayNext}
+                              onEdit={handleEdit}
+                              onJumpToMessage={scrollToMessage}
+                              searchQuery={searchQuery}
+                              isCurrentMatch={isCurrentMatch}
+                            />
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
