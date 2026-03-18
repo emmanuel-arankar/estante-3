@@ -24,7 +24,7 @@ const loadConfig = (filePath: string) => {
 // Inicializar App Antigo
 const oldApp = admin.initializeApp({
     credential: admin.credential.cert(loadConfig(oldCredPath)),
-    projectId: 'estante-75463'
+    projectId: 'estante-virtual-805ef'
 }, 'export-csv-project');
 
 const db = oldApp.firestore();
