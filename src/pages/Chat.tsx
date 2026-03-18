@@ -260,7 +260,7 @@ export const Chat = () => {
     viewOnce?: boolean,
     images?: Blob[]
   ) => {
-    await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
+    await sendMessage(content, type as ChatMessage['type'], isTemporary, file, waveform, duration, caption, viewOnce, images);
   }, [sendMessage]);
 
   const handleReply = useCallback((message: ChatMessage | null) => {
@@ -346,12 +346,15 @@ export const Chat = () => {
   const groupedMessages = useMemo(() => {
     const groups: { date: Date; messages: ChatMessage[] }[] = [];
     messages.forEach((msg) => {
+      // Bolt: Ensure msgDate is a valid Date object for isSameDay
+      const msgDate = msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt);
       const lastGroup = groups[groups.length - 1];
+
       // Since messages are sorted by date, we only need to compare with the last group
-      if (lastGroup && isSameDay(lastGroup.date, msg.createdAt)) {
+      if (lastGroup && isSameDay(lastGroup.date, msgDate)) {
         lastGroup.messages.push(msg);
       } else {
-        groups.push({ date: msg.createdAt, messages: [msg] });
+        groups.push({ date: msgDate, messages: [msg] });
       }
     });
     return groups;
@@ -721,7 +724,7 @@ export const Chat = () => {
           {/* Input de Mensagem */}
           <div className="border-t border-gray-200 p-4 bg-white shrink-0">
             <ChatInput
-              onSendMessage={handleSendMessage as any}
+              onSendMessage={handleSendMessage}
               onTyping={updateTyping}
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
