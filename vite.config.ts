@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, ssrBuild }) => {
   // Carrega variáveis de ambiente (ex: .env, .env.local)
   const env = loadEnv(mode, process.cwd());
 
@@ -130,12 +130,22 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            // Vendor chunks - separados para melhor caching
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-            'ui-vendor': ['framer-motion', 'lucide-react'],
-            'query-vendor': ['@tanstack/react-query'],
+          // manualChunks não pode ser usado para módulos externalizados no SSR.
+          manualChunks: ssrBuild ? undefined : (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'react-vendor';
+              }
+              if (id.includes('firebase')) {
+                return 'firebase-vendor';
+              }
+              if (id.includes('framer-motion') || id.includes('lucide-react')) {
+                return 'ui-vendor';
+              }
+              if (id.includes('@tanstack/react-query')) {
+                return 'query-vendor';
+              }
+            }
           }
         }
       },
