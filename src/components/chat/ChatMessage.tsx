@@ -359,7 +359,7 @@ const AudioPlayer = memo(({
             </div>
         </div>
     );
-};
+});
 
 import { requestTranscription } from '@/services/functions';
 import { Loader2, FileText } from 'lucide-react';
@@ -425,7 +425,7 @@ const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message:
             </button>
         </div>
     );
-};
+});
 
 const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
@@ -460,7 +460,7 @@ const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; que
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
 export const ChatBubble = memo(({
     message,
@@ -970,4 +970,4 @@ export const ChatBubble = memo(({
             )}
         </motion.div>
     );
-};
+});
