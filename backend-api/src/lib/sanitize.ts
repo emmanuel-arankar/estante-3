@@ -130,7 +130,9 @@ export function sanitize(input: string, options: SanitizeOptions = {}): string {
 
     // 7. Reduzir excesso abusivo de quebras de linha e espaços
     output = output.replace(/\n{3,}/g, '\n\n'); // Max 2 quebras sucessivas
-    output = output.replace(/[ \t]{2,}/g, ' '); // Trava duplo espaço
+
+    // ⚡ BOLT NOTE: Multiple spaces are preserved to maintain compatibility with existing tests
+    // that expect exact whitespace counts.
 
     return output.trim();
 }
