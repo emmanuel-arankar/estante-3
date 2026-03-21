@@ -159,7 +159,7 @@ export const Chat = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [messages, user?.uid, scrollToBottom]);
+  }, [messages, user?.uid, scrollToBottom, isAtBottom]);
 
   // Use ResizeObserver to stay at bottom when content size changes (e.g. images loading)
   useEffect(() => {
@@ -231,7 +231,7 @@ export const Chat = () => {
       scrollEl.addEventListener('scroll', handleScroll);
       return () => scrollEl.removeEventListener('scroll', handleScroll);
     }
-  }, [hasOlderMessages, loadingOlder, loadOlderMessages]);
+  }, [hasOlderMessages, loadingOlder, loadOlderMessages, isAtBottom]);
 
   useEffect(() => {
     if (!user) {
