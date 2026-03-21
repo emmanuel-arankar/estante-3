@@ -110,15 +110,17 @@ export const Chat = () => {
   const { setActiveId } = useAudioStore();
 
   // Helper to check if user is at the bottom
-  const isAtBottom = () => {
+  // ⚡ BOLT OPTIMIZATION: Stabilized isAtBottom callback
+  const isAtBottom = useCallback(() => {
     if (!scrollRef.current) return false;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
     // Buffer de 150px para tolerância ao verificar se está no final
     return scrollHeight - scrollTop - clientHeight < 150;
-  };
+  }, []);
 
   // Auto-scroll para o final
-  const scrollToBottom = (behavior: ScrollBehavior = 'smooth', force: boolean = false) => {
+  // ⚡ BOLT OPTIMIZATION: Stabilized scrollToBottom callback
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth', force: boolean = false) => {
     if (scrollRef.current && (force || isAtBottom())) {
       const scrollHeight = scrollRef.current.scrollHeight;
       scrollRef.current.scrollTo({
@@ -126,7 +128,7 @@ export const Chat = () => {
         behavior
       });
     }
-  };
+  }, [isAtBottom]);
 
   // Track previous messages
   const prevMessagesRef = useRef<ChatMessage[]>([]);
@@ -157,7 +159,7 @@ export const Chat = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [messages]);
+  }, [messages, user?.uid, scrollToBottom, isAtBottom]);
 
   // Use ResizeObserver to stay at bottom when content size changes (e.g. images loading)
   useEffect(() => {
@@ -176,7 +178,7 @@ export const Chat = () => {
     if (innerContainer) observer.observe(innerContainer);
 
     return () => observer.disconnect();
-  }, []);
+  }, [scrollToBottom, isAtBottom]);
 
 
   // Track if initial scroll has happened
@@ -190,14 +192,14 @@ export const Chat = () => {
       // Double check after layout settles
       setTimeout(() => scrollToBottom('auto', true), 300);
     }
-  }, [loading, messages.length]);
+  }, [loading, messages.length, scrollToBottom]);
 
   // Scroll on typing/recording start
   useEffect(() => {
     if (isTyping || isRecording) {
       scrollToBottom('smooth');
     }
-  }, [isTyping, isRecording]);
+  }, [isTyping, isRecording, scrollToBottom]);
 
   // Monitor scroll position to show/hide "Scroll to Bottom" button + carregar histórico
   useEffect(() => {
@@ -229,7 +231,7 @@ export const Chat = () => {
       scrollEl.addEventListener('scroll', handleScroll);
       return () => scrollEl.removeEventListener('scroll', handleScroll);
     }
-  }, [hasOlderMessages, loadingOlder, loadOlderMessages]);
+  }, [hasOlderMessages, loadingOlder, loadOlderMessages, isAtBottom]);
 
   useEffect(() => {
     if (!user) {
@@ -321,16 +323,18 @@ export const Chat = () => {
     } else {
       setCurrentSearchIndex(0);
     }
-  }, [searchQuery, searchMatches.length]);
+  }, [searchQuery, searchMatches]);
 
   // Agrupa mensagens por data (não mais filtrado por busca)
+  // ⚡ BOLT OPTIMIZATION: Single-pass O(N) grouping for sorted messages
   const groupedMessages = useMemo(() => {
     const groups: { date: Date; messages: ChatMessage[] }[] = [];
     messages.forEach((msg) => {
       const msgDate = new Date(msg.createdAt);
-      const group = groups.find((g) => isSameDay(g.date, msgDate));
-      if (group) {
-        group.messages.push(msg);
+      const lastGroup = groups[groups.length - 1];
+
+      if (lastGroup && isSameDay(lastGroup.date, msgDate)) {
+        lastGroup.messages.push(msg);
       } else {
         groups.push({ date: msgDate, messages: [msg] });
       }

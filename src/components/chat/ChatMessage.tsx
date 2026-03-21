@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -37,6 +37,9 @@ import {
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType } from '@estante/common-types';
 
+// ⚡ BOLT OPTIMIZATION: Hoisted constants to avoid re-allocation
+const DEFAULT_WAVEFORM = Array.from({ length: 30 });
+
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
@@ -60,7 +63,7 @@ import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
 
-const AudioPlayer = ({
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -275,7 +278,7 @@ const AudioPlayer = ({
                         )}
                     >
                         {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+                            const bars = waveform && waveform.length > 0 ? waveform : DEFAULT_WAVEFORM;
                             const MAX_BARS = 35;
                             const step = Math.ceil(bars.length / MAX_BARS);
                             const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
@@ -357,12 +360,12 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
 
 import { requestTranscription } from '@/services/functions';
 import { Loader2, FileText } from 'lucide-react';
 
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +426,9 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +461,10 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
-export const ChatBubble = ({
+// ⚡ BOLT OPTIMIZATION: memoized component to prevent re-renders when parent state (e.g. typing) changes
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -968,4 +972,4 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
