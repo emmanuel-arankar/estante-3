@@ -11,7 +11,8 @@ import { Edition } from '@estante/common-types';
 import { formatPublicationDate } from '@/lib/utils';
 import { getLanguageName, getLanguageFlag } from '@/data/book-languages';
 import { getContributorRoleName } from '@/data/book-contributors';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { trackEvent } from '@/lib/analytics';
 
 export function PersonDetail() {
     const { personId } = useParams();
@@ -33,10 +34,16 @@ export function PersonDetail() {
     });
 
     // Compute derived properties
-    const hasAlternateNames = person?.alternateNames && Object.keys(person.alternateNames).length > 0;
+    const hasAlternateNames = person?.alternateNames && person.alternateNames.length > 0;
     const hasEncyclopediaLinks = person?.encyclopediaLinks && person.encyclopediaLinks.length > 0;
-    const hasPseudonyms = person?.pseudonyms && person.pseudonyms.length > 0;
     const hasSocialLinks = person?.socialLinks && person.socialLinks.length > 0;
+
+    // Rastrear visualização do perfil do autor
+    useEffect(() => {
+        if (person?.id) {
+            trackEvent('author_viewed', { person_id: person.id, name: person.name, type: 'person' });
+        }
+    }, [person?.id]);
 
     if (isLoadingPerson) {
         return (
@@ -101,6 +108,33 @@ export function PersonDetail() {
                             </div>
                         )}
 
+                        {/* Nomes Alternativos e Wikipedia - Layout Restorado */}
+                        {(hasAlternateNames || hasEncyclopediaLinks) && (
+                            <div className="mt-5 flex flex-col gap-2">
+                                {hasAlternateNames && (
+                                    <div className="flex flex-wrap gap-1.5 items-center">
+                                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest mr-1">Conhecido também como:</span>
+                                        {person.alternateNames!.map((alt, idx) => (
+                                            <span key={idx} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-medium border border-indigo-100">
+                                                {alt.value} 
+                                                {alt.language || alt.country || alt.script || alt.type ? ` (${[alt.language, alt.country, alt.script, alt.type].filter(Boolean).join('-')})` : ''}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                {hasEncyclopediaLinks && (
+                                    <div className="flex flex-wrap gap-3 items-center mt-1">
+                                        {person.encyclopediaLinks!.map((link, i) => (
+                                            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 text-sm font-medium capitalize">
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                {link.source} {link.language && `(${link.language})`}
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Social Links Rápidos */}
                         {(hasSocialLinks || person.website) && (
                             <div className="flex flex-wrap gap-3 mt-6">
@@ -129,43 +163,7 @@ export function PersonDetail() {
                                 <Info className="w-5 h-5 text-emerald-600" /> Biografia
                             </h3>
                             {/* eslint-disable-next-line react/no-danger */}
-                            <div className="prose prose-sm max-w-none text-gray-600 text-justify" dangerouslySetInnerHTML={{ __html: person.bio }} />
-                        </div>
-                    )}
-
-                    {/* Meta-dados Adicionais (Nomes Alternativos, Encyclopedia) */}
-                    {(hasAlternateNames || hasPseudonyms || hasEncyclopediaLinks) && (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-sm text-gray-700">
-                            <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-50">Curiosidades & Links</h3>
-                            <dl className="space-y-4">
-                                {(person.pseudonyms?.length ?? 0) > 0 && (
-                                    <div>
-                                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Pseudônimos</dt>
-                                        <dd className="font-medium text-gray-900">{person.pseudonyms!.join(', ')}</dd>
-                                    </div>
-                                )}
-                                {hasAlternateNames && Object.entries(person.alternateNames!).map(([key, val]) => (
-                                    val ? (
-                                        <div key={key}>
-                                            <dt className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Nome ({key})</dt>
-                                            <dd className="font-medium text-gray-900">{Array.isArray(val) ? val.join(', ') : val}</dd>
-                                        </div>
-                                    ) : null
-                                ))}
-                                {hasEncyclopediaLinks && (
-                                    <div>
-                                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Wikipédia e Outros</dt>
-                                        <dd className="flex flex-col gap-2">
-                                            {person.encyclopediaLinks!.map((link, i) => (
-                                                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 capitalize">
-                                                    {link.source} {link.language && `(${link.language})`}
-                                                    <ExternalLink className="w-3 h-3" />
-                                                </a>
-                                            ))}
-                                        </dd>
-                                    </div>
-                                )}
-                            </dl>
+                            <div className="prose prose-sm max-w-none text-gray-600 text-justify hyphens-auto" dangerouslySetInnerHTML={{ __html: person.bio }} />
                         </div>
                     )}
                 </div>
@@ -224,8 +222,11 @@ export function PersonDetail() {
                                             <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 group-hover:text-emerald-600 transition-colors">
                                                 {edition.title}
                                             </h4>
+                                            {edition.subtitle && (
+                                                <span className="text-xs text-gray-600 line-clamp-1 italic">{edition.subtitle}</span>
+                                            )}
                                             {edition.publicationDate && (
-                                                <span className="text-xs text-gray-500 mt-1 capitalize">{formatPublicationDate(edition.publicationDate)}</span>
+                                                <span className="text-xs text-gray-500 mt-1">{formatPublicationDate(edition.publicationDate)}</span>
                                             )}
                                         </div>
                                     </Link>
