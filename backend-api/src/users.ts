@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
@@ -74,10 +74,11 @@ router.get('/users/by-nickname/:nickname', checkAuth, asyncHandler(async (req: R
     coverPhotoURL: userData?.coverPhotoURL || null,
     createdAt: userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
     joinedAt: userData?.joinedAt?.toDate?.()?.toISOString() || userData?.joinedAt || userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
+    role: userData?.role || 'user',
 
     // ==== ==== 2. CONTADORES DE ENGAJAMENTO ==== ====
     // Proteção anti-negativo: FieldValue.increment(-1) não tem floor
-    friendsCount: Math.max(0, userData?.friendsCount || 0),
+    friendsCount: Math.max(0, userData?.stats?.friendsCount || userData?.friendsCount || 0),
   };
 
   await setCache(cacheKey, publicProfile, 120);
@@ -435,9 +436,9 @@ router.get('/users/me/stats', checkAuth, asyncHandler(async (req: Request, res: 
 
   // Proteção anti-negativo: condições de corrida podem gerar valores < 0
   const stats = {
-    totalFriends: Math.max(0, data?.friendsCount || 0),
-    pendingRequests: Math.max(0, data?.pendingRequestsCount || 0),
-    sentRequests: Math.max(0, data?.sentRequestsCount || 0),
+    totalFriends: Math.max(0, data?.stats?.friendsCount || data?.friendsCount || 0),
+    pendingRequests: Math.max(0, data?.stats?.pendingRequestsCount || data?.pendingRequestsCount || 0),
+    sentRequests: Math.max(0, data?.stats?.sentRequestsCount || data?.sentRequestsCount || 0),
   };
 
   await setCache(cacheKey, stats, 60);
@@ -513,10 +514,11 @@ router.get('/users/:userId', checkAuth, asyncHandler(async (req: Request, res: R
     coverPhotoURL: userData?.coverPhotoURL || null,
     createdAt: userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
     joinedAt: userData?.joinedAt?.toDate?.()?.toISOString() || userData?.joinedAt || userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
+    role: userData?.role || 'user',
 
     // ==== ==== 2. CONTADORES CONSOLIDADOS ==== ====
     // Proteção anti-negativo: FieldValue.increment(-1) não tem floor
-    friendsCount: Math.max(0, userData?.friendsCount || 0),
+    friendsCount: Math.max(0, userData?.stats?.friendsCount || userData?.friendsCount || 0),
   };
 
   await setCache(cacheKey, publicProfile, 120);

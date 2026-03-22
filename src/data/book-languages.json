@@ -61,6 +61,18 @@
       "flag": "🇳🇴"
     },
     {
+      "id": "nb",
+      "name": "Norueguês (Bokmål)",
+      "nativeName": "Norsk Bokmål",
+      "flag": "🇳🇴"
+    },
+    {
+      "id": "nn",
+      "name": "Norueguês (Nynorsk)",
+      "nativeName": "Norsk Nynorsk",
+      "flag": "🇳🇴"
+    },
+    {
       "id": "da",
       "name": "Dinamarquês",
       "nativeName": "Dansk",

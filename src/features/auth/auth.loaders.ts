@@ -1,6 +1,6 @@
 import { redirect } from 'react-router-dom';
 import { PATHS } from '@/router/paths';
-import { awaitAuthReady, getCurrentUser } from '@/services/auth';
+import { awaitAuthReady, getCurrentUser } from '@/services/firebase/auth';
 
 export const publicOnlyLoader = async () => {
   // # atualizado: Aguarda a verificação inicial de autenticação do Firebase

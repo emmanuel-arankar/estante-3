@@ -70,7 +70,7 @@ export const ContributorsList: React.FC<ContributorsListProps> = ({ contributors
                                         className="ring-2 ring-transparent group-hover:ring-indigo-100 transition-all"
                                     />
                                     <div>
-                                        <p className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                                        <p className={`${section.title === 'Autores' ? 'text-lg font-bold' : 'text-base font-semibold'} text-gray-900 group-hover:text-indigo-600 transition-colors`}>
                                             {contributor.name}
                                         </p>
                                         <p className="text-xs text-gray-500">

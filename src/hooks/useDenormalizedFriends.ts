@@ -22,7 +22,7 @@ import {
   getFriendshipStatusAPI,
   getUserStatsAPI,
   ListFriendsParams,
-} from '@/services/friendshipsApi';
+} from '@/services/api/friendshipsApi';
 import type {
   UseFriendsResult,
   FriendshipActions

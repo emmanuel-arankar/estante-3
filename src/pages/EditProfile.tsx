@@ -1,16 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useLoaderData, Form, useNavigation } from 'react-router-dom';
-import { ArrowLeft, Save, User, Link as LinkIcon, Check, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, User, Link as LinkIcon, Check, X, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
 import {
   Card,
   CardContent,
@@ -20,9 +13,14 @@ import {
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { LocationSelector } from '@/components/ui/location-selector';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { PATHS } from '@/router/paths';
 import { User as UserModel } from '@estante/common-types';
-import { apiClient } from '@/services/apiClient';
+import { apiClient } from '@/services/api/apiClient';
 
 const convertFirestoreDate = (date: any): Date | null => {
   if (!date) return null;
@@ -46,9 +44,53 @@ export const EditProfile = () => {
   const [bioContent, setBioContent] = useState(profile.bio || '');
 
   const date = convertFirestoreDate(profile.birthDate);
-  const defaultBirthDay = date ? date.getDate().toString() : '';
-  const defaultBirthMonth = date ? (date.getMonth() + 1).toString() : '';
-  const defaultBirthYear = date ? date.getFullYear().toString() : '';
+  const [birthDate, setBirthDate] = useState<Date | undefined>(date || undefined);
+  const [dateInputValue, setDateInputValue] = useState(date ? format(date, "dd' / 'MM' / 'yyyy", { locale: ptBR }) : '');
+
+  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    let value = rawValue.replace(/\D/g, '');
+
+    // Se o usuário apagou tudo, resetamos os estados
+    if (value.length === 0) {
+      setDateInputValue('');
+      setBirthDate(undefined);
+      return;
+    }
+
+    if (value.length > 8) value = value.substring(0, 8);
+
+    let formatted = '';
+    if (value.length > 0) {
+      formatted = value.substring(0, 2);
+      if (value.length > 2) {
+        formatted += ' / ' + value.substring(2, 4);
+        if (value.length > 4) {
+          formatted += ' / ' + value.substring(4, 8);
+        }
+      }
+    }
+    setDateInputValue(formatted);
+
+    if (value.length === 8) {
+      const day = parseInt(value.substring(0, 2));
+      const month = parseInt(value.substring(2, 4)) - 1;
+      const year = parseInt(value.substring(4, 8));
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime()) && year >= 1900 && year <= new Date().getFullYear()) {
+        setBirthDate(d);
+      }
+    }
+  };
+
+  const handleDateSelect = (newDate: Date | undefined) => {
+    setBirthDate(newDate);
+    if (newDate) {
+      setDateInputValue(format(newDate, "dd' / 'MM' / 'yyyy", { locale: ptBR }));
+    } else {
+      setDateInputValue('');
+    }
+  };
 
   // Parsear localização existente
   const locationData = profile.location;
@@ -128,10 +170,7 @@ export const EditProfile = () => {
     }
   }
 
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
-  const months = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString(), label: new Date(0, i).toLocaleString('pt-BR', { month: 'long' }) }));
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 100 }, (_, i) => (currentYear - 13 - i).toString());
+
 
   return (
     <>
@@ -143,7 +182,7 @@ export const EditProfile = () => {
         noIndex={true}
       />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
         <Card>
           <CardHeader>
             <div className="flex items-center space-x-4">
@@ -188,23 +227,51 @@ export const EditProfile = () => {
                 <RichTextEditor value={bioContent} onChange={setBioContent} maxLength={500} variant="minimal" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Data de Nascimento</label>
-                  <div className="flex space-x-2">
-                    <Select name="birthDay" defaultValue={defaultBirthDay}>
-                      <SelectTrigger><SelectValue placeholder="Dia" /></SelectTrigger>
-                      <SelectContent>{days.map(day => <SelectItem key={day} value={day}>{day}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select name="birthMonth" defaultValue={defaultBirthMonth}>
-                      <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
-                      <SelectContent>{months.map(month => <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select name="birthYear" defaultValue={defaultBirthYear}>
-                      <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
-                      <SelectContent>{years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent>
-                    </Select>
+                  <label className="text-sm font-medium text-gray-700 block">Data de Nascimento</label>
+                  <div className="relative w-full sm:w-[calc(50%-0.5rem)]">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="absolute left-0 top-0 bottom-0 px-3 z-20 flex items-center justify-center transition-colors group"
+                          title="Abrir calendário"
+                        >
+                          <CalendarIcon className="h-4 w-4 text-gray-400 group-hover:text-emerald-600 transition-colors" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={birthDate}
+                          onSelect={handleDateSelect}
+                          defaultMonth={birthDate}
+                          initialFocus
+                          locale={ptBR}
+                          captionLayout="dropdown-buttons"
+                          fromYear={1900}
+                          toYear={new Date().getFullYear()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      placeholder="DD / MM / AAAA"
+                      value={dateInputValue}
+                      onChange={handleDateInputChange}
+                      className={cn(
+                        "pl-10 font-normal relative z-10",
+                        !birthDate && "text-muted-foreground"
+                      )}
+                    />
                   </div>
+                  {birthDate && (
+                    <>
+                      <input type="hidden" name="birthYear" value={birthDate.getFullYear().toString()} />
+                      <input type="hidden" name="birthMonth" value={(birthDate.getMonth() + 1).toString()} />
+                      <input type="hidden" name="birthDay" value={birthDate.getDate().toString()} />
+                    </>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <LocationSelector

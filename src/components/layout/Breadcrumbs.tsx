@@ -40,7 +40,7 @@ export const Breadcrumbs = () => {
   }
 
   return (
-    <Breadcrumb className="hidden md:flex mt-4 mb-2">
+    <Breadcrumb className="hidden md:flex mt-4 mb-0.5">
       <BreadcrumbList>
         <AnimatePresence initial={false}>
           {/* Item Home (sem alteração) */}

@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
@@ -887,12 +887,12 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
       const toUserRef = db.collection('users').doc(targetUserId);
 
       transaction.update(fromUserRef, {
-        sentRequestsCount: admin.firestore.FieldValue.increment(1),
+        'stats.sentRequestsCount': admin.firestore.FieldValue.increment(1),
         updatedAt: timestamp,
       });
 
       transaction.update(toUserRef, {
-        pendingRequestsCount: admin.firestore.FieldValue.increment(1),
+        'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(1),
         updatedAt: timestamp,
       });
     });
@@ -1048,15 +1048,15 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
 
       // Quem aceitou: -1 pendingRequestsCount, +1 friendsCount
       transaction.update(accepterRef, {
-        pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
-        friendsCount: admin.firestore.FieldValue.increment(1),
+        'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-1),
+        'stats.friendsCount': admin.firestore.FieldValue.increment(1),
         updatedAt: timestamp,
       });
 
       // Quem enviou: -1 sentRequestsCount, +1 friendsCount
       transaction.update(requesterRef, {
-        sentRequestsCount: admin.firestore.FieldValue.increment(-1),
-        friendsCount: admin.firestore.FieldValue.increment(1),
+        'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-1),
+        'stats.friendsCount': admin.firestore.FieldValue.increment(1),
         updatedAt: timestamp,
       });
     });
@@ -1215,11 +1215,11 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
       hadAcceptedFriendship = true;
       // Remover amizade: -1 friendsCount para ambos
       batch.update(userRef, {
-        friendsCount: admin.firestore.FieldValue.increment(-1),
+        'stats.friendsCount': admin.firestore.FieldValue.increment(-1),
         updatedAt: batchTimestamp,
       });
       batch.update(friendRef, {
-        friendsCount: admin.firestore.FieldValue.increment(-1),
+        'stats.friendsCount': admin.firestore.FieldValue.increment(-1),
         updatedAt: batchTimestamp,
       });
     } else if (status === 'pending') {
@@ -1227,21 +1227,21 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
       if (requestedBy === userId) {
         // Usuário atual é quem ENVIOU → cancelando
         batch.update(userRef, {
-          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: batchTimestamp,
         });
         batch.update(friendRef, {
-          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: batchTimestamp,
         });
       } else {
         // Usuário atual RECEBEU → rejeitando
         batch.update(userRef, {
-          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: batchTimestamp,
         });
         batch.update(friendRef, {
-          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: batchTimestamp,
         });
       }
@@ -1390,8 +1390,8 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
 
       // Quem aceitou: -N pendingRequestsCount, +N friendsCount
       transaction.update(accepterRef, {
-        pendingRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
-        friendsCount: admin.firestore.FieldValue.increment(valid.length),
+        'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-valid.length),
+        'stats.friendsCount': admin.firestore.FieldValue.increment(valid.length),
         updatedAt: timestamp,
       });
 
@@ -1400,8 +1400,8 @@ router.post('/friendships/bulk-accept', checkAuth, async (req: Request, res: Res
         const requesterData = item.userDoc.data();
         const requesterRef = db.collection('users').doc(requesterData?.requestedBy || item.friendId);
         transaction.update(requesterRef, {
-          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
-          friendsCount: admin.firestore.FieldValue.increment(1),
+          'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-1),
+          'stats.friendsCount': admin.firestore.FieldValue.increment(1),
           updatedAt: timestamp,
         });
       }
@@ -1540,7 +1540,7 @@ router.post('/friendships/bulk-reject', checkAuth, async (req: Request, res: Res
 
       // Quem rejeitou (destinatário): -N pendingRequestsCount
       transaction.update(receiverRef, {
-        pendingRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
+        'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-valid.length),
         updatedAt: timestamp,
       });
 
@@ -1549,7 +1549,7 @@ router.post('/friendships/bulk-reject', checkAuth, async (req: Request, res: Res
         const senderData = item.userDoc.data();
         const senderRef = db.collection('users').doc(senderData?.requestedBy || item.friendId);
         transaction.update(senderRef, {
-          sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: timestamp,
         });
       }
@@ -1651,7 +1651,7 @@ router.post('/friendships/bulk-cancel', checkAuth, async (req: Request, res: Res
 
       // Quem cancelou (remetente): -N sentRequestsCount
       transaction.update(senderRef, {
-        sentRequestsCount: admin.firestore.FieldValue.increment(-valid.length),
+        'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-valid.length),
         updatedAt: timestamp,
       });
 
@@ -1659,7 +1659,7 @@ router.post('/friendships/bulk-cancel', checkAuth, async (req: Request, res: Res
       for (const item of valid) {
         const receiverRef = db.collection('users').doc(item.friendId);
         transaction.update(receiverRef, {
-          pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: timestamp,
         });
       }
@@ -2042,30 +2042,30 @@ router.post('/friendships/block', checkAuth, async (req: Request, res: Response,
       if (status === 'accepted') {
         hadAcceptedFriendship = true;
         batch.update(userRef, {
-          friendsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.friendsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: blockTimestamp,
         });
         batch.update(targetRef, {
-          friendsCount: admin.firestore.FieldValue.increment(-1),
+          'stats.friendsCount': admin.firestore.FieldValue.increment(-1),
           updatedAt: blockTimestamp,
         });
       } else if (status === 'pending') {
         if (requestedBy === userId) {
           batch.update(userRef, {
-            sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+            'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-1),
             updatedAt: blockTimestamp,
           });
           batch.update(targetRef, {
-            pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+            'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-1),
             updatedAt: blockTimestamp,
           });
         } else {
           batch.update(userRef, {
-            pendingRequestsCount: admin.firestore.FieldValue.increment(-1),
+            'stats.pendingRequestsCount': admin.firestore.FieldValue.increment(-1),
             updatedAt: blockTimestamp,
           });
           batch.update(targetRef, {
-            sentRequestsCount: admin.firestore.FieldValue.increment(-1),
+            'stats.sentRequestsCount': admin.firestore.FieldValue.increment(-1),
             updatedAt: blockTimestamp,
           });
         }

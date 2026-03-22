@@ -6,8 +6,8 @@ import {
 } from '@/features/users/user.queries';
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
-import { getCurrentUser } from '@/services/auth';
-import { getUserProfileAPI } from '@/services/usersApi';
+import { getCurrentUser } from '@/services/firebase/auth';
+import { getUserProfileAPI } from '@/services/api/usersApi';
 
 /**
  * Loader de perfil público:

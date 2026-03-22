@@ -80,9 +80,9 @@ export const LocationSelector = ({
   };
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`flex flex-col sm:flex-row gap-4 w-full ${className}`}>
       {/* Campo Estado */}
-      <div className="space-y-2">
+      <div className="space-y-2 flex-1 relative">
         <label htmlFor="state" className="text-sm font-medium text-gray-700">
           Estado
         </label>
@@ -112,35 +112,38 @@ export const LocationSelector = ({
       </div>
 
       {/* Campo Cidade */}
-      <div className="space-y-2">
+      <div className="space-y-2 flex-1 relative">
         <label htmlFor="city" className="text-sm font-medium text-gray-700">
           Cidade
         </label>
-        <Select
-          name={cityFieldName}
-          value={selectedCity}
-          onValueChange={handleCityChange}
-          disabled={!selectedStateCode || cities.length === 0}
-        >
-          <SelectTrigger>
-            <SelectValue
-              placeholder={
-                !selectedStateCode
-                  ? "Selecione um estado primeiro"
-                  : cities.length === 0
-                  ? "Nenhuma cidade encontrada"
-                  : "Selecione a cidade"
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {cities.map((city) => (
-              <SelectItem key={city} value={city}>
-                {city}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+          <Select
+            name={cityFieldName}
+            value={selectedCity}
+            onValueChange={handleCityChange}
+            disabled={!selectedStateCode || cities.length === 0}
+          >
+            <SelectTrigger className="pl-10">
+              <SelectValue
+                placeholder={
+                  !selectedStateCode
+                    ? "Selecione um estado primeiro"
+                    : cities.length === 0
+                    ? "Nenhuma cidade encontrada"
+                    : "Selecione a cidade"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {cities.map((city) => (
+                <SelectItem key={city} value={city}>
+                  {city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );

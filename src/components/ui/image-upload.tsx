@@ -4,7 +4,7 @@ import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { uploadImage } from '@/services/storage';
+import { uploadImage } from '@/services/firebase/storage';
 import {
   toastSuccessClickable,
   toastErrorClickable

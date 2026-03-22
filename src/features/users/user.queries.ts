@@ -1,5 +1,5 @@
 import { User } from '@estante/common-types';
-import { apiClient } from '@/services/apiClient';
+import { apiClient } from '@/services/api/apiClient';
 
 /**
  * Definição de query reutilizável para buscar um usuário pelo ID.

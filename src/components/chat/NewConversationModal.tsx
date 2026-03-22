@@ -28,7 +28,7 @@ import {
   toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
-import { searchUsersAPI } from '@/services/api';
+import { searchUsersAPI } from '@/services/api/api';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
 
@@ -203,9 +203,9 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
                                 {user.bio.replace(/<[^>]*>/g, '')}
                               </p>
                             )}
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[10px] text-gray-500 font-medium">
-                              <span>{user.booksRead || 0} livros lidos</span>
-                              <span>{user.followers || 0} seguidores</span>
+                            <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                              <span>{user.stats?.booksRead || 0} livros lidos</span>
+                              <span>{user.stats?.followers || 0} seguidores</span>
                             </div>
                           </div>
 

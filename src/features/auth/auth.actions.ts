@@ -6,8 +6,8 @@ import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
 import { useAuthStore } from '@/stores/authStore';
 import { userQuery } from '@/features/users/user.queries';
-import { loginAPI, registerAPI } from '@/services/authApi';
-import { signInWithToken } from '@/services/auth';
+import { loginAPI, registerAPI } from '@/services/api/authApi';
+import { signInWithToken } from '@/services/firebase/auth';
 
 export const loginAction = async ({ request }: any) => {
   const formData = await request.formData();

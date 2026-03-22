@@ -5,6 +5,20 @@
 import { z } from 'zod';
 import { sanitize, sanitizeRichText } from '../lib/sanitize';
 
+const entityRefSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+});
+
+const alternateNameSchema = z.object({
+    value: z.string().min(1, 'Nome variante não pode ser vazio').max(500),
+    country: z.string().max(2).optional(),
+    language: z.string().max(10).optional(),
+    script: z.string().max(10).optional(),
+    type: z.string().max(50).optional(),
+    description: z.string().max(500).optional(),
+});
+
 // =============================================================================
 // SCHEMAS DE OBRAS (WORKS)
 // =============================================================================
@@ -21,16 +35,20 @@ export const createWorkSchema = z.object({
         .transform(val => val ? sanitize(val) : val),
     originalTitle: z.string().max(500).optional()
         .transform(val => val ? sanitize(val) : val),
+    alternateNames: z.array(alternateNameSchema).optional().default([]),
     originalLanguage: z.string().max(10).optional(),
     originalPublicationDate: z.string().regex(/^\d{4}(-\d{2}(-\d{2})?)?$/, 'Data inválida (YYYY, YYYY-MM ou YYYY-MM-DD)').optional(),
     description: z.string().max(5000).optional()
         .transform(val => val ? sanitizeRichText(val) : val),
     ageRating: z.enum(['L', '10', '12', '14', '16', '18']).optional(),
-    primaryAuthorIds: z.array(z.string().min(1)).min(1, 'Pelo menos um autor é obrigatório'),
-    primaryAuthorType: z.array(z.enum(['person', 'group'])).min(1),
-    genreIds: z.array(z.string().min(1)).optional().default([]),
-    themeIds: z.array(z.string().min(1)).optional().default([]),
-    settingIds: z.array(z.string().min(1)).optional().default([]),
+    primaryAuthors: z.array(z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        type: z.enum(['person', 'group'])
+    })).min(1, 'Pelo menos um autor é obrigatório'),
+    genres: z.array(entityRefSchema).optional().default([]),
+    themes: z.array(entityRefSchema).optional().default([]),
+    locations: z.array(entityRefSchema).optional().default([]),
     seriesEntries: z.array(z.object({
         seriesId: z.string().min(1),
         seriesName: z.string().min(1),
@@ -84,14 +102,19 @@ export const createEditionSchema = z.object({
     coverUrl: z.string().url().optional(),
     formatCategoryId: z.string().min(1, 'Categoria de formato é obrigatória'),
     formatId: z.string().min(1, 'Formato é obrigatório'),
-    publisherId: z.string().optional(),
-    imprintId: z.string().optional(),
+    publisher: entityRefSchema.optional(),
+    imprint: entityRefSchema.optional(),
     editionNumber: z.number().int().min(1).optional(),
     publicationDate: z.string().regex(/^\d{4}(-\d{2}(-\d{2})?)?$/, 'Data inválida (YYYY, YYYY-MM ou YYYY-MM-DD)').optional(),
     language: z.string().min(2, 'Idioma é obrigatório').max(10),
     pages: z.number().int().min(1).optional(),
     duration: z.number().int().min(1).optional(),
-    dimensions: z.string().max(100).optional(),
+    dimensions: z.object({
+        height: z.number().positive().optional(),
+        width: z.number().positive().optional(),
+        thickness: z.number().positive().optional(),
+    }).optional(),
+    weight: z.number().int().min(1).optional(), // gramas
     contributors: z.array(z.object({
         personId: z.string().optional(),
         groupId: z.string().optional(),
@@ -146,16 +169,7 @@ export const createPersonSchema = z.object({
     bio: z.string().max(5000).optional()
         .transform(val => val ? sanitizeRichText(val) : val),
     photoUrl: z.string().url().optional(),
-    alternateNames: z.object({
-        birthName: z.string().optional(),
-        native: z.string().optional(),
-        romaji: z.string().optional(),
-        katakana: z.string().optional(),
-        legalName: z.string().optional(),
-        posthumousName: z.string().optional(),
-        other: z.array(z.string()).optional(),
-    }).optional(),
-    pseudonyms: z.array(z.string()).optional().default([]),
+    alternateNames: z.array(alternateNameSchema).optional().default([]),
     birthDate: z.string().optional(),
     deathDate: z.string().optional(),
     birthPlace: z.object({
@@ -236,6 +250,7 @@ export const createPublisherSchema = z.object({
     name: z.string().min(1, 'Nome é obrigatório').max(200)
         .transform(val => sanitize(val)),
     website: z.string().url().or(z.literal('')).optional(),
+    alternateNames: z.array(alternateNameSchema).optional().default([]),
     logoUrl: z.string().url().optional(),
     imprints: z.array(z.object({
         name: z.string().min(1),
@@ -258,11 +273,19 @@ export const createSeriesSchema = z.object({
     description: z.string().max(3000).optional()
         .transform(val => val ? sanitize(val) : val),
     totalBooks: z.number().int().min(1).optional(),
-    primaryAuthorId: z.string().optional(),
-    primaryAuthorType: z.enum(['person', 'group']).optional(),
+    primaryAuthors: z.array(z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        type: z.enum(['person', 'group'])
+    })).optional(),
     relatedSeriesIds: z.array(z.string().min(1)).optional().default([]),
     seriesType: z.string().max(50).optional(),
     originalSeriesId: z.string().optional(),
+    alternateNames: z.array(alternateNameSchema).optional().default([]),
+    externalLinks: z.array(z.object({
+        source: z.string().min(1).max(50),
+        url: z.string().url(),
+    })).optional().default([]),
 });
 
 export type CreateSeriesInput = z.infer<typeof createSeriesSchema>;
@@ -388,6 +411,7 @@ export type SessionIdParam = z.infer<typeof sessionIdParamSchema>;
  */
 export const createReviewSchema = z.object({
     editionId: z.string().min(1, 'editionId é obrigatório'),
+    workId: z.string().optional(), // Opcional no schema, mas robustecido no backend
     rating: z.number().min(0).max(5).multipleOf(0.5).optional().nullable(),
     title: z.any().transform(val => typeof val === 'string' ? sanitize(val) : val),
     content: z.any().transform(val => typeof val === 'string' ? sanitizeRichText(val) : val),
@@ -426,10 +450,20 @@ export type ReviewIdParam = z.infer<typeof reviewIdParamSchema>;
  */
 export const createCommentSchema = z.object({
     content: z.string().min(1, 'Conteúdo é obrigatório').max(2000)
-        .transform(val => sanitize(val)),
+        .transform(val => sanitizeRichText(val)),
 });
 
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
+
+/**
+ * @name Schema de Atualização de Comentário
+ */
+export const updateCommentSchema = z.object({
+    content: z.string().min(1, 'Conteúdo é obrigatório').max(2000)
+        .transform(val => sanitizeRichText(val)),
+});
+
+export type UpdateCommentInput = z.infer<typeof updateCommentSchema>;
 
 /**
  * @name Schema de ID de Comentário
@@ -474,11 +508,30 @@ export type CreateCustomTagInput = z.infer<typeof createCustomTagSchema>;
 // =============================================================================
 
 /**
- * @name Schema de Sugestão
+ * @name Schema de Sugestão de Conteúdo
+ * @description Suporta sugestão de novas entidades (work, edition, etc.) e correções em dados existentes.
  */
 export const createSuggestionSchema = z.object({
-    type: z.enum(['work', 'edition', 'person', 'group', 'publisher', 'series', 'genre', 'format']),
+    type: z.enum(['work', 'edition', 'person', 'group', 'publisher', 'series', 'genre', 'format', 'correction']),
     data: z.record(z.string(), z.any()),
+    // Para sugestões de correção: campos alterados com valor antigo e novo
+    corrections: z.array(z.object({
+        field: z.string().min(1),
+        oldValue: z.any(),
+        newValue: z.any(),
+    })).optional(),
+    // Para sugestões de edição: informações extras de vínculo
+    seriesEntries: z.array(z.object({
+        seriesId: z.string().optional(), // undefined = criar nova série
+        seriesName: z.string().min(1),
+        position: z.string().min(1).max(20),
+        isPrimary: z.boolean().default(false),
+    })).optional().default([]),
+    unlinkedAuthors: z.array(z.object({
+        name: z.string().min(1),
+        role: z.string().min(1),
+    })).optional().default([]),
+    targetEntityId: z.string().optional(), // Para correction: ID da entidade sendo corrigida
 });
 
 export type CreateSuggestionInput = z.infer<typeof createSuggestionSchema>;
@@ -489,6 +542,7 @@ export type CreateSuggestionInput = z.infer<typeof createSuggestionSchema>;
 export const reviewSuggestionSchema = z.object({
     status: z.enum(['approved', 'rejected']),
     reviewNote: z.string().max(500).optional(),
+    updatedData: z.record(z.string(), z.any()).optional(),
 });
 
 export type ReviewSuggestionInput = z.infer<typeof reviewSuggestionSchema>;

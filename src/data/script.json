@@ -1,0 +1,70 @@
+{
+  "scripts": [
+    {
+      "id": "Latn",
+      "name": "Alfabeto Latino",
+      "nativeName": "Latin",
+      "direction": "ltr"
+    },
+    {
+      "id": "Cyrl",
+      "name": "Cirílico",
+      "nativeName": "Cyrillic",
+      "direction": "ltr"
+    },
+    {
+      "id": "Grek",
+      "name": "Grego",
+      "nativeName": "Greek",
+      "direction": "ltr"
+    },
+    {
+      "id": "Arab",
+      "name": "Árabe",
+      "nativeName": "Arabic",
+      "direction": "rtl"
+    },
+    {
+      "id": "Hebr",
+      "name": "Hebraico",
+      "nativeName": "Hebrew",
+      "direction": "rtl"
+    },
+    {
+      "id": "Hani",
+      "name": "Kanji / Hanzi",
+      "nativeName": "Han Characters",
+      "direction": "ltr"
+    },
+    {
+      "id": "Hira",
+      "name": "Hiragana",
+      "nativeName": "Hiragana",
+      "direction": "ltr"
+    },
+    {
+      "id": "Kana",
+      "name": "Katakana",
+      "nativeName": "Katakana",
+      "direction": "ltr"
+    },
+    {
+      "id": "Hang",
+      "name": "Hangul",
+      "nativeName": "Hangul",
+      "direction": "ltr"
+    },
+    {
+      "id": "Deva",
+      "name": "Devanagari",
+      "nativeName": "Devanagari",
+      "direction": "ltr"
+    },
+    {
+      "id": "Thai",
+      "name": "Tailandês",
+      "nativeName": "Thai",
+      "direction": "ltr"
+    }
+  ]
+}

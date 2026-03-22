@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { LoginForm } from './LoginForm';
 
 // Mock Firebase
-vi.mock('@/services/firebase', () => ({
+vi.mock('@/services/firebase/firebase', () => ({
   auth: { currentUser: null },
   db: {},
 }));

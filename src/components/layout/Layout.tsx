@@ -147,10 +147,15 @@ export const Layout = () => {
       joinedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-      booksRead: 0,
-      currentlyReading: 0,
-      followers: 0,
-      following: 0,
+      stats: {
+        booksRead: 0,
+        currentlyReading: 0,
+        followers: 0,
+        following: 0,
+        friendsCount: 0,
+        pendingRequestsCount: 0,
+        sentRequestsCount: 0,
+      },
     } as User;
   }
 

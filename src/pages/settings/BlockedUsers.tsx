@@ -31,7 +31,7 @@ import {
 import {
     listBlockedUsersAPI,
     unblockUserAPI
-} from '@/services/friendshipsApi';
+} from '@/services/api/friendshipsApi';
 
 export const BlockedUsers = () => {
     const navigate = useNavigate();

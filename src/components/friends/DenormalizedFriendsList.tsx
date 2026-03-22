@@ -39,7 +39,7 @@ import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
 import { useAuth } from '@/hooks/useAuth';
 import { PATHS } from '@/router/paths';
 import { DenormalizedFriendship } from '@estante/common-types';
-import { getMutualFriendsAPI } from '@/services/friendshipsApi';
+import { getMutualFriendsAPI } from '@/services/api/friendshipsApi';
 import {
   getMutualFriendsFromCache,
   setMutualFriendsCache,

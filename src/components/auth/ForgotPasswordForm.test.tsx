@@ -3,7 +3,7 @@ import { renderWithProviders, screen } from '@/test/utils';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 
 // Mock Firebase
-vi.mock('@/services/firebase', () => ({
+vi.mock('@/services/firebase/firebase', () => ({
     auth: { currentUser: null },
     db: {},
 }));

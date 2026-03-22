@@ -13,11 +13,20 @@ export interface Notification {
 export type NotificationType =
     | 'friend_request'
     | 'friend_accepted'
-    | 'friend_rejected';
+    | 'friend_rejected'
+    | 'like_review'
+    | 'like_review_comment'
+    | 'review_comment_created'
+    | 'comment_reply_created';
 
 export interface NotificationMetadata {
     friendshipId?: string;
     isRequester?: boolean;  // true = notification for requester, false = notification for accepter
+    actorNickname?: string; // Nickname do ator para links de perfil
+    reviewId?: string;
+    commentId?: string;
+    workId?: string;
+    editionId?: string;
 }
 
 export interface NotificationResponse {

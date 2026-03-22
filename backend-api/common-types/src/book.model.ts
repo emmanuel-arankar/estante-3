@@ -17,7 +17,23 @@ export type ContributorRole =
   | 'postface' | 'epilogue' | 'narrator' | 'revisor';
 
 export type SuggestionType = 'work' | 'edition' | 'person' | 'group'
-  | 'publisher' | 'series' | 'genre' | 'format';
+  | 'publisher' | 'series' | 'genre' | 'format' | 'correction';
+
+export interface EntityReference {
+  id: string;
+  name: string;
+}
+
+export type AlternateNameType = 'native' | 'romanized' | 'phonetic' | 'translation' | 'alias' | 'pseudonym' | 'birthname' | 'legal' | 'posthumous' | 'abbreviation' | 'other';
+
+export interface AlternateName {
+  value: string;
+  type?: AlternateNameType | string;
+  language?: string;     // Ex: "pt-BR", "ja", "en"
+  script?: string;       // Ex: "Latn", "Cyrl", "Hani"
+  country?: string;      // Ex: "BR", "JP", "US"
+  description?: string;  // Contexto livre opcional
+}
 
 // =============================================================================
 // OBRA (conceito abstrato)
@@ -28,38 +44,40 @@ export interface Work {
   title: string;
   subtitle?: string;
   originalTitle?: string;
+  alternateNames?: AlternateName[];
   originalLanguage?: string;
   originalPublicationDate?: string;
   description?: string;
   coverUrl?: string;
   ageRating?: AgeRating;
 
-  primaryAuthorIds: string[];
-  primaryAuthorNames: string[];
-  primaryAuthorType: ('person' | 'group')[];
+  primaryAuthors: {
+    id: string;
+    name: string;
+    type: 'person' | 'group';
+  }[];
 
   // Taxonomia Profunda
-  genreIds: string[];
-  genreNames: string[];
-  themeIds: string[];
-  themeNames: string[];
-  settingIds: string[];
-  settingNames: string[];
+  genres: EntityReference[];
+  themes: EntityReference[];
+  locations: EntityReference[];
 
   seriesEntries: WorkSeriesEntry[];
 
-  averageRating: number;
-  ratingsCount: number;
-  reviewsCount: number;
-  readersCount: number;
-  currentlyReadingCount: number;
-  wantToReadCount: number;
-  editionsCount: number;
-  ratings5: number;
-  ratings4: number;
-  ratings3: number;
-  ratings2: number;
-  ratings1: number;
+  stats: {
+    averageRating: number;
+    ratingsCount: number;
+    reviewsCount: number;
+    readersCount: number;
+    currentlyReadingCount: number;
+    wantToReadCount: number;
+    editionsCount: number;
+    ratings5: number;
+    ratings4: number;
+    ratings3: number;
+    ratings2: number;
+    ratings1: number;
+  };
 
   searchTerms: string[];
   createdAt: Date;
@@ -69,7 +87,8 @@ export interface Work {
 export interface WorkSeriesEntry {
   seriesId: string;
   seriesName: string;
-  position: string;
+  position: string; // "1", "Vol. 3", "Livro 2", "Única"
+  isPrimary: boolean; // Série exibida junto ao título
 }
 
 // =============================================================================
@@ -90,22 +109,29 @@ export interface Edition {
   formatCategoryId: string;
   formatId: string;
 
-  publisherId?: string;
-  publisherName?: string;
-  imprintId?: string;
-  imprintName?: string;
+  publisher?: EntityReference;
+  imprint?: EntityReference;
+  editionNumber?: number;
   publicationDate?: string;
   language: string;
 
   pages?: number;
-  duration?: number;
+  duration?: number; // minutos, para audiolivros
+  dimensions?: {
+    height?: number;    // cm
+    width?: number;     // cm
+    thickness?: number; // cm (lombada)
+  };
+  weight?: number; // gramas — necessário para cálculo de frete (Correios)
 
   contributors: EditionContributor[];
   purchaseLinks: PurchaseLink[];
 
-  averageRating: number;
-  ratingsCount: number;
-  reviewsCount: number;
+  stats: {
+    averageRating: number;
+    ratingsCount: number;
+    reviewsCount: number;
+  };
 
   createdAt: Date;
   updatedAt: Date;
@@ -132,21 +158,10 @@ export interface PurchaseLink {
 // PESSOA
 // =============================================================================
 
-export interface PersonAlternateNames {
-  birthName?: string;   // Nome de nascimento
-  native?: string;      // Kanji, Hangul, Cirílico
-  romaji?: string;      // Romanização
-  katakana?: string;    // Fonética
-  legalName?: string;   // Nome legal (se diferente)
-  posthumousName?: string; // Nome póstumo (comum no oriente)
-  other?: string[];     // Outras variações
-}
-
 export interface Person {
   id: string;
   name: string;
-  alternateNames?: PersonAlternateNames;
-  pseudonyms?: string[];
+  alternateNames?: AlternateName[];
   gender: PersonGender;
   bio?: string;
   photoUrl?: string;
@@ -233,9 +248,12 @@ export interface Series {
   name: string;
   description?: string;
   totalBooks?: number;
-  primaryAuthorId?: string;
-  primaryAuthorName?: string;
-  primaryAuthorType?: 'person' | 'group';
+  primaryAuthors: {
+    id: string;
+    name: string;
+    type: 'person' | 'group';
+  }[];
+  formatId?: string; // Para identificar o formato padrão do gridas (ex: tankobon vs omnibus do mesmo título)
   coverUrl?: string;
 
   // Séries relacionadas (ex: tankobon vs omnibus do mesmo título)
@@ -243,6 +261,15 @@ export interface Series {
   relatedSeriesNames: string[];
   seriesType?: string;           // 'tankobon', 'omnibus', 'kanzenban', 'bunko', etc.
   originalSeriesId?: string;     // Se derivada, qual a série original
+
+  // Nomes alternativos
+  alternateNames?: AlternateName[];
+
+  // Links externos (Goodreads, AniList, MyAnimeList, etc.)
+  externalLinks?: {
+    source: string; // 'goodreads', 'anilist', 'myanimelist', 'bookbrainz', etc.
+    url: string;
+  }[];
 
   searchTerms: string[];
   createdAt: Date;

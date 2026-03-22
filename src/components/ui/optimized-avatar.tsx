@@ -40,13 +40,17 @@ export const OptimizedAvatar = ({
     xl: 'text-5xl'
   };
 
-  // ✅ Mostrar imagem apenas após breve delay para evitar flicker
+  // ✅ Gerenciar o estado de exibição de forma robusta
   useEffect(() => {
     if (isLoaded) {
+      // Se já está carregado (mesmo que seja o erro/fallback), mostra com um leve delay
       const timer = setTimeout(() => setShowImage(true), 50);
       return () => clearTimeout(timer);
+    } else {
+      // Se começou a carregar uma nova imagem, esconde a anterior
+      setShowImage(false);
     }
-  }, [isLoaded]);
+  }, [isLoaded, src]); // Adicionado 'src' como dependência para forçar o ciclo ao mudar a imagem
 
   return (
     <div className={`relative rounded-full ${sizeClasses[size]} ${className}`}>
@@ -76,7 +80,7 @@ export const OptimizedAvatar = ({
           />
         ) : null}
         <AvatarFallback className={`bg-emerald-100 text-emerald-700 font-medium ${textClasses[size]}`}>
-          {fallback.charAt(0).toUpperCase()}
+          {(fallback || '?').charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
 

@@ -5,7 +5,7 @@ import {
     markNotificationAsRead as markAsReadAPI,
     markAllNotificationsAsRead as markAllAsReadAPI,
     getUnreadCount,
-} from '@/services/notifications';
+} from '@/services/firebase/notifications';
 import type { Notification } from '@estante/common-types';
 import {
     useInfiniteQuery,

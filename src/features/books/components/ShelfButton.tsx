@@ -7,6 +7,7 @@ interface ShelfButtonProps {
     editionId: string;
     workId: string;
     initialStatus?: UserBookStatus;
+    size?: 'sm' | 'md';
     className?: string;
 }
 
@@ -19,7 +20,7 @@ const statusOptions: { value: string; label: string; icon: React.ReactNode; colo
     { value: 'abandoned', label: 'Abandonei', icon: <XCircle className="w-5 h-5" />, color: 'bg-red-600 hover:bg-red-700' }
 ];
 
-export const ShelfButton: React.FC<ShelfButtonProps> = ({ editionId, workId, initialStatus, className }) => {
+export const ShelfButton: React.FC<ShelfButtonProps> = ({ editionId: _editionId, workId: _workId, initialStatus, size = 'md', className }) => {
     const [currentStatus, setCurrentStatus] = useState<string | undefined>(initialStatus);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -45,20 +46,28 @@ export const ShelfButton: React.FC<ShelfButtonProps> = ({ editionId, workId, ini
         }
     };
 
+    const isCompact = size === 'sm';
+
     return (
         <div className={cn("relative w-full", className)}>
-            <div className="flex w-full shadow-sm rounded-lg overflow-hidden">
+            <div className={cn(
+                "flex w-full shadow-sm rounded-lg overflow-hidden",
+                isCompact ? "h-9" : "h-11"
+            )}>
                 {/* Botão de Ação Principal */}
                 <button
                     disabled={isLoading}
                     onClick={() => handleSelect(activeOption.value)}
                     className={cn(
-                        "flex-1 flex items-center justify-center gap-2 text-white font-medium py-2.5 px-4 transition-colors",
+                        "flex-1 flex items-center justify-center gap-2 text-white font-bold transition-colors whitespace-nowrap",
+                        isCompact ? "text-[13px] px-3" : "text-base py-2.5 px-4",
                         currentStatus ? activeOption.color : "bg-gray-800 hover:bg-gray-900",
                         isLoading && "opacity-80 cursor-wait"
                     )}
                 >
-                    {activeOption.icon}
+                    {React.cloneElement(activeOption.icon as React.ReactElement, { 
+                        className: cn(isCompact ? "w-4 h-4" : "w-5 h-5") 
+                    })}
                     {isLoading ? "Salvando..." : (currentStatus ? activeOption.label : 'Quero Ler')}
                 </button>
 
@@ -67,11 +76,16 @@ export const ShelfButton: React.FC<ShelfButtonProps> = ({ editionId, workId, ini
                     disabled={isLoading}
                     onClick={() => setIsOpen(!isOpen)}
                     className={cn(
-                        "w-12 flex items-center justify-center text-white border-l transition-colors border-white/20",
+                        "flex items-center justify-center text-white border-l transition-colors border-white/20",
+                        isCompact ? "w-9" : "w-12",
                         currentStatus ? activeOption.color : "bg-gray-800 hover:bg-gray-900"
                     )}
                 >
-                    <ChevronDown className={cn("w-5 h-5 transition-transform", isOpen && "rotate-180")} />
+                    <ChevronDown className={cn(
+                        isCompact ? "w-4 h-4" : "w-5 h-5",
+                        "transition-transform", 
+                        isOpen && "rotate-180"
+                    )} />
                 </button>
             </div>
 
@@ -87,19 +101,27 @@ export const ShelfButton: React.FC<ShelfButtonProps> = ({ editionId, workId, ini
                             <button
                                 key={option.value}
                                 onClick={() => handleSelect(option.value)}
-                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                                className={cn(
+                                    "w-full flex items-center justify-between hover:bg-gray-50 transition-colors text-left",
+                                    isCompact ? "px-3 py-2" : "px-4 py-3"
+                                )}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={cn(
                                         "p-1.5 rounded-md text-white",
                                         option.color.split(' ')[0] // Pega o bg primário sem o hover
                                     )}>
-                                        {React.cloneElement(option.icon as React.ReactElement, { className: "w-4 h-4" })}
+                                        {React.cloneElement(option.icon as React.ReactElement, { 
+                                            className: cn(isCompact ? "w-3.5 h-3.5" : "w-4 h-4") 
+                                        })}
                                     </div>
-                                    <span className="font-medium text-gray-700">{option.label}</span>
+                                    <span className={cn(
+                                        "font-medium text-gray-700",
+                                        isCompact ? "text-sm" : "text-base"
+                                    )}>{option.label}</span>
                                 </div>
                                 {currentStatus === option.value && (
-                                    <Check className="w-5 h-5 text-indigo-600" />
+                                    <Check className={cn(isCompact ? "w-4 h-4" : "w-5 h-5", "text-indigo-600")} />
                                 )}
                             </button>
                         ))}

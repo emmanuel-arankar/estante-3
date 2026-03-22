@@ -10,7 +10,7 @@ import { PhotoViewer } from '@/components/profile/PhotoViewer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { AvatarEditorModal } from '@/components/ui/avatar-editor-modal';
 import { trackEvent } from '@/lib/analytics';
-import { syncProfileAPI } from '@/services/friendshipsApi';
+import { syncProfileAPI } from '@/services/api/friendshipsApi';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -58,12 +58,12 @@ import {
   acceptFriendRequestAPI,
   removeFriendshipAPI,
   blockUserAPI,
-} from '@/services/friendshipsApi';
+} from '@/services/api/friendshipsApi';
 import { fetchMutualFriendsDeduped } from '@/hooks/useMutualFriendsCache';
 import { useAuthStore } from '@/stores/authStore';
 import { User as UserModel } from '@estante/common-types';
 import { useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/services/apiClient';
+import { apiClient } from '@/services/api/apiClient';
 
 // Função para converter datas do Firestore com segurança
 const convertFirestoreDate = (date: any): Date | null => {
@@ -461,7 +461,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
         schema={personSchema}
       />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8">
         <Card className="mb-8">
           <CardContent className="p-8">
             <div className="flex flex-col md:flex-row items-start space-y-6 md:space-y-0 md:space-x-8">

@@ -6,6 +6,19 @@ export interface UserLocation {
   city: string;       // Nome da cidade (ex: "São Paulo")
 }
 
+export interface UserStats {
+  booksRead: number;
+  currentlyReading: number;
+  wantToRead?: number;
+  followers: number;
+  following: number;
+  friendsCount: number;
+  pendingRequestsCount: number;
+  sentRequestsCount: number;
+  reviewsCount?: number;
+  ratingsCount?: number;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -18,13 +31,7 @@ export interface User {
   website?: string;
   birthDate?: Date;
   joinedAt: Date;
-  booksRead: number;
-  currentlyReading: number;
-  followers: number;
-  following: number;
-  friendsCount?: number;
-  pendingRequestsCount?: number;
-  sentRequestsCount?: number;
+  stats?: UserStats;
   createdAt: Date;
   updatedAt: Date;
 }

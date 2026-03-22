@@ -14,8 +14,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Separator } from '@/components/ui/separator';
 import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
 import { PATHS } from '@/router/paths';
-import { googleAuthAPI } from '@/services/authApi';
-import { signInWithGoogle } from '@/services/auth';
+import { googleAuthAPI } from '@/services/api/authApi';
+import { signInWithGoogle } from '@/services/firebase/auth';
 import { trackEvent } from '@/lib/analytics';
 
 export const RegisterForm = () => {

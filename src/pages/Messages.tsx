@@ -30,7 +30,7 @@ import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
 import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { PATHS } from '@/router/paths';
-import { deleteChat } from '@/services/realtime';
+import { deleteChat } from '@/services/firebase/realtime';
 import { useQuery } from '@tanstack/react-query';
 import { userProfileQuery } from '@/features/users/userProfile.queries';
 

@@ -142,13 +142,31 @@ export function sanitize(input: string, options: SanitizeOptions = {}): string {
  * Ideal para campos de bio e descrições que usam RichTextEditor.
  */
 export function sanitizeRichText(input: string): string {
+    const commonAttrs = ['class', 'style', 'lang'];
+    const blockAttrs = [...commonAttrs, 'data-align'];
+
     return sanitize(input, {
         allowedTags: RICH_TEXT_ALLOWED_TAGS,
         allowedAttributes: {
-            a: ['href', 'target', 'rel'],
-            span: ['class', 'style'],
-            mark: ['data-color', 'style'],
-            img: ['src', 'alt', 'title', 'width', 'height', 'style', 'class'],
+            a: ['href', 'target', 'rel', ...commonAttrs],
+            span: commonAttrs,
+            mark: ['data-color', ...commonAttrs],
+            p: blockAttrs,
+            div: blockAttrs,
+            h1: blockAttrs,
+            h2: blockAttrs,
+            h3: blockAttrs,
+            h4: blockAttrs,
+            strong: commonAttrs,
+            b: commonAttrs,
+            i: commonAttrs,
+            em: commonAttrs,
+            u: commonAttrs,
+            s: commonAttrs,
+            strike: commonAttrs,
+            blockquote: commonAttrs,
+            li: commonAttrs,
+            img: ['src', 'alt', 'title', 'width', 'height', 'data-size', ...commonAttrs],
         },
     });
 }

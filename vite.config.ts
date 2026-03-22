@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, isSsrBuild }) => {
   // Carrega variáveis de ambiente (ex: .env, .env.local)
   const env = loadEnv(mode, process.cwd());
 
@@ -130,13 +130,27 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
+          manualChunks: !isSsrBuild ? {
             // Vendor chunks - separados para melhor caching
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-            'ui-vendor': ['framer-motion', 'lucide-react'],
-            'query-vendor': ['@tanstack/react-query'],
-          }
+            'react-vendor': [
+              'react',
+              'react-dom',
+              'react-router-dom'
+            ],
+            'firebase-vendor': [
+              'firebase/app',
+              'firebase/auth',
+              'firebase/firestore',
+              'firebase/storage'
+            ],
+            'ui-vendor': [
+              'framer-motion',
+              'lucide-react'
+            ],
+            'query-vendor': [
+              '@tanstack/react-query'
+            ],
+          } : undefined
         }
       },
       chunkSizeWarningLimit: 1000,
@@ -146,3 +160,4 @@ export default defineConfig(({ mode }) => {
     },
   };
 });
+// Trigger Vite Dev Server Restart

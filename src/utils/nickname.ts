@@ -1,6 +1,6 @@
 import slugify from 'slugify';
 import { adjectives, animals, colors, uniqueNamesGenerator } from 'unique-names-generator';
-import { apiClient } from '@/services/apiClient';
+import { apiClient } from '@/services/api/apiClient';
 
 // Função para gerar nickname baseado no nome do usuário
 export const generateNickname = (displayName: string): string => {

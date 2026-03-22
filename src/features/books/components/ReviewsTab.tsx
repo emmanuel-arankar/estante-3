@@ -21,7 +21,7 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({ editionId, workId, myRev
     const [page] = useState(1);
     const limit = 20;
 
-    const { data, isLoading, isError } = useQuery(reviewsByEditionQuery(editionId, page, limit));
+    const { data, isLoading, isError } = useQuery(reviewsByEditionQuery(editionId, page, limit, user?.uid));
 
     const visibleReviews = data?.data?.filter(r => {
         const textContent = r.content?.replace(/<[^>]*>?/gm, '').trim() || '';

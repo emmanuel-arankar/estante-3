@@ -6,7 +6,7 @@ import {
   subscribeToUserStatus,
   subscribeToConnection,
   Unsubscribe
-} from '../services/realtime';
+} from '@/services/firebase/realtime';
 
 // --- useUserPresence (Ouve o status de outro usuário) ---
 interface PresenceStatus {

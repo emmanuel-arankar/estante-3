@@ -6,15 +6,16 @@ interface StarRatingProps {
     rating?: number;
     maxStars?: number;
     interactive?: boolean;
-    size?: 'sm' | 'md' | 'lg';
+    size?: 'xs' | 'sm' | 'md' | 'lg';
     onRate?: (rating: number) => void;
     showLabel?: boolean;
     className?: string;
 }
 
 const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
+    xs: 'w-4 h-4',
+    sm: 'w-5 h-5',
+    md: 'w-6 h-6',
     lg: 'w-8 h-8',
 };
 

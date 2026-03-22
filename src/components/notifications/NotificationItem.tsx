@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Bell, UserPlus, UserCheck, UserX } from 'lucide-react';
+import { Bell, UserPlus, UserCheck, UserX, Heart, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Notification } from '@estante/common-types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +20,12 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                 return <UserCheck className="h-4 w-4 text-green-500" />;
             case 'friend_rejected':
                 return <UserX className="h-4 w-4 text-red-500" />;
+            case 'like_review':
+            case 'like_review_comment':
+                return <Heart className="h-4 w-4 text-red-500" />;
+            case 'review_comment_created':
+            case 'comment_reply_created':
+                return <MessageSquare className="h-4 w-4 text-emerald-500" />;
             default:
                 return <Bell className="h-4 w-4 text-gray-500" />;
         }
@@ -65,6 +71,34 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                         {' '}recusou sua solicitação de amizade
                     </>
                 );
+            case 'like_review':
+                return (
+                    <>
+                        <span className="font-semibold">{actorName}</span>
+                        {' '}curtiu sua resenha
+                    </>
+                );
+            case 'like_review_comment':
+                return (
+                    <>
+                        <span className="font-semibold">{actorName}</span>
+                        {' '}curtiu seu comentário
+                    </>
+                );
+            case 'review_comment_created':
+                return (
+                    <>
+                        <span className="font-semibold">{actorName}</span>
+                        {' '}comentou na sua resenha
+                    </>
+                );
+            case 'comment_reply_created':
+                return (
+                    <>
+                        <span className="font-semibold">{actorName}</span>
+                        {' '}respondeu ao seu comentário
+                    </>
+                );
             default:
                 return `Nova notificação${actorName !== 'Alguém' ? ` de ${actorName}` : ''}`;
         }
@@ -81,6 +115,17 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                     return `/profile/${notification.metadata.actorNickname}`;
                 }
                 return '/friends';
+            case 'like_review':
+            case 'like_review_comment':
+            case 'review_comment_created':
+            case 'comment_reply_created':
+                if (notification.metadata?.editionId) {
+                    return `/book/${notification.metadata.editionId}`;
+                }
+                if (notification.metadata?.workId) {
+                    return `/work/${notification.metadata.workId}`;
+                }
+                return '/notifications';
             default:
                 return '/notifications';
         }

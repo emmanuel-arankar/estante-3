@@ -19,6 +19,7 @@ import storageRouter from './storage';
 import healthRouter from './health';
 import booksRouter from './books';
 import reviewsRouter from './reviews';
+import curatorshipRouter from './curatorship';
 import { requestIdMiddleware } from './middleware/requestId.middleware';
 import { responseWrapper } from './middleware/response.middleware';
 import { performanceMiddleware } from './middleware/performance.middleware';
@@ -150,6 +151,7 @@ app.use('/api', friendsRouter);             // Rotas de amizades
 app.use('/api', usersRouter);               // Rotas de usuários
 app.use('/api', booksRouter);               // Rotas de livros
 app.use('/api', reviewsRouter);             // Rotas de resenhas
+app.use('/api', curatorshipRouter);         // Rotas de curadoria
 app.use('/api', notificationsRouter);       // Rotas de notificações
 app.use('/api', chatRouter);                // Rotas de chat
 app.use('/api', storageRouter);             // Rotas de storage

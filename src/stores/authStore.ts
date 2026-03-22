@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { FirebaseUser } from '@/services/auth';
+import { FirebaseUser } from '@/services/firebase/auth';
 import { User } from '@estante/common-types';
 
 interface AuthState {

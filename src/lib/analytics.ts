@@ -1,5 +1,5 @@
 import { logEvent } from 'firebase/analytics';
-import { analytics } from '@/services/firebase';
+import { analytics } from '@/services/firebase/firebase';
 
 /**
  * @name AppEventName
@@ -14,6 +14,15 @@ import { analytics } from '@/services/firebase';
  * @property profile_updated - Evento disparado quando um usuário atualiza seu perfil.
  * @property search_performed - Evento disparado quando um usuário realiza uma busca.
  * @property page_view - Evento disparado quando um usuário visualiza uma página.
+ * @property review_created - Evento disparado quando um usuário cria uma avaliação.
+ * @property review_liked - Evento disparado quando um usuário curte uma avaliação.
+ * @property comment_created - Evento disparado quando um usuário cria um comentário.
+ * @property comment_liked - Evento disparado quando um usuário curte um comentário.
+ * @property book_viewed - Evento disparado quando um usuário abre a página de um livro.
+ * @property author_viewed - Evento disparado quando um usuário abre a página de um autor.
+ * @property book_searched - Evento disparado quando um usuário busca um livro e clica em resultado.
+ * @property book_searched_empty - Evento disparado quando uma busca não retorna resultados.
+ * @property shelf_added - Evento disparado quando um usuário adiciona um livro à estante.
  */
 export type AppEventName =
     | 'login'
@@ -23,7 +32,16 @@ export type AppEventName =
     | 'book_added'
     | 'profile_updated'
     | 'search_performed'
-    | 'page_view';
+    | 'page_view'
+    | 'review_created'
+    | 'review_liked'
+    | 'comment_created'
+    | 'comment_liked'
+    | 'book_viewed'
+    | 'author_viewed'
+    | 'book_searched'
+    | 'book_searched_empty'
+    | 'shelf_added';
 
 /**
  * @name trackEvent

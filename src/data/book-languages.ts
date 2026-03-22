@@ -5,8 +5,10 @@ export interface BookLanguage {
   name: string; // Nome em PT-BR
 }
 
+export const languages = languageData.languages;
+
 export const getLanguagesList = (): BookLanguage[] => {
-  return languageData.languages;
+  return languages;
 };
 
 export const getLanguageName = (id: string): string => {

@@ -15,8 +15,8 @@ import {
   toggleReaction,
   generateMessageId,
   markMessageAsViewed,
-} from '@/services/realtime';
-import { uploadImage as uploadAudio } from '@/services/storage';
+} from '@/services/firebase/realtime';
+import { uploadImage as uploadAudio } from '@/services/firebase/storage';
 import { ChatMessage, User } from '@estante/common-types';
 import { userQuery } from '@/features/users/user.queries';
 import { queryClient } from '@/lib/queryClient';
@@ -141,7 +141,7 @@ export const useChat = (receiverId?: string) => {
       (async () => {
         try {
           // Import dinâmico para evitar dependência circular se houver, ou apenas garantir uso correto
-          const { uploadImage } = await import('@/services/storage');
+          const { uploadImage } = await import('@/services/firebase/storage');
 
           const uploadPromises = images.map((img, idx) => uploadImage(img, `chats/${user.uid}/images/img_${Date.now()}_${idx}`));
           const remoteUrls = await Promise.all(uploadPromises);

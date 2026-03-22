@@ -5,10 +5,10 @@ import {
 } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
-import { syncProfileAPI } from '@/services/friendshipsApi';
-import { auth } from '@/services/firebase';
+import { syncProfileAPI } from '@/services/api/friendshipsApi';
+import { auth } from '@/services/firebase/firebase';
 import { useAuthStore } from '@/stores/authStore';
-import { apiClient } from '@/services/apiClient';
+import { apiClient } from '@/services/api/apiClient';
 import { UserLocation } from '@estante/common-types';
 import { trackEvent } from '@/lib/analytics';
 

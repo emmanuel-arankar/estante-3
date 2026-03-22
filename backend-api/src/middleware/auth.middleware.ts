@@ -80,3 +80,33 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
   // Fallback: caso o cookie exista mas seja inválido e não haja um Header Authorization válido
   return res.status(401).send({ error: 'Sessão inválida. Faça login novamente.' });
 };
+
+/**
+ * @name Verificar Autenticação Opcional
+ * @summary Middleware que tenta identificar o usuário mas não bloqueia se não houver.
+ * @description Similar ao checkAuth, mas chama next() mesmo se o token for inválido ou ausente.
+ * Útil para rotas públicas que mudam o comportamento se o usuário estiver logado (ex: isLiked).
+ */
+export const checkAuthOptional = async (req: Request, _res: Response, next: NextFunction) => {
+  const sessionCookie = req.cookies?.__session || '';
+  const authHeader = req.headers.authorization;
+
+  if (sessionCookie) {
+    try {
+      const decodedToken = await admin.auth().verifySessionCookie(sessionCookie, false);
+      (req as AuthenticatedRequest).user = decodedToken;
+      return next();
+    } catch { /* Ignora erro e segue */ }
+  }
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      (req as AuthenticatedRequest).user = decodedToken;
+      return next();
+    } catch { /* Ignora erro e segue */ }
+  }
+
+  next();
+};

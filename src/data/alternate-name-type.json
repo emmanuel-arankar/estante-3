@@ -1,0 +1,59 @@
+{
+  "types": [
+    {
+      "id": "native",
+      "name": "Nome Nativo",
+      "description": "Nome no idioma e sistema de escrita original."
+    },
+    {
+      "id": "romanized",
+      "name": "Romanização",
+      "description": "Transliteração do nome para o alfabeto latino."
+    },
+    {
+      "id": "phonetic",
+      "name": "Leitura Fonética",
+      "description": "Representação fonética na escrita nativa."
+    },
+    {
+      "id": "translation",
+      "name": "Tradução",
+      "description": "Nome traduzido para outro idioma."
+    },
+    {
+      "id": "alias",
+      "name": "Nome Alternativo",
+      "description": "Outro nome pelo qual a entidade é conhecida."
+    },
+    {
+      "id": "pseudonym",
+      "name": "Pseudônimo",
+      "description": "Nome artístico ou literário."
+    },
+    {
+      "id": "birthname",
+      "name": "Nome de Nascimento",
+      "description": "Nome legal recebido ao nascer."
+    },
+    {
+      "id": "legal",
+      "name": "Nome Legal Atual",
+      "description": "Nome oficial registrado atualmente."
+    },
+    {
+      "id": "posthumous",
+      "name": "Nome Póstumo",
+      "description": "Nome honorífico atribuído após a morte."
+    },
+    {
+      "id": "abbreviation",
+      "name": "Abreviação / Acrônimo",
+      "description": "Forma abreviada do nome."
+    },
+    {
+      "id": "other",
+      "name": "Outro",
+      "description": "Outra variação de nome não categorizada."
+    }
+  ]
+}

@@ -23,6 +23,8 @@ export const SpoilerMark = Mark.create<SpoilerOptions>({
         };
     },
 
+    excludes: '', // Allow spoiler to be used with other marks (bold, italic, color)
+
     parseHTML() {
         return [
             {
@@ -32,7 +34,7 @@ export const SpoilerMark = Mark.create<SpoilerOptions>({
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, { 'data-spoiler': 'true', class: 'cursor-pointer select-none bg-gray-900 text-transparent transition-colors duration-300 hover:text-white rounded px-1' }), 0];
+        return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, { 'data-spoiler': 'true', class: 'spoiler-box' }), 0];
     },
 
     addCommands() {

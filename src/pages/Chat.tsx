@@ -26,7 +26,7 @@ import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPresence } from '@/hooks/useUserPresence';
 import { useAudioStore } from '@/hooks/useAudioStore';
-import { markTemporaryAudioAsPlayed } from '@/services/realtime';
+import { markTemporaryAudioAsPlayed } from '@/services/firebase/realtime';
 import { PATHS } from '@/router/paths';
 import { ChatMessage } from '@estante/common-types';
 import { userProfileQuery } from '@/features/users/userProfile.queries';

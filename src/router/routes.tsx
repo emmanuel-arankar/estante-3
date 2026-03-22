@@ -57,8 +57,8 @@ export const routes: RouteObject[] = [
             children: [
               ...protectedProfileRoutes,
               {
-                path: PATHS.ADMIN_DASHBOARD,
-                lazy: () => import('@/features/admin/admin.routes'),
+                path: PATHS.CURATOR_DASHBOARD,
+                lazy: () => import('@/features/curatorship/curatorship.routes'),
               },
               {
                 path: PATHS.NOTIFICATIONS,

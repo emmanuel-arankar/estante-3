@@ -1,7 +1,7 @@
 import {
   awaitAuthReady,
   getCurrentUser
-} from '@/services/auth';
+} from '@/services/firebase/auth';
 import { queryClient } from '@/lib/queryClient';
 import { userQuery } from '@/features/users/user.queries';
 import { useAuthStore } from '@/stores/authStore';

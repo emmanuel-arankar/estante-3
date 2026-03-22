@@ -1,10 +1,12 @@
 export const ROUTE_PATTERNS = {
   PROFILE: '/profile/:nickname',
   CHAT: '/chat/:receiverId',
-  BOOK_DETAIL: '/book/:editionId',
-  AUTHOR_DETAIL: '/author/:personId',
-  GROUP_DETAIL: '/group/:groupId',
+  BOOK_PAGE: '/book/:editionId',
+  AUTHOR_PAGE: '/author/:personId',
+  GROUP_PAGE: '/group/:groupId',
   WORK_REDIRECT: '/work/:workId',
+  WORK_EDITIONS: '/work/:workId/editions',
+  SERIES_PAGE: '/series/:seriesId',
 };
 
 type RouteParams = {
@@ -14,6 +16,7 @@ type RouteParams = {
   author: { personId: string };
   group: { groupId: string };
   work: { workId: string };
+  series: { seriesId: string };
 };
 
 export const PATHS = {
@@ -41,8 +44,8 @@ export const PATHS = {
   NOTIFICATIONS: '/notifications',
   MESSAGES: '/messages',
 
-  // Rotas de Administração
-  ADMIN_DASHBOARD: '/admin',
+  // Rotas de Curadoria (Bibliotecário)
+  CURATOR_DASHBOARD: '/curatorship',
 
   // Funções construtoras para rotas dinâmicas
   SETTINGS_BLOCKED: '/settings/blocked',
@@ -52,4 +55,6 @@ export const PATHS = {
   AUTHOR: (params: RouteParams['author']) => `/author/${params.personId}`,
   GROUP: (params: RouteParams['group']) => `/group/${params.groupId}`,
   WORK: (params: RouteParams['work']) => `/work/${params.workId}`,
+  WORK_EDITIONS: (params: RouteParams['work']) => `/work/${params.workId}/editions`,
+  SERIES: (params: RouteParams['series']) => `/series/${params.seriesId}`,
 };

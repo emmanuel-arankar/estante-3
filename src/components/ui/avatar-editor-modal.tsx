@@ -16,9 +16,9 @@ import {
   toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
-import { syncProfileAPI } from '@/services/friendshipsApi';
-import { uploadProfileImage } from '@/services/storage';
-import { apiClient } from '@/services/apiClient';
+import { syncProfileAPI } from '@/services/api/friendshipsApi';
+import { uploadProfileImage } from '@/services/firebase/storage';
+import { apiClient } from '@/services/api/apiClient';
 
 interface PhotoEditorProps {
   currentPhotoURL?: string;

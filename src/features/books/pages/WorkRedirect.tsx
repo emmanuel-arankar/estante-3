@@ -1,14 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getWorkEditionsAPI } from '@/services/booksApi';
+import { getWorkEditionsAPI } from '@/services/api/booksApi';
 import { PATHS } from '@/router/paths';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen } from 'lucide-react';
+
+const LOADING_PHRASES = [
+    "Abobadando as prateleiras...",
+    "Espanando a poeira virtual das páginas...",
+    "Negociando orelhas com o editor...",
+    "Dobrando as pontinhas das páginas secretamente...",
+    "Verificando a espessura da lombada...",
+    "Tirando os livros da mala...",
+    "Organizando as estantes por cor..."
+];
 
 export const WorkRedirect = () => {
     const { workId } = useParams<{ workId: string }>();
     const navigate = useNavigate();
     const [error, setError] = useState<string | null>(null);
+    const [randomPhrase, setRandomPhrase] = useState(LOADING_PHRASES[0]);
+
+    useEffect(() => {
+        setRandomPhrase(LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)]);
+    }, []);
 
     useEffect(() => {
         const fetchAndRedirect = async () => {
@@ -18,12 +33,12 @@ export const WorkRedirect = () => {
             }
 
             try {
-                // Busca as edições desta obra
-                const editions = await getWorkEditionsAPI(workId);
+                // Busca as edições desta obra (agora retorna PaginatedResponse)
+                const response = await getWorkEditionsAPI(workId);
+                const editions = response.data;
 
                 if (editions && editions.length > 0) {
-                    // Pega a primeira edição (o backend já ordena por publicação desc, ou a principal)
-                    // Num cenário futuro, a API poderia retornar uma 'defaultEditionId' na própria obra.
+                    // Pega a primeira edição (o backend já ordena por publicação desc)
                     const targetEditionId = editions[0].id;
 
                     // Redireciona substituindo o histórico para evitar voltar pra cá
@@ -70,7 +85,7 @@ export const WorkRedirect = () => {
     return (
         <div className="flex flex-col flex-1 h-[60vh] items-center justify-center min-h-screen">
             <LoadingSpinner size="lg" className="text-emerald-600 mb-4" />
-            <p className="text-gray-500 font-medium animate-pulse">Abobadando as prateleiras...</p>
+            <p className="text-gray-500 font-medium animate-pulse">{randomPhrase}</p>
         </div>
     );
 };

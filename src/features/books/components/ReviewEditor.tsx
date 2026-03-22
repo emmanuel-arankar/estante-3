@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createReviewAPI, updateReviewAPI } from '@/services/reviewsApi';
+import { createReviewAPI, updateReviewAPI } from '@/services/api/reviewsApi';
 import { Loader2, SendHorizonal } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Review } from '@estante/common-types';
+import { trackEvent } from '@/lib/analytics';
 
 interface ReviewEditorProps {
     editionId: string;
@@ -30,6 +31,9 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, m
             return createReviewAPI({ ...payload, editionId, workId });
         },
         onSuccess: () => {
+            if (!myReview) {
+                trackEvent('review_created');
+            }
             queryClient.invalidateQueries({ queryKey: ['reviews'] });
             queryClient.invalidateQueries({ queryKey: ['editions', editionId] });
             setTitle('');
@@ -72,7 +76,7 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, m
     const isValid = cleanContentLength >= 10 || hasMedia;
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6 overflow-hidden">
+        <form lang="pt-BR" onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6 overflow-hidden">
             <h3 className="font-bold text-gray-900 mb-4 text-lg">O que você achou dessa edição?</h3>
 
             <div className="space-y-4">
@@ -84,7 +88,7 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, m
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Ex: Uma obra-prima da ficção científica"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors placeholder:text-sm placeholder:font-medium text-sm font-medium text-gray-700 antialiased"
                         disabled={mutation.isPending}
                         maxLength={100}
                     />

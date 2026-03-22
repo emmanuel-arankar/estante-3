@@ -78,11 +78,31 @@
 
 .tiptap p.is-empty::before {
     content: attr(data-placeholder);
-    color: #9ca3af;
-    /* text-gray-400 */
+    color: #94a3b8;
+    /* slate-400 (mais suave que adb5bd) */
     float: left;
     height: 0;
     pointer-events: none;
+    font-size: 0.875rem;
+    /* text-sm */
+    font-weight: 500;
+}
+
+.hyphenate,
+.hyphenate p,
+.tiptap-render .hyphenate p,
+.tiptap-render.hyphenate p,
+.tiptap.hyphenate p {
+    hyphens: auto !important;
+    -webkit-hyphens: auto !important;
+    -ms-hyphens: auto !important;
+    text-wrap: pretty !important;
+}
+
+/* Garante que o alinhamento justificado funcione com hifenização */
+.tiptap [style*="text-align: justify"] {
+    text-align: justify !important;
+    text-justify: inter-word;
 }
 
 /* Tiptap HTML Customizations */
@@ -233,13 +253,50 @@ div[data-hot-toast]:hover {
     user-select: none;
 }
 
-/* Melhorar responsividade */
-@media (max-width: 640px) {
-    .max-w-\[90vw\] {
-        max-width: 95vw;
-    }
+/* Previnir colapso de imagens e medias do Tiptap nos Comentarios */
+.tiptap-render img {
+    display: block;
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 0.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    object-fit: cover;
+}
 
-    .max-h-\[90vh\] {
-        max-height: 85vh;
-    }
+/* 
+  Estilo do SpoilerMark (Tiptap)
+  Aplica censura sobre texto e tags filhas que venham com estilos forçados de cor (ex: <span style="color: red">).
+*/
+.spoiler-box {
+    background-color: #111827;
+    /* gray-900 */
+    color: transparent !important;
+    /* Esconde a própria cor */
+    border-radius: 0.25rem;
+    padding: 0 0.25rem;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    cursor: pointer;
+    user-select: none;
+    display: inline;
+}
+
+/* Força que os filhos do spoiler (marcas Color, Highlight, etc) fiquem transparentes também */
+.spoiler-box * {
+    color: transparent !important;
+    background-color: transparent !important;
+    transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+/* Ao passar o mouse, revela o próprio conteúdo */
+.spoiler-box:hover {
+    color: white !important;
+    background-color: rgba(17, 24, 39, 0.9) !important;
+    /* Revele com um fundo levemente suave */
+}
+
+/* Ao passar o mouse, libera as cores originais dos filhos do Tiptap */
+.spoiler-box:hover * {
+    color: inherit !important;
+    background-color: transparent !important;
 }

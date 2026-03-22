@@ -16,6 +16,7 @@ import {
 } from '@tiptap/react';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import Paragraph from '@tiptap/extension-paragraph';
 import Mention, { MentionOptions } from '@tiptap/extension-mention';
 import { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion';
 import CharacterCount from '@tiptap/extension-character-count';
@@ -29,17 +30,19 @@ import TextAlign from '@tiptap/extension-text-align';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { SpoilerMark } from './extensions/spoiler-mark';
-import { mergeAttributes } from '@tiptap/core';
+import Bold from '@tiptap/extension-bold';
+import { Node, mergeAttributes } from '@tiptap/core';
 import tippy, { type Instance, type Props } from 'tippy.js';
 import {
-  Bold, Italic, Underline as UnderlineIcon, Strikethrough,
+  Bold as BoldIcon, Italic, Underline as UnderlineIcon, Strikethrough,
   PaintBucket, Highlighter, Code, Quote, Image as ImageIcon,
-  Undo, Redo, EyeOff, Smile,
+  Undo, Redo, EyeOff, Smile, SendHorizontal,
   Heading1, Heading2, Heading3, Heading4,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Trash2,
-  ImagePlay, Indent, Outdent
+  Indent, Outdent, AtSign, Loader2, Languages
 } from 'lucide-react';
+import GifRoundedIcon from '../icons/GifRoundedIcon';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import i18n_pt from '@emoji-mart/data/i18n/pt.json';
@@ -47,16 +50,13 @@ import Tippy from '@tippyjs/react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { GiphySelector } from '@/components/ui/giphy-selector';
 import { HexColorPicker } from 'react-colorful';
-
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
-// import { Separator } from '@/components/ui/separator';
 import { userByNicknameQuery as userQueries } from '@/features/users/user.queries';
-import { apiClient } from '@/services/apiClient';
+import { apiClient } from '@/services/api/apiClient';
 import { cn } from '@/lib/utils';
 import { PATHS } from '@/router/paths';
 
-// Busca de usuários para menções via API backend
 // Busca de usuários para menções via API backend
 const searchUsersForMention = async (
   searchTerm: string
@@ -243,13 +243,34 @@ const suggestion: Omit<MentionOptions['suggestion'], 'editor'> = {
   },
 };
 
+const DivWrapper = Node.create({
+  name: 'div',
+  group: 'block',
+  content: 'block*',
+  addAttributes() {
+    return {
+      class: { default: 'hyphenate' },
+      lang: { default: 'pt-BR' },
+    };
+  },
+  parseHTML() {
+    return [{ tag: 'div.hyphenate' }];
+  },
+  renderHTML({ HTMLAttributes }: { HTMLAttributes: any }) {
+    return ['div', mergeAttributes(HTMLAttributes), 0];
+  },
+});
+
 interface RichTextEditorProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   placeholder?: string;
   maxLength?: number;
   className?: string;
-  variant?: 'minimal' | 'full'; // Define o quão completo o Editor ficará
+  variant?: 'full' | 'minimal' | 'comment' | 'reply'; // Controla qual barra de ferramentas exibir
+  onSubmit?: () => void;
+  submitLabel?: string;
+  disabled?: boolean;
 }
 
 const STANDARD_COLORS = [
@@ -333,7 +354,7 @@ const ColorPalette = ({
 
   if (isCustom) {
     return (
-      <div className="p-3 w-[264px] bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex flex-col gap-3">
+      <div className="w-full flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="text-xs font-semibold text-gray-500">Cor Personalizada</div>
           <button
@@ -355,38 +376,36 @@ const ColorPalette = ({
             type="text"
             value={customColor}
             onChange={(e) => setCustomColor(e.target.value)}
-            className="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded-md outline-none focus:border-emerald-500 h-8 shadow-sm"
+            className="flex-1 min-w-0 px-2 py-1 text-sm border-0 border-b border-transparent bg-gray-50 outline-none focus:border-gray-400 focus:bg-white h-8 transition-colors rounded-none"
             placeholder="#HEX"
           />
         </div>
 
         <div className="flex items-end gap-2 mt-1">
-          <div className="w-[48px] flex-shrink-0 relative">
+          <div className="w-[48px] h-8 flex-shrink-0">
             <select
+              title="Formato de cor"
               value={colorMode}
-              onChange={(e) => setColorMode(e.target.value as any)}
-              className="w-full bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md h-8 text-[11px] px-1 pr-4 outline-none uppercase appearance-none bg-transparent relative z-10 font-bold transition-colors cursor-pointer"
+              onChange={(e) => setColorMode(e.target.value as 'rgb' | 'hsl')}
+              className="w-full h-full bg-gray-50 focus:bg-white border border-gray-200 outline-none rounded-md text-[11px] font-bold text-gray-600 px-1 cursor-pointer"
             >
               <option value="rgb">RGB</option>
               <option value="hsl">HSL</option>
             </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-1 pointer-events-none text-gray-500 z-0">
-              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-            </div>
           </div>
 
           <div className="flex-1 flex gap-2 justify-between">
             <div className="flex flex-col items-center w-1/3">
-              <span className="text-[10px] font-bold text-gray-700 mb-0.5 uppercase">{colorMode === 'rgb' ? 'r' : 'h'}</span>
-              <input type="number" min="0" max={colorMode === 'rgb' ? 255 : 360} value={colorMode === 'rgb' ? rgb.r : hsl.h} onChange={(e) => colorMode === 'rgb' ? handleRgbChange('r', e.target.value) : handleHslChange('h', e.target.value)} className="w-full h-8 border border-gray-300 focus:border-emerald-500 outline-none rounded-md text-right text-sm pr-1 shadow-sm transition-all" />
+              <span className="text-[10px] font-bold text-gray-500 mb-0.5 uppercase">{colorMode === 'rgb' ? 'r' : 'h'}</span>
+              <input type="number" min="0" max={colorMode === 'rgb' ? 255 : 360} value={colorMode === 'rgb' ? rgb.r : hsl.h} onChange={(e) => colorMode === 'rgb' ? handleRgbChange('r', e.target.value) : handleHslChange('h', e.target.value)} className="w-full h-8 bg-gray-50 focus:bg-white border-0 border-b border-transparent focus:border-gray-400 outline-none rounded-none text-center text-sm transition-all" />
             </div>
             <div className="flex flex-col items-center w-1/3">
-              <span className="text-[10px] font-bold text-gray-700 mb-0.5 uppercase">{colorMode === 'rgb' ? 'g' : 's'}</span>
-              <input type="number" min="0" max={colorMode === 'rgb' ? 255 : 100} value={colorMode === 'rgb' ? rgb.g : hsl.s} onChange={(e) => colorMode === 'rgb' ? handleRgbChange('g', e.target.value) : handleHslChange('s', e.target.value)} className="w-full h-8 border border-gray-300 focus:border-emerald-500 outline-none rounded-md text-right text-sm pr-1 shadow-sm transition-all" />
+              <span className="text-[10px] font-bold text-gray-500 mb-0.5 uppercase">{colorMode === 'rgb' ? 'g' : 's'}</span>
+              <input type="number" min="0" max={colorMode === 'rgb' ? 255 : 100} value={colorMode === 'rgb' ? rgb.g : hsl.s} onChange={(e) => colorMode === 'rgb' ? handleRgbChange('g', e.target.value) : handleHslChange('s', e.target.value)} className="w-full h-8 bg-gray-50 focus:bg-white border-0 border-b border-transparent focus:border-gray-400 outline-none rounded-none text-center text-sm transition-all" />
             </div>
             <div className="flex flex-col items-center w-1/3">
-              <span className="text-[10px] font-bold text-gray-700 mb-0.5 uppercase">{colorMode === 'rgb' ? 'b' : 'l'}</span>
-              <input type="number" min="0" max={colorMode === 'rgb' ? 255 : 100} value={colorMode === 'rgb' ? rgb.b : hsl.l} onChange={(e) => colorMode === 'rgb' ? handleRgbChange('b', e.target.value) : handleHslChange('l', e.target.value)} className="w-full h-8 border border-gray-300 focus:border-emerald-500 outline-none rounded-md text-right text-sm pr-1 shadow-sm transition-all" />
+              <span className="text-[10px] font-bold text-gray-500 mb-0.5 uppercase">{colorMode === 'rgb' ? 'b' : 'l'}</span>
+              <input type="number" min="0" max={colorMode === 'rgb' ? 255 : 100} value={colorMode === 'rgb' ? rgb.b : hsl.l} onChange={(e) => colorMode === 'rgb' ? handleRgbChange('b', e.target.value) : handleHslChange('l', e.target.value)} className="w-full h-8 bg-gray-50 focus:bg-white border-0 border-b border-transparent focus:border-gray-400 outline-none rounded-none text-center text-sm transition-all" />
             </div>
           </div>
         </div>
@@ -403,7 +422,7 @@ const ColorPalette = ({
   }
 
   return (
-    <div className="p-3 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+    <div className="w-full">
       <div className="text-xs font-semibold text-gray-500 mb-3">{title}</div>
 
       <div className="flex items-center gap-2 mb-2">
@@ -442,58 +461,88 @@ const ColorPalette = ({
   );
 };
 
+// Helper component for toolbar buttons - Moved outside to prevent re-renders
+const ToolbarButton = forwardRef<HTMLButtonElement, {
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  isActive?: boolean;
+  disabled?: boolean;
+  className?: string;
+}>(({ onClick, icon, title, isActive = false, disabled = false, className }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onMouseDown={(e) => {
+      e.preventDefault();
+    }}
+    onClick={onClick}
+    disabled={disabled}
+    className={cn(
+      'h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-600',
+      isActive && 'bg-emerald-50 text-emerald-600',
+      className
+    )}
+    title={title}
+  >
+    {icon}
+  </button>
+));
+
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   value,
   onChange,
   placeholder = 'Digite aqui...',
   maxLength,
   className = '',
-  variant = 'minimal'
+  variant = 'minimal', // Restoring variant
+  onSubmit, // Restoring onSubmit
+  submitLabel = 'Enviar',
+  disabled = false,
 }) => {
+  const [isHyphenated, setIsHyphenated] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isGifOpen, setIsGifOpen] = useState(false);
+  // Estados para a Toolbar Superior
   const [isTextColorOpen, setIsTextColorOpen] = useState(false);
   const [isHighlightColorOpen, setIsHighlightColorOpen] = useState(false);
-
-  // Helper component for toolbar buttons
-  const ToolbarButton: React.FC<{
-    onClick: () => void;
-    icon: React.ReactNode;
-    title: string;
-    isActive?: boolean;
-    disabled?: boolean;
-  }> = ({ onClick, icon, title, isActive = false, disabled = false }) => (
-    <button
-      type="button"
-      onMouseDown={(e) => {
-        e.preventDefault();
-      }}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed',
-        isActive && 'bg-gray-200'
-      )}
-      title={title}
-    >
-      {icon}
-    </button>
-  );
+  // Estados independentes para o Bubble Menu
+  const [isBubbleTextColorOpen, setIsBubbleTextColorOpen] = useState(false);
+  const [isBubbleHighlightColorOpen, setIsBubbleHighlightColorOpen] = useState(false);
 
   // Constrói lista de plugins atráves da Variante
   const extensions: any[] = [
     StarterKit.configure({
-      heading: variant === 'full' ? { levels: [1, 2, 3, 4] } : false, // Enable heading 1-4
+      heading: variant === 'full' ? { levels: [1, 2, 3, 4] } : false,
+      bold: false,
+      paragraph: false,
       codeBlock: variant === 'full' ? {} : false,
-      blockquote: variant === 'full' ? {} : false, // Enable blockquote only for full variant
+      blockquote: variant === 'full' ? {} : false,
       horizontalRule: false,
-      bulletList: variant === 'full' ? {} : false, // Enable bulletList only for full variant
-      orderedList: variant === 'full' ? {} : false, // Enable orderedList only for full variant
-      listItem: variant === 'full' ? {} : false, // Enable listItem only for full variant
+      bulletList: variant === 'full' ? {} : false,
+      orderedList: variant === 'full' ? {} : false,
+      listItem: variant === 'full' ? {} : false,
+    }),
+    Paragraph.extend({
+      addAttributes() {
+        return {
+          lang: {
+            default: 'pt-BR',
+            renderHTML: attributes => ({ lang: attributes.lang }),
+            parseHTML: element => element.getAttribute('lang') || 'pt-BR',
+          },
+        }
+      },
+    }),
+
+    TextStyle.extend({
+      priority: 1,
+    }),
+    Color,
+    Bold.extend({
+      priority: 10,
     }),
     Underline,
-    TextStyle,
-    Color,
     Highlight.configure({ multicolor: true }),
     Placeholder.configure({
       placeholder: ({ editor }) => (editor.isEmpty ? placeholder : ''),
@@ -521,6 +570,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         class: 'max-h-[400px] object-cover mx-auto transition-all duration-300 ease-in-out',
       },
     }),
+    DivWrapper,
     SpoilerMark,
     Mention.extend({
       addAttributes() {
@@ -567,6 +617,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }),
   ];
 
+  // Identificar se o conteúdo inicial já tem hifenização para sincronizar o estado
+  useEffect(() => {
+    if (variant === 'full' && value && value.includes('class="hyphenate"')) {
+      setIsHyphenated(true);
+    }
+  }, [variant]);
+
   if (variant === 'full') {
     extensions.push(
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
@@ -582,27 +639,76 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const editor = useEditor({
     extensions,
     content: value,
-    editable: true, // Editor is always editable, disabled state is handled by toolbar buttons
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
+      let html = editor.getHTML();
+
+      if (isHyphenated) {
+        if (!html.startsWith('<div class="hyphenate"')) {
+          html = `<div class="hyphenate" lang="pt-BR">${html}</div>`;
+        }
+      } else {
+        if (html.startsWith('<div class="hyphenate"')) {
+          html = html.replace(/^<div class="hyphenate"[^>]*>/, '').replace(/<\/div>$/, '');
+        }
+      }
+
       onChange?.(html);
     },
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm max-w-none focus:outline-none min-h-[100px] p-3',
-          'prose-p:my-1 prose-p:leading-relaxed',
+          'prose focus:outline-none max-w-none p-4',
+          variant === 'full' ? 'prose-sm' : 'text-sm', // Mantém estável no tamanho que o usuário considera "normal"
+          (variant === 'comment' || variant === 'reply') ? 'min-h-[60px]' : 'min-h-[100px]',
+          'prose-p:mt-0 prose-p:mb-4 prose-p:leading-relaxed',
+          isHyphenated && 'hyphenate',
           className
         ),
+        lang: 'pt-BR',
+      },
+      handleKeyDown: (_view: any, event: KeyboardEvent) => {
+        if ((variant === 'comment' || variant === 'reply') && onSubmit && event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          onSubmit();
+          return true;
+        }
+        return false;
       },
     },
   });
 
+  // Sincroniza o valor inicial do Form ou Updates externos pro Tiptap
+  // Removendo a div wrapper (se existir) para comparar com a estrutura interna limpa do editor
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, false); // false to prevent triggering onUpdate
+    if (!editor || typeof value !== 'string') return;
+    
+    let sanitizedValue = value;
+    if (sanitizedValue.startsWith('<div class="hyphenate"')) {
+      sanitizedValue = sanitizedValue.replace(/^<div class="hyphenate"[^>]*>/, '').replace(/<\/div>$/, '');
+    }
+
+    if (sanitizedValue !== editor.getHTML()) {
+      editor.commands.setContent(sanitizedValue, false);
     }
   }, [value, editor]);
+
+  // Se o usuário clicar no toggle de hifenização, precisa avisar ao form (onChange) IMEDIATAMENTE.
+  // Sem isso, se ele clicar e depois Salvar (sem digitar mais nada), o texto seria salvo sem a formatação.
+  useEffect(() => {
+    if (!editor) return;
+    
+    let html = editor.getHTML();
+    if (isHyphenated) {
+      if (!html.startsWith('<div class="hyphenate"')) {
+        onChange?.(`<div class="hyphenate" lang="pt-BR">${html}</div>`);
+      }
+    } else {
+      if (html.startsWith('<div class="hyphenate"')) {
+        html = html.replace(/^<div class="hyphenate"[^>]*>/, '').replace(/<\/div>$/, '');
+        onChange?.(html);
+      }
+    }
+  }, [isHyphenated]); // intentionally left deps out to not cause loops with internal updates
 
   const addEmoji = useCallback(
     (emoji: any) => {
@@ -617,179 +723,270 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     return null;
   }
 
-  const emojiButtonRef = React.useRef<HTMLButtonElement>(null);
   const characterCount = editor.storage.characterCount?.characters() || 0;
   const isOverLimit = maxLength && characterCount > maxLength;
 
   return (
-    <div className={`border border-gray-200 rounded-xl overflow-hidden bg-white focus-within:ring-2 focus-within:ring-emerald-600 focus-within:border-emerald-600 transition-all shadow-sm flex flex-col ${className}`}>
+    <div className={cn(
+      "border border-gray-200 rounded-xl overflow-hidden bg-white focus-within:border-emerald-400 transition-colors shadow-sm flex flex-col relative max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent",
+      className
+    )}>
 
-      {/* Toolbar Avançada Tiptap */}
-      <div className="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center z-10">
-        {/* Desfazer / Refazer */}
-        <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} icon={<Undo className="w-4 h-4" />} title="Desfazer" />
-        <ToolbarButton onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} icon={<Redo className="w-4 h-4" />} title="Refazer" />
-
-        <div className="w-px h-4 bg-gray-300 mx-1" />
-
-        {/* Formatações de Texto Básicas */}
-        <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={<Bold className="w-4 h-4" />} title="Negrito" />
+      {/* Bubble Menus - Estáveis fora de condicionais */}
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ state, editor }) => (variant === 'full' || variant === 'minimal') && !editor.isActive('image') && !state.selection.empty}
+        tippyOptions={{ duration: 100, placement: 'top', offset: [0, 10] }}
+        className="bg-white border border-gray-200 rounded-lg shadow-lg p-1 flex items-center gap-1 z-50"
+      >
+        <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={<BoldIcon className="w-4 h-4" />} title="Negrito" />
         <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={<Italic className="w-4 h-4" />} title="Itálico" />
         <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={<UnderlineIcon className="w-4 h-4" />} title="Sublinhado" />
         <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} icon={<Strikethrough className="w-4 h-4" />} title="Tachado" />
 
         {variant === 'full' && (
-          <>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleSubscript().run()} isActive={editor.isActive('subscript')} icon={<SubscriptIcon className="w-4 h-4" />} title="Subscrito" />
-            <ToolbarButton onClick={() => editor.chain().focus().toggleSuperscript().run()} isActive={editor.isActive('superscript')} icon={<SuperscriptIcon className="w-4 h-4" />} title="Sobrescrito" />
-          </>
+          <ToolbarButton onClick={() => editor.chain().focus().toggleSpoiler().run()} isActive={editor.isActive('spoiler')} icon={<EyeOff className="w-4 h-4" />} title="Spoiler" />
         )}
 
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+        <div className="w-px h-4 bg-gray-200 mx-1" />
 
-        {/* Cabeçalhos (Apenas Full) */}
-        {variant === 'full' && (
-          <>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} isActive={editor.isActive('heading', { level: 1 })} icon={<Heading1 className="w-4 h-4" />} title="Título 1" />
-            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive('heading', { level: 2 })} icon={<Heading2 className="w-4 h-4" />} title="Título 2" />
-            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} isActive={editor.isActive('heading', { level: 3 })} icon={<Heading3 className="w-4 h-4" />} title="Título 3" />
-            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} isActive={editor.isActive('heading', { level: 4 })} icon={<Heading4 className="w-4 h-4" />} title="Título 4" />
-            <div className="w-px h-4 bg-gray-300 mx-1" />
-          </>
-        )}
-
-        {/* Alinhamento (Apenas Full)*/}
-        {variant === 'full' && (
-          <>
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={<AlignLeft className="w-4 h-4" />} title="Alinhar Esquerda" />
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={<AlignCenter className="w-4 h-4" />} title="Centralizar" />
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} icon={<AlignRight className="w-4 h-4" />} title="Alinhar Direita" />
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} icon={<AlignJustify className="w-4 h-4" />} title="Justificar" />
-            <div className="w-px h-4 bg-gray-300 mx-1" />
-          </>
-        )}
-
-        {/* Cores e Marcações */}
-        <Popover open={isTextColorOpen} onOpenChange={setIsTextColorOpen}>
+        <Popover open={isBubbleTextColorOpen} onOpenChange={setIsBubbleTextColorOpen}>
           <PopoverTrigger asChild>
-            <div onClick={(e) => { e.preventDefault(); setIsTextColorOpen(!isTextColorOpen); }}>
-              <ToolbarButton onClick={() => { }} icon={<PaintBucket className="w-4 h-4" />} title="Cor do Texto" />
-            </div>
+            <ToolbarButton
+              onClick={() => setIsBubbleTextColorOpen(!isBubbleTextColorOpen)}
+              isActive={isBubbleTextColorOpen}
+              icon={<PaintBucket className="w-4 h-4" style={{ color: editor.getAttributes('textStyle').color || 'inherit' }} />}
+              title="Cor do Texto"
+            />
           </PopoverTrigger>
-          <PopoverContent className="p-0 border-0 shadow-none w-auto bg-transparent" side="bottom" align="center" sideOffset={5}>
-            <ColorPalette onSelectColor={(color) => { if (color) { editor.chain().focus().setColor(color).run(); } else { editor.chain().focus().unsetColor().run() } setIsTextColorOpen(false); }} title="Cores do Tema" />
+          <PopoverContent className="z-[60] w-auto p-3" side="top" align="center">
+            <ColorPalette title="Cor do Texto" onSelectColor={(color) => { if (color) editor.chain().focus().setColor(color).run(); else editor.chain().focus().unsetColor().run(); setIsBubbleTextColorOpen(false); }} />
           </PopoverContent>
         </Popover>
 
-        <Popover open={isHighlightColorOpen} onOpenChange={setIsHighlightColorOpen}>
+        <Popover open={isBubbleHighlightColorOpen} onOpenChange={setIsBubbleHighlightColorOpen}>
           <PopoverTrigger asChild>
-            <div onClick={(e) => { e.preventDefault(); setIsHighlightColorOpen(!isHighlightColorOpen); }} onContextMenu={(e) => { e.preventDefault(); editor.chain().focus().unsetHighlight().run(); }}>
-              <ToolbarButton onClick={() => { }} isActive={editor.isActive('highlight')} icon={<Highlighter className="w-4 h-4" />} title="Cor de Fundo (Clique direito para remover)" />
-            </div>
+            <ToolbarButton
+              onClick={() => setIsBubbleHighlightColorOpen(!isBubbleHighlightColorOpen)}
+              isActive={isBubbleHighlightColorOpen}
+              icon={<Highlighter className="w-4 h-4" style={{ color: editor.getAttributes('highlight').color || 'inherit' }} />}
+              title="Cor de Destaque"
+            />
           </PopoverTrigger>
-          <PopoverContent className="p-0 border-0 shadow-none w-auto bg-transparent" side="bottom" align="center" sideOffset={5}>
-            <ColorPalette onSelectColor={(color) => { if (color) { editor.chain().focus().setHighlight({ color }).run(); } else { editor.chain().focus().unsetHighlight().run(); } setIsHighlightColorOpen(false); }} title="Cores de Realce" />
+          <PopoverContent className="z-[60] w-auto p-3" side="top" align="center">
+            <ColorPalette title="Cor de Destaque" onSelectColor={(color) => { if (color) editor.chain().focus().setHighlight({ color }).run(); else editor.chain().focus().unsetHighlight().run(); setIsBubbleHighlightColorOpen(false); }} />
           </PopoverContent>
         </Popover>
+      </BubbleMenu>
 
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ state, editor }) => (variant === 'full' || variant === 'minimal') && editor.isActive('image')}
+        tippyOptions={{ duration: 100, placement: 'bottom', offset: [0, 10] }}
+        className="bg-white border border-gray-200 rounded-lg shadow-lg p-1 flex items-center gap-1 z-50"
+      >
+        <ToolbarButton onClick={() => editor.chain().focus().updateAttributes('image', { size: 'small' }).run()} isActive={editor.isActive('image', { size: 'small' })} icon={<span className="text-[10px] font-bold">P</span>} title="Pequeno" />
+        <ToolbarButton onClick={() => editor.chain().focus().updateAttributes('image', { size: 'medium' }).run()} isActive={editor.isActive('image', { size: 'medium' })} icon={<span className="text-[10px] font-bold">M</span>} title="Médio" />
+        <ToolbarButton onClick={() => editor.chain().focus().deleteSelection().run()} icon={<Trash2 className="w-4 h-4 text-red-500" />} title="Remover" />
+      </BubbleMenu>
 
-        {/* Listas e Blocos (Full / Parcial) */}
-        {variant === 'full' && (
-          <>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} icon={<List className="w-4 h-4" />} title="Lista com Marcadores" />
-            <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} icon={<ListOrdered className="w-4 h-4" />} title="Lista Numerada" />
-            <ToolbarButton onClick={() => editor.chain().focus().sinkListItem('listItem').run()} disabled={!editor.can().sinkListItem('listItem')} icon={<Indent className="w-4 h-4" />} title="Aumentar Recuo (Ninho)" />
-            <ToolbarButton onClick={() => editor.chain().focus().liftListItem('listItem').run()} disabled={!editor.can().liftListItem('listItem')} icon={<Outdent className="w-4 h-4" />} title="Diminuir Recuo" />
-            <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} icon={<Quote className="w-4 h-4" />} title="Citação" />
-            <div className="w-px h-4 bg-gray-300 mx-1" />
+      {/* 1. Toolbar Superior (Variants full e minimal) */}
+      {(variant === 'full' || variant === 'minimal') && (
+        <div className="bg-gray-50 flex flex-wrap gap-1 items-center transition-all p-2 border-b border-gray-200 sticky top-0 z-10">
+          <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} icon={<Undo className="w-4 h-4" />} title="Desfazer" />
+          <ToolbarButton onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} icon={<Redo className="w-4 h-4" />} title="Refazer" />
 
-            <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')} icon={<Code className="w-4 h-4" />} title="Código inline" />
-            <ToolbarButton onClick={() => editor.chain().focus().toggleSpoiler().run()} isActive={editor.isActive('spoiler')} icon={<EyeOff className={`w-4 h-4 ${editor.isActive('spoiler') ? 'text-red-500' : ''}`} />} title="Spoiler" />
-            <div className="w-px h-4 bg-gray-300 mx-1" />
-          </>
-        )}
+          <div className="w-px h-4 bg-gray-300 mx-1" />
 
-        {/* Utilitários Extras / Mídias */}
-        {variant === 'full' && (
-          <>
-            <ToolbarButton onClick={() => { const url = window.prompt('URL da imagem (ex: https://.../gato.gif):'); if (url) { editor.chain().focus().setImage({ src: url }).run(); } }} icon={<ImageIcon className="w-4 h-4" />} title="Inserir Imagem (URL)" />
-
-            <Popover open={isGifOpen} onOpenChange={setIsGifOpen}>
-              <PopoverTrigger asChild>
-                <div onClick={(e) => { e.preventDefault(); setIsGifOpen(!isGifOpen); }}>
-                  <ToolbarButton onClick={() => { } /* Handled by trigger wrapper */} isActive={isGifOpen} icon={<ImagePlay className="w-4 h-4" />} title="Inserir GIF Aleatório" />
-                </div>
-              </PopoverTrigger>
-              <PopoverContent className="p-0 border-0 shadow-lg w-auto h-auto rounded-xl bg-transparent mt-2" side="bottom" align="center">
-                <div className="bg-white border shadow-md rounded-xl">
-                  <GiphySelector onSelect={(url) => { editor.chain().focus().setImage({ src: url }).run(); setIsGifOpen(false); }} />
-                </div>
-              </PopoverContent>
-            </Popover>
-          </>
-        )}
-
-        {/* Emoji Picker sempre presente independente da variante na aba de mídias */}
-        <div className="relative">
-          <button ref={emojiButtonRef} type="button" onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)} className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-gray-200">
-            <Smile className="h-4 w-4" />
-          </button>
-          {isEmojiPickerOpen && (
-            <Tippy appendTo={document.body} content={<div className="bg-white shadow-lg rounded-lg overflow-hidden"><Picker data={data} onEmojiSelect={addEmoji} theme="light" i18n={i18n_pt} locale="pt" previewPosition="none" skinTonePosition="none" /></div>} interactive={true} visible={isEmojiPickerOpen} onClickOutside={() => setIsEmojiPickerOpen(false)} reference={emojiButtonRef} placement="bottom-start" trigger="manual" />
-          )}
-        </div>
-      </div>
-
-      {/* Editor Content */}
-      <div className="relative flex-1">
-        <EditorContent editor={editor} className={cn('tiptap min-h-[100px] h-full outline-none')} />
-
-        {/* Bubble Menu de Texto (Oculto em Imagens) */}
-        <BubbleMenu
-          editor={editor}
-          shouldShow={({ state, editor }) => !editor.isActive('image') && !state.selection.empty}
-          tippyOptions={{ duration: 100, placement: 'top', offset: [0, 10] }}
-          className="bg-white border border-gray-200 rounded-lg shadow-lg p-1 flex items-center gap-1"
-        >
-          <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={<Bold className="w-4 h-4" />} title="Negrito" />
+          <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={<BoldIcon className="w-4 h-4" />} title="Negrito" />
           <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={<Italic className="w-4 h-4" />} title="Itálico" />
           <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={<UnderlineIcon className="w-4 h-4" />} title="Sublinhado" />
+          <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} icon={<Strikethrough className="w-4 h-4" />} title="Tachado" />
+
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+
+          {/* Cores na Minimal e Full */}
+          <Popover open={isTextColorOpen} onOpenChange={setIsTextColorOpen}>
+            <PopoverTrigger asChild>
+              <ToolbarButton
+                onClick={() => setIsTextColorOpen(!isTextColorOpen)}
+                isActive={isTextColorOpen}
+                icon={<PaintBucket className="w-4 h-4" style={{ color: editor.getAttributes('textStyle').color || 'inherit' }} />}
+                title="Cor do Texto"
+              />
+            </PopoverTrigger>
+            <PopoverContent className="z-50 w-auto p-3 rounded-xl" side="bottom" align="start">
+              <ColorPalette title="Cor do Texto" onSelectColor={(color) => { if (color) editor.chain().focus().setColor(color).run(); else editor.chain().focus().unsetColor().run(); setIsTextColorOpen(false); }} />
+            </PopoverContent>
+          </Popover>
+
+          <Popover open={isHighlightColorOpen} onOpenChange={setIsHighlightColorOpen}>
+            <PopoverTrigger asChild>
+              <ToolbarButton
+                onClick={() => setIsHighlightColorOpen(!isHighlightColorOpen)}
+                isActive={isHighlightColorOpen}
+                icon={<Highlighter className="w-4 h-4" style={{ color: editor.getAttributes('highlight').color || 'inherit' }} />}
+                title="Cor de Destaque"
+              />
+            </PopoverTrigger>
+            <PopoverContent className="z-50 w-auto p-3 rounded-xl" side="bottom" align="start">
+              <ColorPalette title="Cor de Destaque" onSelectColor={(color) => { if (color) editor.chain().focus().setHighlight({ color }).run(); else editor.chain().focus().unsetHighlight().run(); setIsHighlightColorOpen(false); }} />
+            </PopoverContent>
+          </Popover>
+
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+
+          {/* Emoji e Menção na Minimal e Full */}
+          <Tippy
+            appendTo={document.body}
+            content={
+              <div className="bg-white shadow-lg rounded-lg overflow-hidden border">
+                <Picker data={data} onEmojiSelect={addEmoji} theme="light" i18n={i18n_pt} locale="pt" previewPosition="none" skinTonePosition="none" />
+              </div>
+            }
+            interactive={true}
+            visible={isEmojiPickerOpen}
+            onClickOutside={() => setIsEmojiPickerOpen(false)}
+            placement="bottom-start"
+          >
+            <ToolbarButton
+              onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+              isActive={isEmojiPickerOpen}
+              icon={<Smile className="h-4 w-4" />}
+              title="Emoji"
+            />
+          </Tippy>
+
+          <ToolbarButton onClick={() => editor.chain().focus().insertContent('@').run()} icon={<AtSign className="h-4 w-4" />} title="Mencionar" />
+          {variant === 'full' && (
+            <ToolbarButton onClick={() => setIsHyphenated(!isHyphenated)} isActive={isHyphenated} icon={<Languages className="h-4 w-4" />} title="Hifenização Automática" />
+          )}
+
           {variant === 'full' && (
             <>
               <div className="w-px h-4 bg-gray-300 mx-1" />
-              <ToolbarButton onClick={() => editor.chain().focus().toggleSpoiler().run()} isActive={editor.isActive('spoiler')} icon={<EyeOff className={`w-4 h-4 ${editor.isActive('spoiler') ? 'text-red-500' : ''}`} />} title="Spoiler" />
+              <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={<AlignLeft className="w-4 h-4" />} title="Alinhar à Esquerda" />
+              <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={<AlignCenter className="w-4 h-4" />} title="Centralizar" />
+              <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} icon={<AlignRight className="w-4 h-4" />} title="Alinhar à Direita" />
+              <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} icon={<AlignJustify className="w-4 h-4" />} title="Justificar" />
+
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} isActive={editor.isActive('heading', { level: 1 })} icon={<Heading1 className="w-4 h-4" />} title="Título 1" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive('heading', { level: 2 })} icon={<Heading2 className="w-4 h-4" />} title="Título 2" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} isActive={editor.isActive('heading', { level: 3 })} icon={<Heading3 className="w-4 h-4" />} title="Título 3" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} isActive={editor.isActive('heading', { level: 4 })} icon={<Heading4 className="w-4 h-4" />} title="Título 4" />
+
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} icon={<List className="w-4 h-4" />} title="Lista" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} icon={<ListOrdered className="w-4 h-4" />} title="Lista Numerada" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} icon={<Quote className="w-4 h-4" />} title="Citação" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} isActive={editor.isActive('codeBlock')} icon={<Code className="w-4 h-4" />} title="Bloco de Código" />
+
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <ToolbarButton onClick={() => editor.chain().focus().sinkListItem('listItem').run()} disabled={!editor.can().sinkListItem('listItem')} icon={<Indent className="w-4 h-4" />} title="Aumentar Recuo" />
+              <ToolbarButton onClick={() => editor.chain().focus().liftListItem('listItem').run()} disabled={!editor.can().liftListItem('listItem')} icon={<Outdent className="w-4 h-4" />} title="Diminuir Recuo" />
+
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleSubscript().run()} isActive={editor.isActive('subscript')} icon={<SubscriptIcon className="w-4 h-4" />} title="Subscrito" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleSuperscript().run()} isActive={editor.isActive('superscript')} icon={<SuperscriptIcon className="w-4 h-4" />} title="Sobrescrito" />
+              <ToolbarButton onClick={() => editor.chain().focus().toggleSpoiler().run()} isActive={editor.isActive('spoiler')} icon={<EyeOff className="w-4 h-4" />} title="Spoiler" />
+
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <ToolbarButton onClick={() => { const url = window.prompt('URL da imagem:'); if (url) { editor.chain().focus().setImage({ src: url }).run(); } }} icon={<ImageIcon className="w-4 h-4" />} title="Imagem" />
+
+              <Popover open={isGifOpen} onOpenChange={setIsGifOpen}>
+                <PopoverTrigger asChild>
+                  <ToolbarButton
+                    onClick={() => setIsGifOpen(!isGifOpen)}
+                    isActive={isGifOpen}
+                    icon={<GifRoundedIcon className="w-4 h-4" />}
+                    title="GIFs"
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="p-0 border-0 shadow-lg w-auto h-auto rounded-xl bg-transparent mt-2" side="bottom" align="start">
+                  <div className="bg-white border shadow-md rounded-xl">
+                    <GiphySelector onSelect={(url) => { editor.chain().focus().setImage({ src: url }).run(); setIsGifOpen(false); }} />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </>
           )}
-        </BubbleMenu>
+        </div>
+      )}
 
-        {/* Bubble Menu Específico para Imagens */}
-        <BubbleMenu
-          editor={editor}
-          shouldShow={({ editor }) => editor.isActive('image')}
-          tippyOptions={{ duration: 100, placement: 'bottom', offset: [0, 10] }}
-          className="bg-white border border-gray-200 rounded-lg shadow-lg p-1 flex items-center gap-1"
-        >
-          <ToolbarButton onClick={() => editor.chain().focus().updateAttributes('image', { size: 'small' }).run()} isActive={editor.isActive('image', { size: 'small' })} icon={<span className="text-[10px] font-bold">P</span>} title="Pequeno (250px)" />
-          <ToolbarButton onClick={() => editor.chain().focus().updateAttributes('image', { size: 'medium' }).run()} isActive={editor.isActive('image', { size: 'medium' })} icon={<span className="text-[10px] font-bold">M</span>} title="Médio (500px)" />
-          <ToolbarButton onClick={() => editor.chain().focus().updateAttributes('image', { size: 'large' }).run()} isActive={editor.isActive('image', { size: 'large' })} icon={<span className="text-[10px] font-bold px-0.5">G</span>} title="Grande (100%)" />
-          <div className="w-px h-4 bg-gray-300 mx-1" />
-          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={<AlignLeft className="w-4 h-4" />} title="Alinhar Esquerda" />
-          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={<AlignCenter className="w-4 h-4" />} title="Centralizar" />
-          <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} icon={<AlignRight className="w-4 h-4" />} title="Alinhar Direita" />
-          <div className="w-px h-4 bg-gray-300 mx-1" />
-          <ToolbarButton onClick={() => editor.chain().focus().deleteSelection().run()} icon={<Trash2 className="w-4 h-4 text-red-500" />} title="Remover Imagem" />
-        </BubbleMenu>
+      {/* 2. Área do Editor */}
+      <div className="relative flex-1 bg-white">
+        <EditorContent editor={editor} className="tiptap h-full outline-none" />
 
-        {/* Contador de Caracteres */}
         {maxLength && (
-          <div className="absolute bottom-2 right-2 text-xs text-gray-400 font-medium">
+          <div className="absolute bottom-2 right-2 text-[10px] text-gray-400 font-medium bg-white/80 px-1 rounded">
             <span className={cn(isOverLimit && 'text-red-500 font-bold')}>
               {characterCount}/{maxLength}
             </span>
           </div>
         )}
       </div>
+
+      {/* 3. Rodapé (Variants comment e reply) */}
+      {(variant === 'comment' || variant === 'reply') && (
+        <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2 bg-gray-50/50">
+          <div className="flex items-center gap-1">
+            <Tippy
+              appendTo={document.body}
+              content={
+                <div className="bg-white shadow-lg rounded-lg overflow-hidden border">
+                  <Picker data={data} onEmojiSelect={addEmoji} theme="light" i18n={i18n_pt} locale="pt" previewPosition="none" skinTonePosition="none" />
+                </div>
+              }
+              interactive={true}
+              visible={isEmojiPickerOpen}
+              onClickOutside={() => setIsEmojiPickerOpen(false)}
+              placement="top-start"
+            >
+              <ToolbarButton
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                isActive={isEmojiPickerOpen}
+                icon={<Smile className="h-5 w-5" />}
+                title="Emojis"
+                className="h-9 w-9"
+              />
+            </Tippy>
+
+            <ToolbarButton onClick={() => { const url = window.prompt('URL da imagem:'); if (url) { editor.chain().focus().setImage({ src: url }).run(); } }} icon={<ImageIcon className="h-5 w-5" />} title="Imagem" className="h-9 w-9" />
+
+            <Popover open={isGifOpen} onOpenChange={setIsGifOpen}>
+              <PopoverTrigger asChild>
+                <ToolbarButton
+                  onClick={() => setIsGifOpen(!isGifOpen)}
+                  isActive={isGifOpen}
+                  icon={<GifRoundedIcon className="h-5 w-5" />}
+                  title="GIFs"
+                  className="h-9 w-9"
+                />
+              </PopoverTrigger>
+              <PopoverContent className="p-0 border-0 shadow-lg w-auto h-auto rounded-xl bg-transparent mb-2" side="top" align="start">
+                <div className="bg-white border shadow-md rounded-xl">
+                  <GiphySelector onSelect={(url) => { editor.chain().focus().setImage({ src: url }).run(); setIsGifOpen(false); }} />
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <ToolbarButton onClick={() => editor.chain().focus().insertContent('@').run()} icon={<AtSign className="h-5 w-5" />} title="Mencionar" className="h-9 w-9" />
+          </div>
+
+          {onSubmit && (
+            <button
+              type="button"
+              onClick={onSubmit}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full transition-colors flex items-center justify-center shadow-sm disabled:opacity-50 text-[11px] font-bold tracking-wide w-8 h-8 px-0"
+              disabled={disabled}
+              title={submitLabel}
+            >
+              {submitLabel === '...' || submitLabel === 'Salvando...' || submitLabel === 'Publicando...' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizontal className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

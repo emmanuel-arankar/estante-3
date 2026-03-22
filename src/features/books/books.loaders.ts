@@ -23,7 +23,7 @@ export const bookDetailLoader = async ({ params }: any) => {
 
         return { edition };
     } catch (error) {
-        console.error('BookDetail Loader error:', error);
+        console.error('BookPage Loader error:', error);
         toastErrorClickable('Edição não encontrada.');
         return redirect(PATHS.HOME);
     }

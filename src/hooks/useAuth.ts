@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { onAuthChange, setSessionCookie } from '@/services/auth';
+import { onAuthChange, setSessionCookie } from '@/services/firebase/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { queryClient } from '@/lib/queryClient';
 import { userQuery } from '@/features/users/user.queries';

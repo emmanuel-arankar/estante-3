@@ -359,7 +359,7 @@ const AudioPlayer = ({
     );
 };
 
-import { requestTranscription } from '@/services/functions';
+import { requestTranscription } from '@/services/firebase/functions';
 import { Loader2, FileText } from 'lucide-react';
 
 const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {

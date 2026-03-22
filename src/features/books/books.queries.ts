@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
-import { getWorkAPI, getEditionAPI, checkIsbnAPI } from '@/services/booksApi';
+import { getWorkAPI, getEditionAPI, checkIsbnAPI } from '@/services/api/booksApi';
 
 export const workQuery = (workId: string) => queryOptions({
     queryKey: ['works', workId],

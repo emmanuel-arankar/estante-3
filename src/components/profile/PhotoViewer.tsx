@@ -22,7 +22,7 @@ import {
   toastErrorClickable
 } from '@/components/ui/toast';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/apiClient';
+import { apiClient } from '@/services/api/apiClient';
 
 interface PhotoViewerProps {
   imageUrl: string;
