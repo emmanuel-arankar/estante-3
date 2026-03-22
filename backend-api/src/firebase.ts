@@ -60,7 +60,7 @@ if (admin.apps.length === 0) {
       admin.initializeApp({
         projectId,
         credential,
-        databaseURL: projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined
+        databaseURL: projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : `https://estante-75463-default-rtdb.firebaseio.com`
       });
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
@@ -72,7 +72,7 @@ if (admin.apps.length === 0) {
     const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
     admin.initializeApp({
       projectId,
-      databaseURL: projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined
+      databaseURL: projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : `https://estante-75463-default-rtdb.firebaseio.com`
     });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
