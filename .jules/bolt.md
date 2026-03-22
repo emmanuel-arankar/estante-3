@@ -1,0 +1,3 @@
+## 2026-03-22 - [O(N) Message Grouping in Chronological Lists]
+**Learning:** In the chat component, messages were being grouped by date using `Array.find()` inside a loop, resulting in O(N*G) complexity (N=messages, G=days). Since chat messages are guaranteed to be chronologically sorted by the backend/realtime subscription, we can implement grouping in a single O(N) pass by only comparing the current message with the last group in the array.
+**Action:** Always leverage data sorting guarantees (like Firebase timestamps in chat) to replace nested searches with single-pass tail comparisons in list processing logic.
