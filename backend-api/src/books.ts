@@ -875,6 +875,66 @@ router.get('/books/series/search', checkAuth, async (req: Request, res: Response
 });
 
 /**
+ * @route GET /api/books/series/:seriesId/works
+ * @summary Listar obras de uma série de forma ordenada
+ */
+router.get('/books/series/:seriesId/works', checkAuth, async (req: Request, res: Response, next) => {
+    try {
+        const { seriesId } = req.params;
+        
+        // Busca obras que contenham o ID desta série no índice denormalizado
+        const snapshot = await db.collection('works')
+            .where('seriesIds', 'array-contains', seriesId)
+            .get();
+
+        if (snapshot.empty) {
+            return res.status(200).json({ data: [] });
+        }
+
+        const works = await Promise.all(snapshot.docs.map(async (doc) => {
+            const workData = doc.data();
+            const id = doc.id;
+            
+            let coverUrl = workData.coverUrl;
+            let defaultEditionId = null;
+
+            const editionSnapshot = await db.collection('editions')
+                .where('workId', '==', id)
+                .orderBy('createdAt', 'desc') // Pega a mais recente
+                .limit(1)
+                .get();
+            
+            if (!editionSnapshot.empty) {
+                const ed = editionSnapshot.docs[0];
+                coverUrl = coverUrl || ed.data().coverUrl;
+                defaultEditionId = ed.id;
+            }
+
+            return { 
+                id, 
+                ...sanitizeTimestamps(workData),
+                coverUrl: coverUrl || null,
+                defaultEditionId
+            };
+        }));
+
+        // Ordenação por posição na série em memória
+        works.sort((a: any, b: any) => {
+            const entryA = (a.seriesEntries || []).find((e: any) => e.seriesId === seriesId);
+            const entryB = (b.seriesEntries || []).find((e: any) => e.seriesId === seriesId);
+            
+            // Extrai apenas números da string de posição para ordenação numérica estável
+            const posA = parseFloat((entryA?.position || '0').replace(/[^0-9.]/g, '')) || 0;
+            const posB = parseFloat((entryB?.position || '0').replace(/[^0-9.]/g, '')) || 0;
+            
+            return posA - posB;
+        });
+
+        return res.status(200).json({ data: works });
+    } catch (error) { return next(error); }
+});
+
+/**
  * @route GET /api/books/series/:seriesId
  * @summary Detalhes de uma série
  */

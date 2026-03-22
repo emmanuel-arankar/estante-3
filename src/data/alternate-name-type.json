@@ -54,6 +54,11 @@
       "id": "other",
       "name": "Outro",
       "description": "Outra variação de nome não categorizada."
+    },
+    {
+      "id": "localized",
+      "name": "Nome Localizado",
+      "description": "Nome adaptado para outro idioma ou convenção cultural (ex: ordem, acentuação, escrita)."
     }
   ]
 }

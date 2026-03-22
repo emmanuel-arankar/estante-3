@@ -130,6 +130,10 @@ export const getSeriesAPI = async (id: string): Promise<Series> => {
     return await apiClient(`/books/series/${id}`);
 };
 
+export const getSeriesWorksAPI = async (seriesId: string): Promise<{ data: Work[] }> => {
+    return await apiClient(`/books/series/${seriesId}/works`);
+};
+
 export const listGenresAPI = async (): Promise<Genre[]> => {
     return await apiClient('/books/genres');
 };

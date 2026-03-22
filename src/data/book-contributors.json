@@ -1,32 +1,36 @@
 {
-    "roles": [
-        {
-            "id": "author",
-            "name": "Autor(a)"
-        },
-        {
-            "id": "co-author",
-            "name": "Co-autor(a)"
-        },
-        {
-            "id": "illustrator",
-            "name": "Ilustrador(a)"
-        },
-        {
-            "id": "translator",
-            "name": "Tradutor(a)"
-        },
-        {
-            "id": "editor",
-            "name": "Editor(a)"
-        },
-        {
-            "id": "cover_artist",
-            "name": "Capa"
-        },
-        {
-            "id": "reviser",
-            "name": "Revisor(a)"
-        }
-    ]
+  "roles": [
+    {
+      "id": "author",
+      "name": "Autor(a)"
+    },
+    {
+      "id": "co-author",
+      "name": "Co-autor(a)"
+    },
+    {
+      "id": "illustrator",
+      "name": "Ilustrador(a)"
+    },
+    {
+      "id": "translator",
+      "name": "Tradutor(a)"
+    },
+    {
+      "id": "editor",
+      "name": "Editor(a)"
+    },
+    {
+      "id": "cover_artist",
+      "name": "Capa"
+    },
+    {
+      "id": "reviser",
+      "name": "Revisor(a)"
+    },
+    {
+      "id": "narrator",
+      "name": "Narrador(a)"
+    }
+  ]
 }
