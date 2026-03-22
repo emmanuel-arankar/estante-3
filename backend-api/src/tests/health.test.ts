@@ -4,13 +4,33 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
-import { app } from '../index';
 
 // =============================================================================
 // MOCKS ELEVADOS (HOISTED)
 // =============================================================================
 
-// Sem mocks elevados necessários para este módulo simples.
+vi.mock('../firebase', () => ({
+  admin: {
+    auth: vi.fn(),
+    firestore: vi.fn(),
+    database: vi.fn(),
+    storage: vi.fn(),
+  },
+  db: {
+    collection: vi.fn(),
+  },
+  rtdb: {
+    ref: vi.fn(),
+  },
+  auth: {
+    verifySessionCookie: vi.fn(),
+  },
+  bucket: {
+    file: vi.fn(),
+  }
+}));
+
+import { app } from '../index';
 
 // =============================================================================
 // MOCKS DE MÓDULOS E MIDDLEWARES

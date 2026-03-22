@@ -55,12 +55,12 @@ if (admin.apps.length === 0) {
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
       const credential = admin.credential.cert(require(saPath));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
 
       admin.initializeApp({
         projectId,
         credential,
-        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+        databaseURL: projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined
       });
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
@@ -69,7 +69,11 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+    admin.initializeApp({
+      projectId,
+      databaseURL: projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
@@ -90,7 +94,7 @@ export const rtdb = admin.database();
  * @name Instância do Storage
  * @summary Acesso ao bucket padrão do Firebase Storage.
  */
-export const bucket = admin.storage().bucket(`${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}.firebasestorage.app`);
+export const bucket = admin.storage().bucket(process.env.VITE_FIREBASE_PROJECT_ID ? `${process.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app` : undefined);
 
 /**
  * @name Instância do Auth
