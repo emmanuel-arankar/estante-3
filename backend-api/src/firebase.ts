@@ -55,12 +55,19 @@ if (admin.apps.length === 0) {
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
       const credential = admin.credential.cert(require(saPath));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+
+      let firebaseConfig: Record<string, string> = {};
+      try {
+        firebaseConfig = process.env.FIREBASE_CONFIG ? JSON.parse(process.env.FIREBASE_CONFIG) : {};
+      } catch { /* ignore */ }
+
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId || 'estante-75463';
+      const databaseURL = firebaseConfig.databaseURL || `https://${projectId}-default-rtdb.firebaseio.com`;
 
       admin.initializeApp({
         projectId,
         credential,
-        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+        databaseURL
       });
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
@@ -69,7 +76,19 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    // Tenta extrair do FIREBASE_CONFIG (padrão em Functions/Cloud Run) ou env vars
+    let firebaseConfig: Record<string, string> = {};
+    try {
+      firebaseConfig = process.env.FIREBASE_CONFIG ? JSON.parse(process.env.FIREBASE_CONFIG) : {};
+    } catch { /* ignore */ }
+
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId || 'estante-75463';
+    const databaseURL = firebaseConfig.databaseURL || `https://${projectId}-default-rtdb.firebaseio.com`;
+
+    admin.initializeApp({
+      projectId,
+      databaseURL
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }

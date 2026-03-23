@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -60,7 +60,8 @@ import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
 
-const AudioPlayer = ({
+// ⚡ BOLT OPTIMIZATION: Memoize AudioPlayer to prevent re-renders when other messages update
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -357,12 +358,13 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
 
 import { requestTranscription } from '@/services/firebase/functions';
 import { Loader2, FileText } from 'lucide-react';
 
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+// ⚡ BOLT OPTIMIZATION: Memoize TranscriptionControl
+const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +425,10 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+// ⚡ BOLT OPTIMIZATION: Memoize MessageHighlighter
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +461,10 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
-export const ChatBubble = ({
+// ⚡ BOLT OPTIMIZATION: Memoize ChatBubble to prevent expensive list re-renders
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -968,4 +972,4 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
