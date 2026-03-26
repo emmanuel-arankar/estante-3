@@ -643,7 +643,7 @@ export const Chat = () => {
                             senderName={message.senderId === user.uid ? 'Você' : displayReceiverName}
                             senderPhoto={message.senderId === user.uid ? (user.photoURL || undefined) : (displayReceiverPhoto || undefined)}
                             onPlayNext={handlePlayNext}
-                            onEdit={() => handleOnEdit(message)}
+                            onEdit={handleOnEdit}
                             onJumpToMessage={scrollToMessage}
                             searchQuery={searchQuery}
                             isCurrentMatch={searchMatches[currentSearchIndex] === message.id}

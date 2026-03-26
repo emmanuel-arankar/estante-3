@@ -14,7 +14,9 @@ import {
     Smile,
     Eye,
     Pencil,
-    X
+    X,
+    Loader2,
+    FileText
 } from 'lucide-react';
 import {
     Avatar,
@@ -40,7 +42,6 @@ import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
 import { requestTranscription } from '@/services/firebase/functions';
-import { Loader2, FileText } from 'lucide-react';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -54,8 +55,8 @@ interface ChatMessageProps {
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (messageId: string) => void;
+    onEdit?: (message: ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
@@ -83,7 +84,7 @@ const AudioPlayer = memo(({
     status?: 'sending' | 'sent' | 'error';
     onMarkAsPlayed?: () => Promise<void>;
     waveform?: number[];
-    onPlayNext?: () => void;
+    onPlayNext?: (id: string) => void;
     messageDuration?: number;
 }) => {
     // Use AudioPlayerContext for centralized state management
@@ -169,7 +170,7 @@ const AudioPlayer = memo(({
 
                     // Play next audio if available
                     if (onPlayNext) {
-                        onPlayNext();
+                        onPlayNext(id);
                     }
                 });
             } catch (err) {
@@ -597,7 +598,7 @@ export const ChatBubble = memo(({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={() => onEdit?.(message)}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
