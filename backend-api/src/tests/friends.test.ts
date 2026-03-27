@@ -5,6 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
+import { admin, db } from '../firebase';
+import { Request, Response, NextFunction } from 'express';
 import { invalidatePattern } from '../lib/cache';
 
 // =============================================================================
@@ -356,6 +358,10 @@ vi.mock('../middleware/auth.middleware', () => ({
     req.user = { uid: 'current-user' };
     next();
   }),
+    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
