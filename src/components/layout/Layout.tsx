@@ -9,7 +9,7 @@ import { toastSuccessClickable } from '@/components/ui/toast';
 import { mainPageFadeVariants, MAIN_PAGE_TRANSITION } from '@/lib/animations';
 import { PATHS } from '@/router/paths';
 import { FocusManager } from '@/router/FocusManager';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/features/auth/stores/authStore';
 import { User } from '@estante/common-types';
 import { ArrowUp } from 'lucide-react';
 import { AnalyticsRouteTracker } from '@/components/AnalyticsRouteTracker';
@@ -162,7 +162,7 @@ export const Layout = () => {
   const effectiveFriendRequests = authUser ? headerData.initialFriendRequests : 0;
 
   const noFooterPaths = [PATHS.LOGIN, PATHS.REGISTER, PATHS.FORGOT_PASSWORD, PATHS.MESSAGES];
-  const shouldShowFooter = !noFooterPaths.includes(location.pathname) && !location.pathname.startsWith('/chat');
+  const shouldShowFooter = !noFooterPaths.includes(location.pathname) && !location.pathname.startsWith('/ChatPage');
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 w-full overflow-x-hidden">

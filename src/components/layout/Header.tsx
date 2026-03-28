@@ -45,14 +45,14 @@ import { Separator } from '@/components/ui/separator';
 import { useImageLoad } from '@/hooks/useImageLoad';
 import { logout } from '@/services/firebase/auth';
 import { subscribeToTotalUnreadMessages } from '@/services/firebase/realtime';
-import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
+import { NotificationDropdown } from '@/features/notifications/components/NotificationDropdown';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';
 import { searchUsersAPI } from '@/services/api/api';
-import { searchWorksAPI } from '@/services/api/booksApi';
+import { searchWorksAPI } from '@/features/books/services/booksApi';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { useQuery } from '@tanstack/react-query';
-import { getUserStatsAPI } from '@/services/api/friendshipsApi';
+import { getUserStatsAPI } from '@/features/friends/services/friendshipsApi';
 import { SuggestionModal } from '@/features/books/components/SuggestionModal';
 
 interface HeaderProps {

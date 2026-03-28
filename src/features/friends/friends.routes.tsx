@@ -3,16 +3,16 @@ import { RouteObject } from 'react-router-dom';
 import { PATHS } from '@/router/paths';
 import { withSuspense } from '@/router/RouteSuspense';
 
-// O componente Friends se torna o layout para esta seção
-const Friends = lazy(() => import('@/pages/Friends').then(module => ({ default: module.Friends })));
+// O componente FriendsPage se torna o layout para esta seção
+const FriendsPage = lazy(() => import('@/features/friends/pages/FriendsPage').then(module => ({ default: module.FriendsPage })));
 
 // O DenormalizedFriendsList agora será renderizado pelo Outlet
-const DenormalizedFriendsList = lazy(() => import('@/components/friends/DenormalizedFriendsList').then(module => ({ default: module.DenormalizedFriendsList })));
+const DenormalizedFriendsList = lazy(() => import('@/features/friends/components/DenormalizedFriendsList').then(module => ({ default: module.DenormalizedFriendsList })));
 
 export const friendsRoutes: RouteObject[] = [
   {
     path: PATHS.FRIENDS,
-    element: withSuspense(Friends),
+    element: withSuspense(FriendsPage),
     handle: {
       id: 'friends',
       title: () => 'Amigos | Estante de Bolso',

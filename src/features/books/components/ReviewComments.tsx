@@ -7,14 +7,14 @@ import {
   updateReviewCommentAPI,
   likeReviewCommentAPI,
   getCommentLikersAPI,
-} from '@/services/api/reviewsApi';
+} from '@/features/books/services/reviewsApi';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { PATHS } from '@/router/paths';
 import { userByNicknameQuery } from '@/features/users/user.queries';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Loader2, Reply, Trash2, CornerDownRight, Heart, Pencil, X, MoreHorizontal } from 'lucide-react';
 import { ReviewComment } from '@estante/common-types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -507,7 +507,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({ reviewId }) => {
           </div>
         ) : (
           <div className="text-sm text-center text-gray-500 mb-5 bg-white p-3 rounded-xl border border-gray-100">
-            Faça login para participar da discussão.
+            Faça LoginPage para participar da discussão.
           </div>
         )}
 

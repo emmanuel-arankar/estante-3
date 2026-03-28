@@ -3,24 +3,17 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { List, Grid, Users, UserPlus, Clock } from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
-import { 
-  ToggleGroup, 
-  ToggleGroupItem 
-} from '@/components/ui/toggle-group';
-import { 
-  Tabs, 
-  TabsList,
-  TabsTrigger 
-} from '@/components/ui/tabs';
-import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDenormalizedFriends } from '@/features/friends/hooks/useDenormalizedFriends';
 import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations';
 
-export const Friends = () => {
+export const FriendsPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const navigate = useNavigate();
   const location = useLocation();
   const { stats } = useDenormalizedFriends();
-  
+
   const outletKey = location.pathname;
 
   const getCurrentTab = () => {
@@ -41,7 +34,7 @@ export const Friends = () => {
         ogTitle="Amigos na Estante de Bolso"
         ogDescription="Conecte-se com outros leitores."
       />
-      
+
       <main className="min-h-[calc(100vh-80px)] bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div>
@@ -52,10 +45,10 @@ export const Friends = () => {
                   Gerencie suas conexões
                 </p>
               </div>
-              
-              <ToggleGroup 
-                type="single" 
-                value={viewMode} 
+
+              <ToggleGroup
+                type="single"
+                value={viewMode}
                 onValueChange={(value) => {
                   if (value) setViewMode(value as 'grid' | 'list');
                 }}
@@ -86,16 +79,16 @@ export const Friends = () => {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            
+
             <div className="mt-6">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={outletKey}
-                  variants={tabContentVariants} // # atualizado
+                  variants={tabContentVariants}
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  transition={SMOOTH_TRANSITION} // # atualizado
+                  transition={SMOOTH_TRANSITION}
                 >
                   <Outlet context={{ viewMode }} />
                 </motion.div>

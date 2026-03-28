@@ -17,7 +17,9 @@ export type NotificationType =
     | 'like_review'
     | 'like_review_comment'
     | 'review_comment_created'
-    | 'comment_reply_created';
+    | 'comment_reply_created'
+    | 'suggestion_approved'
+    | 'suggestion_rejected';
 
 export interface NotificationMetadata {
     friendshipId?: string;
@@ -27,6 +29,9 @@ export interface NotificationMetadata {
     commentId?: string;
     workId?: string;
     editionId?: string;
+    suggestionId?: string;    // ID da sugestão revisada
+    suggestionTitle?: string; // Título do livro/conteúdo sugerido
+    reviewNote?: string;      // Nota de justificativa da decisão
 }
 
 export interface NotificationResponse {

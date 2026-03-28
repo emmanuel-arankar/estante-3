@@ -25,6 +25,9 @@ export const PATHS = {
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
 
+  // Busca Global
+  SEARCH: '/search',
+
   // Rotas de Livros e Autores
   BOOKS_SEARCH: '/books/search',
 
@@ -46,6 +49,10 @@ export const PATHS = {
 
   // Rotas de Curadoria (Bibliotecário)
   CURATOR_DASHBOARD: '/curatorship',
+  CURATOR_EDIT_WORK: (params: RouteParams['work']) => `/curator/work/${params.workId}/edit`,
+  CURATOR_EDIT_EDITION: (params: RouteParams['book']) => `/curator/edition/${params.editionId}/edit`,
+  CURATOR_EDIT_PERSON: (params: RouteParams['author']) => `/curator/person/${params.personId}/edit`,
+  CURATOR_EDIT_PUBLISHER: (params: { publisherId: string }) => `/curator/publisher/${params.publisherId}/edit`,
 
   // Funções construtoras para rotas dinâmicas
   SETTINGS_BLOCKED: '/settings/blocked',

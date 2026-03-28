@@ -4,7 +4,7 @@ import {
   getReviewCommentsAPI,
   getReviewByIdAPI,
   getMyReviewByEditionAPI
-} from '@/services/api/reviewsApi';
+} from '@/features/books/services/reviewsApi';
 
 export const reviewsByEditionQuery = (
   editionId: string,

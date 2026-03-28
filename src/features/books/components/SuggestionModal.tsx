@@ -8,7 +8,7 @@ import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toas
 import {
   checkIsbnAPI, enrichIsbnAPI, searchWorksAPI,
   searchSeriesAPI, createSuggestionAPI, searchPublishersAPI, searchPersonsAPI
-} from '@/services/api/booksApi';
+} from '@/features/books/services/booksApi';
 import { Work, Person, Series, Publisher } from '@estante/common-types';
 import {
   CheckCircle, AlertCircle, Search, BookOpen, BookPlus,

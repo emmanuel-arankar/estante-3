@@ -1,8 +1,8 @@
 
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Globe, Info, ExternalLink, Calendar } from 'lucide-react';
-import { getPersonAPI, getPersonEditionsAPI } from '@/services/api/booksApi';
+import { Briefcase, Globe, Info, ExternalLink, Calendar, Edit3 } from 'lucide-react';
+import { getPersonAPI, getPersonEditionsAPI } from '@/features/books/services/booksApi';
 import { PATHS } from '@/router/paths';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -15,8 +15,10 @@ import { getAlternateNameTypeName, getScriptName } from '@/data/alternate-names'
 import { AlternateName } from '@estante/common-types';
 import { useState, useEffect } from 'react';
 import { trackEvent } from '@/lib/analytics';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function PersonPage() {
+  const { isAdmin, isLibrarian } = useAuth();
   const { personId } = useParams();
   const page = 1; // Temporário até implementar páginação real
   const [imageError, setImageError] = useState(false);
@@ -97,9 +99,20 @@ export function PersonPage() {
 
           {/* Coluna dos Detalhes Básicos */}
           <div className="md:w-2/3 lg:w-3/4 p-6 lg:p-10 flex flex-col justify-center">
-            <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
-              {person.name}
-            </h1>
+            <div className="flex items-center flex-wrap gap-3">
+              <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
+                {person.name}
+              </h1>
+              {(isAdmin || isLibrarian) && (
+                <Link
+                  to={PATHS.CURATOR_EDIT_PERSON({ personId: person.id })}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-full transition-colors shadow-sm mt-1 sm:mt-0"
+                  title="Editar Autor (Admin)"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
 
             {(person.birthDate || person.deathDate) && (
               <div className="flex items-center text-sm md:text-base text-gray-500 mt-3 font-medium">

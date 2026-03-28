@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { PATHS } from '@/router/paths';
 
 export const Hero = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -11,7 +12,7 @@ export const Hero = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      navigate(`${PATHS.SEARCH}?q=${encodeURIComponent(searchQuery)}`);
     }
   };
 

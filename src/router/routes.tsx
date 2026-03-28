@@ -23,7 +23,7 @@ import {
   booksRoutes,
 } from '@/features/routes';
 
-const Home = lazy(() => import('@/pages/Home').then(module => ({ default: module.Home })));
+const Home = lazy(() => import('@/features/home/pages/HomePage').then(module => ({ default: module.HomePage })));
 
 export const routes: RouteObject[] = [
   {
@@ -61,12 +61,28 @@ export const routes: RouteObject[] = [
                 lazy: () => import('@/features/curatorship/curatorship.routes'),
               },
               {
+                path: PATHS.CURATOR_EDIT_WORK({ workId: ':workId' }).split(':')[0] + ':workId/edit',
+                lazy: () => import('@/features/curatorship/pages/AdminEditWorkPage').then(m => ({ Component: m.AdminEditWorkPage })),
+              },
+              {
+                path: PATHS.CURATOR_EDIT_EDITION({ editionId: ':editionId' }).split(':')[0] + ':editionId/edit',
+                lazy: () => import('@/features/curatorship/pages/AdminEditEditionPage').then(m => ({ Component: m.AdminEditEditionPage })),
+              },
+              {
+                path: PATHS.CURATOR_EDIT_PERSON({ personId: ':personId' }).split(':')[0] + ':personId/edit',
+                lazy: () => import('@/features/curatorship/pages/AdminEditPersonPage').then(m => ({ Component: m.AdminEditPersonPage })),
+              },
+              {
+                path: PATHS.CURATOR_EDIT_PUBLISHER({ publisherId: ':publisherId' }).split(':')[0] + ':publisherId/edit',
+                lazy: () => import('@/features/curatorship/pages/AdminEditPublisherPage').then(m => ({ Component: m.AdminEditPublisherPage })),
+              },
+              {
                 path: PATHS.NOTIFICATIONS,
-                lazy: () => import('@/pages/Notifications').then(module => ({ Component: module.NotificationsPage })),
+                lazy: () => import('@/features/notifications/pages/NotificationsPage').then(module => ({ Component: module.NotificationsPage })),
               },
               {
                 path: PATHS.SETTINGS_BLOCKED,
-                lazy: () => import('@/pages/settings/BlockedUsers').then(module => ({ Component: module.BlockedUsers })),
+                lazy: () => import('@/features/friends/pages/BlockedUsersPage').then(module => ({ Component: module.BlockedUsersPage })),
               },
             ],
           },

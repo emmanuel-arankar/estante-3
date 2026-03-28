@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toastErrorClickable } from '@/components/ui/toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
   sendMessage,
   subscribeToMessages,
@@ -243,8 +243,9 @@ export const useChat = (receiverId?: string) => {
     setTypingStatus(user.uid, receiverId, status).catch(() => { });
   }, [user, receiverId]);
 
-  // Ouve mensagens do chat atual
+  // Ouve mensagens do ChatPage atual
   useEffect(() => {
+    console.log('[useChat] useEffect subscribeToMessages running', { uid: user?.uid, receiverId });
     if (!user || !receiverId) return;
 
     setLoading(true);
@@ -252,6 +253,7 @@ export const useChat = (receiverId?: string) => {
       user.uid,
       receiverId,
       (newMessages) => {
+        console.log('[useChat] subscribeToMessages callback fired, messages:', newMessages.length);
         // Reconciliação Inteligente: Une mensagens locais (sending) com remotas
         setMessages(prev => {
           const messageMap = new Map<string, ChatMessage>();
@@ -329,7 +331,7 @@ export const useChat = (receiverId?: string) => {
     try {
       await deleteChat(myId, otherId);
     } catch (error) {
-      console.error("Erro ao deletar chat:", error);
+      console.error("Erro ao deletar ChatPage:", error);
       toastErrorClickable('Erro ao deletar conversa');
     }
   }, []);

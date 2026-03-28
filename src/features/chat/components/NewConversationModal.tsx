@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, MessageCircle } from 'lucide-react';
-import { OnlineStatus } from '@/components/chat/OnlineStatus';
+import { OnlineStatus } from '@/features/chat/components/OnlineStatus';
 import {
   Avatar,
   AvatarFallback,
@@ -27,7 +27,7 @@ import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { searchUsersAPI } from '@/services/api/api';
 import { PATHS } from '@/router/paths';
 import { User } from '@estante/common-types';

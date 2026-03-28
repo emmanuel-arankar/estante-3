@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getWorkEditionsFilteredAPI } from '@/services/api/booksApi';
+import { getWorkEditionsFilteredAPI } from '@/features/books/services/booksApi';
 import { Edition } from '@estante/common-types';
 import { PATHS } from '@/router/paths';
 import { getFormatById } from '@/data/book-formats';
@@ -144,7 +144,7 @@ export function EditionsCarousel({ workId, currentEditionId }: EditionsCarouselP
                     title={edition.title}
                   >
                     {/* Zona de Capa Ampla com Alinhamento na Base (para evitar cortes) */}
-                    <div className="w-[165px] h-[300px] flex flex-col justify-end">
+                    <div className="w-[165px] h-[270px] flex flex-col justify-end">
                       <div className="w-[165px] rounded-[2px] bg-gray-50 border border-gray-100 shadow-sm transition-all duration-300 group-hover/item:shadow-xl group-hover/item:-translate-y-1 group-hover/item:scale-[1.02]">
                         {edition.coverUrl ? (
                           <img

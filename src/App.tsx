@@ -1,7 +1,7 @@
 import { RouterProvider } from 'react-router-dom';
 import { appRouter } from '@/router';
-import { useAuth } from '@/hooks/useAuth';
-import { useManageMyPresence } from '@/hooks/useUserPresence';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useManageMyPresence } from '@/features/users/hooks/useUserPresence';
 import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { PWAInstallBanner } from '@/components/PWAInstallBanner';
 import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt';

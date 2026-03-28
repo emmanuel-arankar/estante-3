@@ -15,8 +15,8 @@ import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
-import { useAuth } from '@/hooks/useAuth';
-import { syncProfileAPI } from '@/services/api/friendshipsApi';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { syncProfileAPI } from '@/features/friends/services/friendshipsApi';
 import { uploadProfileImage } from '@/services/firebase/storage';
 import { apiClient } from '@/services/api/apiClient';
 

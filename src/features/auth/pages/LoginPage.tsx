@@ -1,7 +1,7 @@
 import { PageMetadata } from '@/common/PageMetadata';
-import { LoginForm } from '@/components/auth/LoginForm';
+import { LoginForm } from '@/features/auth/components/LoginForm';
 
-export const Login = () => {
+export const LoginPage = () => {
   return (
     <>
       <PageMetadata

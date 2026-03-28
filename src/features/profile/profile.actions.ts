@@ -1,13 +1,10 @@
 import { redirect } from 'react-router-dom';
-import {
-  toastSuccessClickable,
-  toastErrorClickable,
-} from '@/components/ui/toast';
+import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
-import { syncProfileAPI } from '@/services/api/friendshipsApi';
+import { syncProfileAPI } from '@/features/friends/services/friendshipsApi';
 import { auth } from '@/services/firebase/firebase';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/features/auth/stores/authStore';
 import { apiClient } from '@/services/api/apiClient';
 import { UserLocation } from '@estante/common-types';
 import { trackEvent } from '@/lib/analytics';

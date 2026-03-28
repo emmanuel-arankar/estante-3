@@ -17,16 +17,21 @@ export type NotificationType =
     | 'like_review'
     | 'like_review_comment'
     | 'review_comment_created'
-    | 'comment_reply_created';
+    | 'comment_reply_created'
+    | 'suggestion_approved'
+    | 'suggestion_rejected';
 
 export interface NotificationMetadata {
     friendshipId?: string;
-    isRequester?: boolean;  // true = notification for requester, false = notification for accepter
-    actorNickname?: string; // Nickname do ator para links de perfil
+    isRequester?: boolean;
+    actorNickname?: string;
     reviewId?: string;
     commentId?: string;
     workId?: string;
     editionId?: string;
+    suggestionId?: string;
+    suggestionTitle?: string;
+    reviewNote?: string;
 }
 
 export interface NotificationResponse {

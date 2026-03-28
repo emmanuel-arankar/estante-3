@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
     listNotifications,
     markNotificationAsRead as markAsReadAPI,

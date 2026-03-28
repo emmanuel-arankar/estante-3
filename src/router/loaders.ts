@@ -4,7 +4,7 @@ import {
 } from '@/services/firebase/auth';
 import { queryClient } from '@/lib/queryClient';
 import { userQuery } from '@/features/users/user.queries';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/features/auth/stores/authStore';
 
 /**
  * Layout Loader otimizado:

@@ -24,16 +24,10 @@ import {
     AlertDialogHeader,
     AlertDialogTitle
 } from '@/components/ui/alert-dialog';
-import {
-    toastSuccessClickable,
-    toastErrorClickable
-} from '@/components/ui/toast';
-import {
-    listBlockedUsersAPI,
-    unblockUserAPI
-} from '@/services/api/friendshipsApi';
+import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
+import { listBlockedUsersAPI, unblockUserAPI } from '@/features/friends/services/friendshipsApi';
 
-export const BlockedUsers = () => {
+export const BlockedUsersPage = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');

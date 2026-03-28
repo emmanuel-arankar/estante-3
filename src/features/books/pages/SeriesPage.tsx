@@ -1,9 +1,9 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getSeriesAPI, getSeriesWorksAPI } from '@/services/api/booksApi';
+import { getSeriesAPI, getSeriesWorksAPI } from '@/features/books/services/booksApi';
 import { Spinner } from '@/components/ui/Spinner';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { PageMetadata } from '@/components/seo/PageMetadata';
+import { PageMetadata } from '@/common/PageMetadata';
 import { PATHS } from '@/router/paths';
 import { ExternalLink, BookOpen, ChevronRight, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

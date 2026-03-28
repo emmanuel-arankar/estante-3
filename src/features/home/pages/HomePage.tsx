@@ -1,7 +1,7 @@
 import { PageMetadata } from '@/common/PageMetadata';
-import { Hero } from '@/components/home/Hero';
+import { Hero } from '@/features/home/components/Hero';
 
-export const Home = () => {
+export const HomePage = () => {
   const siteSchema = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',

@@ -65,6 +65,8 @@ export const subscribeToMessages = (
     });
 
     callback(messages);
+  }, (error) => {
+    console.error('[FIREBASE RTDB ERROR] subscribeToMessages falhou:', error);
   });
 
   return unsubscribe;

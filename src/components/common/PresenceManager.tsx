@@ -1,5 +1,5 @@
-import { useManageMyPresence } from '@/hooks/useUserPresence';
-import { useAuth } from '@/hooks/useAuth';
+import { useManageMyPresence } from '@/features/users/hooks/useUserPresence';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 /**
  * PresenceManager

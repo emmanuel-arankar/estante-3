@@ -1,6 +1,6 @@
 import { Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/features/notifications/hooks/useNotifications';
 import { NotificationItem } from './NotificationItem';
 import { Button } from '@/components/ui/button';
 import {

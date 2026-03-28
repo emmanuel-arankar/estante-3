@@ -1,14 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-
-
-import {
-  toastSuccessClickable,
-  toastErrorClickable
-} from '@/components/ui/toast';
-import { useAuth } from '@/hooks/useAuth';
+import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCrossTabSync } from '@/hooks/useCrossTabSync';
-import { invalidateMutualFriendsCache } from '@/hooks/useMutualFriendsCache';
-import { refreshNotifications } from '@/hooks/useNotifications';
+import { invalidateMutualFriendsCache } from '@/features/friends/hooks/useMutualFriendsCache';
+import { refreshNotifications } from '@/features/notifications/hooks/useNotifications';
 import {
   listFriendsAPI,
   listRequestsAPI,
@@ -22,22 +17,13 @@ import {
   getFriendshipStatusAPI,
   getUserStatsAPI,
   ListFriendsParams,
-} from '@/services/api/friendshipsApi';
+} from '@/features/friends/services/friendshipsApi';
 import type {
   UseFriendsResult,
   FriendshipActions
-} from '@/hooks/types/friendship.types';
-import {
-  SortOption,
-  SortDirection,
-  FriendshipStats
-} from '@estante/common-types';
-import {
-  useQuery,
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient,
-} from '@tanstack/react-query';
+} from '@/features/friends/types/friendship.types';
+import { SortOption, SortDirection, FriendshipStats } from '@estante/common-types';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const PAGE_SIZE = 100;
 

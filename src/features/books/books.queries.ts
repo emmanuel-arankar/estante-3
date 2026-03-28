@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
-import { getWorkAPI, getEditionAPI, checkIsbnAPI } from '@/services/api/booksApi';
+import { getWorkAPI, getEditionAPI, checkIsbnAPI, getPublisherAPI, getPersonAPI } from '@/features/books/services/booksApi';
 
 export const workQuery = (workId: string) => queryOptions({
   queryKey: ['works', workId],
@@ -10,6 +10,18 @@ export const workQuery = (workId: string) => queryOptions({
 export const editionQuery = (editionId: string) => queryOptions({
   queryKey: ['editions', editionId],
   queryFn: () => getEditionAPI(editionId),
+  staleTime: 1000 * 60 * 5, // 5 minutos
+});
+
+export const publisherQuery = (publisherId: string) => queryOptions({
+  queryKey: ['publishers', publisherId],
+  queryFn: () => getPublisherAPI(publisherId),
+  staleTime: 1000 * 60 * 5, // 5 minutos
+});
+
+export const authorQuery = (personId: string) => queryOptions({
+  queryKey: ['persons', personId],
+  queryFn: () => getPersonAPI(personId),
   staleTime: 1000 * 60 * 5, // 5 minutos
 });
 

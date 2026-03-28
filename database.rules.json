@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "status": {
+      "$uid": {
+         ".read": "auth != null",
+         ".write": "auth != null && $uid === auth.uid"
+      }
+    },
+    "typing": {
+      "$myId": {
+        "$senderId": {
+           ".read": "auth != null",
+           ".write": "auth != null && auth.uid === $senderId"
+        }
+      }
+    },
+    "userChats": {
+      "$uid": {
+        ".read": "auth != null && $uid === auth.uid",
+        ".write": "auth != null && $uid === auth.uid"
+      }
+    },
+    "chats": {
+      "$chatId": {
+        ".read": "auth != null && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))",
+        ".write": "auth != null && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))"
+      }
+    }
+  }
+}

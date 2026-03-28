@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { ContentSuggestion, reviewSuggestionAPI } from '@/services/api/suggestionsApi';
-import { searchPublishersAPI, searchPersonsAPI } from '@/services/api/booksApi';
+import { ContentSuggestion, reviewSuggestionAPI } from '@/features/books/services/suggestionsApi';
+import { searchPublishersAPI, searchPersonsAPI } from '@/features/books/services/booksApi';
 import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

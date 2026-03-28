@@ -10,9 +10,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChatBubble } from '@/components/chat/ChatMessage';
-import { ChatInput } from '@/components/chat/ChatInput';
-import { ChatGallery } from '@/components/chat/ChatGallery';
+import { ChatBubble } from '@/features/chat/components/ChatMessage';
+import { ChatInput } from '@/features/chat/components/ChatInput';
+import { ChatGallery } from '@/features/chat/components/ChatGallery';
 import { PageMetadata } from '@/common/PageMetadata';
 import {
   Avatar,
@@ -20,11 +20,11 @@ import {
   AvatarImage
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { OnlineStatus } from '@/components/chat/OnlineStatus';
+import { OnlineStatus } from '@/features/chat/components/OnlineStatus';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { useChat } from '@/hooks/useChat';
-import { useAuth } from '@/hooks/useAuth';
-import { useUserPresence } from '@/hooks/useUserPresence';
+import { useChat } from '@/features/chat/hooks/useChat';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useUserPresence } from '@/features/users/hooks/useUserPresence';
 import { useAudioStore } from '@/hooks/useAudioStore';
 import { markTemporaryAudioAsPlayed } from '@/services/firebase/realtime';
 import { PATHS } from '@/router/paths';
@@ -32,9 +32,9 @@ import { ChatMessage } from '@estante/common-types';
 import { userProfileQuery } from '@/features/users/userProfile.queries';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useBlockedUsers } from '@/hooks/useBlockedUsers';
+import { useBlockedUsers } from '@/features/friends/hooks/useBlockedUsers';
 
-export const Chat = () => {
+export const ChatPage = () => {
   const { receiverId } = useParams<{ receiverId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();

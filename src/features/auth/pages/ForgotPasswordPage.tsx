@@ -1,7 +1,7 @@
 import { PageMetadata } from '@/common/PageMetadata';
-import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
+import { ForgotPasswordForm } from '@/features/auth/components/ForgotPasswordForm';
 
-export const ForgotPassword = () => {
+export const ForgotPasswordPage = () => {
   return (
     <>
       <PageMetadata

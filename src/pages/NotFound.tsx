@@ -11,7 +11,7 @@ export const NotFound = () => {
         description="O conteúdo que você procurava não foi encontrado ou foi movido."
         noIndex={true}
       />
-      
+
       <main className="flex flex-col items-center justify-center h-screen bg-gray-100 text-center">
         <h1 className="text-6xl font-bold text-emerald-600">404</h1>
         <p className="text-xl mt-4 mb-2 text-gray-800">Página Não Encontrada</p>

@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { onAuthChange, setSessionCookie } from '@/services/firebase/auth';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/features/auth/stores/authStore';
 import { queryClient } from '@/lib/queryClient';
 import { userQuery } from '@/features/users/user.queries';
+import { useShallow } from 'zustand/react/shallow';
 
 // Rastreia o último UID para o qual criamos cookie de sessão
 // Evita chamadas repetidas ao /api/sessionLogin
@@ -12,13 +13,23 @@ let sessionCookieInProgress = false; // Evita race condition entre múltiplos li
 export const useAuth = () => {
   const {
     user,
+    userProfile,
     loading,
     error,
     setUser,
     setLoading,
     setError,
     clearAuth,
-  } = useAuthStore();
+  } = useAuthStore(useShallow((state) => ({
+    user: state.user,
+    userProfile: state.userProfile,
+    loading: state.loading,
+    error: state.error,
+    setUser: state.setUser,
+    setLoading: state.setLoading,
+    setError: state.setError,
+    clearAuth: state.clearAuth,
+  })));
 
   useEffect(() => {
     // Timeout de segurança: Se o Firebase não inicializar em 2.5s, libera a UI
@@ -86,5 +97,8 @@ export const useAuth = () => {
     return () => unsubscribe();
   }, [setUser, setLoading, setError, clearAuth]);
 
-  return { user, loading, error };
+  const isAdmin = userProfile?.role === 'admin';
+  const isLibrarian = userProfile?.role === 'librarian';
+
+  return { user, userProfile, isAdmin, isLibrarian, loading, error };
 };

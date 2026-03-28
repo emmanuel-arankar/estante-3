@@ -39,7 +39,7 @@ import {
 import { queryClient } from '@/lib/queryClient';
 import { auth } from '@/services/firebase/firebase';
 import { setUserOffline } from '@/services/firebase/realtime';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/features/auth/stores/authStore';
 
 /**
  * Envia o ID token para o backend para criar um cookie de sessão.

@@ -3,14 +3,19 @@ import { useLoaderData, useNavigate, Outlet, useLocation } from 'react-router-do
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Link as LinkIcon, Calendar, Edit3, Cake, UserPlus, MessageCircle, Camera, UserMinus, X, Check, MoreVertical, Ban } from 'lucide-react';
+import {
+  MapPin, Link as LinkIcon, Calendar,
+  Edit3, Cake, UserPlus,
+  MessageCircle, Camera, UserMinus,
+  X, Check, MoreVertical, Ban
+} from 'lucide-react';
 import { PageMetadata } from '@/common/PageMetadata';
-import { ProfilePhotoMenu } from '@/components/profile/ProfilePhotoMenu';
-import { PhotoViewer } from '@/components/profile/PhotoViewer';
+import { ProfilePhotoMenu } from '@/features/profile/components/ProfilePhotoMenu';
+import { PhotoViewer } from '@/features/profile/components/PhotoViewer';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { AvatarEditorModal } from '@/components/ui/avatar-editor-modal';
 import { trackEvent } from '@/lib/analytics';
-import { syncProfileAPI } from '@/services/api/friendshipsApi';
+import { syncProfileAPI } from '@/features/friends/services/friendshipsApi';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -49,7 +54,7 @@ import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
-import { useFriendshipStatus } from '@/hooks/useDenormalizedFriends';
+import { useFriendshipStatus } from '@/features/friends/hooks/useDenormalizedFriends';
 import { SMOOTH_TRANSITION, tabContentVariants } from '@/lib/animations';
 import { PATHS } from '@/router/paths';
 import {
@@ -58,9 +63,9 @@ import {
   acceptFriendRequestAPI,
   removeFriendshipAPI,
   blockUserAPI,
-} from '@/services/api/friendshipsApi';
-import { fetchMutualFriendsDeduped } from '@/hooks/useMutualFriendsCache';
-import { useAuthStore } from '@/stores/authStore';
+} from '@/features/friends/services/friendshipsApi';
+import { fetchMutualFriendsDeduped } from '@/features/friends/hooks/useMutualFriendsCache';
+import { useAuthStore } from '@/features/auth/stores/authStore';
 import { User as UserModel } from '@estante/common-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api/apiClient';
@@ -759,7 +764,7 @@ const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel 
 };
 
 // # atualizado: O loader agora retorna os dados diretamente (sem defer)
-export const Profile = () => {
+export const ProfilePage = () => {
   const data = useLoaderData() as { profileUser: UserModel };
 
   if (!data?.profileUser) {

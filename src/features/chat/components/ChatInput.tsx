@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { VoiceRecorder, VoiceRecorderHandle } from './VoiceRecorder';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ImagePreviewOverlay } from './ImagePreviewOverlay';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '@/lib/utils';

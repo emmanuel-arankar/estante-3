@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { listBlockedUsersAPI } from '@/services/api/friendshipsApi';
+import { listBlockedUsersAPI } from '@/features/friends/services/friendshipsApi';
 
 /**
  * Hook para buscar e gerenciar lista de usuários bloqueados

@@ -1,11 +1,11 @@
 import { ShieldAlert } from 'lucide-react';
 import { curatorLoader } from '@/features/curatorship/curatorship.loaders';
-import { CuratorDashboard } from '@/pages/CuratorDashboard';
+import { CuratorDashboardPage } from '@/features/curatorship/pages/CuratorDashboardPage';
 
 export const loader = curatorLoader;
 
 export function Component() {
-  return <CuratorDashboard />;
+  return <CuratorDashboardPage />;
 }
 
 Component.displayName = 'CuratorDashboardRoute';

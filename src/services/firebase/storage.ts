@@ -9,55 +9,55 @@ import { apiClient } from '@/services/api/apiClient';
  * @returns A URL pública de download do arquivo
  */
 export const uploadFile = async (
-    file: Blob | File,
-    folder: 'avatars' | 'chats' | 'posts' = 'posts'
+  file: Blob | File,
+  folder: 'avatars' | 'chats' | 'posts' = 'posts'
 ): Promise<string> => {
-    try {
-        // 1. Solicitar URL assinada ao Backend
-        const fileName = (file as File).name || `file_${Date.now()}`;
-        const { uploadUrl, fileUrl } = await apiClient<{ uploadUrl: string; fileUrl: string }>(
-            '/storage/signed-url',
-            {
-                method: 'POST',
-                data: {
-                    fileName,
-                    contentType: file.type,
-                    folder,
-                },
-            }
-        );
+  try {
+    // 1. Solicitar URL assinada ao Backend
+    const fileName = (file as File).name || `file_${Date.now()}`;
+    const { uploadUrl, fileUrl } = await apiClient<{ uploadUrl: string; fileUrl: string }>(
+      '/storage/signed-url',
+      {
+        method: 'POST',
+        data: {
+          fileName,
+          contentType: file.type,
+          folder,
+        },
+      }
+    );
 
-        // 2. Upload direto via PUT (browser -> Google Cloud Storage)
-        const response = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': file.type,
-            },
-            body: file,
-        });
+    // 2. Upload direto via PUT (browser -> Google Cloud Storage)
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
 
-        if (!response.ok) {
-            throw new Error(`Erro no upload direto: ${response.statusText}`);
-        }
-
-        return fileUrl;
-    } catch (error) {
-        console.error('Error in secure upload:', error);
-        throw error;
+    if (!response.ok) {
+      throw new Error(`Erro no upload direto: ${response.statusText}`);
     }
+
+    return fileUrl;
+  } catch (error) {
+    console.error('Error in secure upload:', error);
+    throw error;
+  }
 };
 
 /**
  * Legado/Compatibilidade: Faz o upload de imagem (adaptado para usar a nova lógica)
  */
 export const uploadImage = async (
-    file: Blob | File,
-    path: string, // Ignorado na nova lógica, folder é inferido se possível
-    _cacheControl?: string
+  file: Blob | File,
+  path: string, // Ignorado na nova lógica, folder é inferido se possível
+  _cacheControl?: string
 ): Promise<string> => {
-    const folder = path.startsWith('avatars') ? 'avatars' :
-        path.startsWith('chats') ? 'chats' : 'posts';
-    return uploadFile(file, folder as any);
+  const folder = path.startsWith('avatars') ? 'avatars' :
+    path.startsWith('chats') ? 'chats' : 'posts';
+  return uploadFile(file, folder as any);
 };
 
 /**
@@ -67,7 +67,7 @@ export const uploadImage = async (
  * @returns A URL de download
  */
 export const uploadProfileImage = async (file: Blob | File, _uid?: string): Promise<string> => {
-    return uploadFile(file, 'avatars');
+  return uploadFile(file, 'avatars');
 };
 
 /**
@@ -75,12 +75,12 @@ export const uploadProfileImage = async (file: Blob | File, _uid?: string): Prom
  * @param path O caminho do arquivo a ser removido
  */
 export const deleteFile = async (path: string): Promise<void> => {
-    try {
-        await apiClient('/storage', {
-            method: 'DELETE',
-            data: { path },
-        });
-    } catch (error) {
-        console.error('Error deleting file:', error);
-    }
+  try {
+    await apiClient('/storage', {
+      method: 'DELETE',
+      data: { path },
+    });
+  } catch (error) {
+    console.error('Error deleting file:', error);
+  }
 };

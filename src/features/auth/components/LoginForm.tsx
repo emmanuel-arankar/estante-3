@@ -19,7 +19,7 @@ import {
   toastErrorClickable
 } from '@/components/ui/toast';
 import { PATHS } from '@/router/paths';
-import { googleAuthAPI } from '@/services/api/authApi';
+import { googleAuthAPI } from '@/features/auth/services/authApi';
 import { signInWithGoogle } from '@/services/firebase/auth';
 import { trackEvent } from '@/lib/analytics';
 

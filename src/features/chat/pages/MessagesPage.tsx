@@ -3,7 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { Search, MessageCircle, Plus, MoreVertical, Check, CheckCheck, Trash2 } from 'lucide-react';
+import {
+  Search, MessageCircle, Plus,
+  MoreVertical, Check, CheckCheck,
+  Trash2
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,24 +15,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PageMetadata } from '@/common/PageMetadata';
-import { OnlineStatus } from '@/components/chat/OnlineStatus';
-import { NewConversationModal } from '@/components/chat/NewConversationModal';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage
-} from '@/components/ui/avatar';
+import { OnlineStatus } from '@/features/chat/components/OnlineStatus';
+import { NewConversationModal } from '@/features/chat/components/NewConversationModal';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { useChat } from '@/hooks/useChat';
-import { useAuth } from '@/hooks/useAuth';
-import { useBlockedUsers } from '@/hooks/useBlockedUsers';
+import { useChat } from '@/features/chat/hooks/useChat';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useBlockedUsers } from '@/features/friends/hooks/useBlockedUsers';
 import { PATHS } from '@/router/paths';
 import { deleteChat } from '@/services/firebase/realtime';
 import { useQuery } from '@tanstack/react-query';
@@ -152,7 +149,7 @@ const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
   );
 };
 
-export const Messages = () => {
+export const MessagesPage = () => {
   const { user } = useAuth();
   const { chats, loading } = useChat();
   const navigate = useNavigate();

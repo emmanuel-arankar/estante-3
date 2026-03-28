@@ -3,29 +3,12 @@ import { Link } from 'react-router-dom';
 import { EditionContributor } from '@estante/common-types';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { PATHS } from '@/router/paths';
+import { getContributorRoleName } from '@/data/book-contributors';
 
 interface ContributorsListProps {
   contributors: EditionContributor[];
   className?: string;
 }
-
-const formatRole = (role: string) => {
-  const roles: Record<string, string> = {
-    'author': 'Autor',
-    'co-author': 'Co-autor',
-    'translator': 'Tradutor',
-    'illustrator': 'Ilustrador',
-    'cover-artist': 'Capa',
-    'editor': 'Editor',
-    'proofreader': 'Revisor de Provas',
-    'preface': 'Prefácio',
-    'postface': 'Posfácio',
-    'epilogue': 'Epílogo',
-    'narrator': 'Narrador',
-    'revisor': 'Revisor'
-  };
-  return roles[role] || role;
-};
 
 export const ContributorsList: React.FC<ContributorsListProps> = ({ contributors, className }) => {
   if (!contributors || contributors.length === 0) return null;
@@ -53,7 +36,9 @@ export const ContributorsList: React.FC<ContributorsListProps> = ({ contributors
               const id = contributor.personId || contributor.groupId;
               const isGroup = !!contributor.groupId;
               const url = id
-                ? (isGroup ? PATHS.GROUP({ groupId: id }) : PATHS.AUTHOR({ personId: id }))
+                ? (isGroup
+                  ? PATHS.GROUP({ groupId: id })
+                  : PATHS.AUTHOR({ personId: id }))
                 : '#';
 
               return (
@@ -74,7 +59,7 @@ export const ContributorsList: React.FC<ContributorsListProps> = ({ contributors
                       {contributor.name}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {formatRole(contributor.role)}
+                      {getContributorRoleName(contributor.role)}
                     </p>
                   </div>
                 </Link>

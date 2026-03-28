@@ -8,14 +8,11 @@ import {
 } from '@/features/profile/profile.loaders';
 import { editProfileAction } from '@/features/profile/profile.actions';
 import { ErrorElement } from '@/router/ErrorElement';
-import {
-  PATHS,
-  ROUTE_PATTERNS
-} from '@/router/paths';
+import { PATHS, ROUTE_PATTERNS } from '@/router/paths';
 import { withSuspense } from '@/router/RouteSuspense';
 
-const Profile = lazy(() => import('@/pages/Profile').then(module => ({ default: module.Profile })));
-const EditProfile = lazy(() => import('@/pages/EditProfile').then(module => ({ default: module.EditProfile })));
+const Profile = lazy(() => import('@/features/profile/pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const EditProfile = lazy(() => import('@/features/profile/pages/EditProfilePage').then(module => ({ default: module.EditProfilePage })));
 
 const ProfileLayout = () => <Outlet />;
 

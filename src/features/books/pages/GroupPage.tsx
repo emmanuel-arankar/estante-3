@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Info, Users } from 'lucide-react';
-import { getGroupAPI, getGroupEditionsAPI } from '@/services/api/booksApi';
+import { getGroupAPI, getGroupEditionsAPI } from '@/features/books/services/booksApi';
 import { PATHS } from '@/router/paths';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/Spinner';

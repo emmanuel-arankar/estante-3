@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Bell, CheckCheck, Loader2 } from 'lucide-react';
-import { useNotifications } from '@/hooks/useNotifications';
-import { NotificationItem } from '@/components/notifications/NotificationItem';
+import { useNotifications } from '@/features/notifications/hooks/useNotifications';
+import { NotificationItem } from '@/features/notifications/components/NotificationItem';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { PageMetadata } from '@/components/seo/PageMetadata';
+import { PageMetadata } from '@/common/PageMetadata';
 
 export const NotificationsPage = () => {
     const {

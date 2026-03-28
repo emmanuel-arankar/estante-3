@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { EditionContributor } from '@estante/common-types';
-import { getPersonAPI, getGroupAPI } from '@/services/api/booksApi';
+import { getPersonAPI, getGroupAPI } from '@/features/books/services/booksApi';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { Link } from 'react-router-dom';
 import { PATHS } from '@/router/paths';

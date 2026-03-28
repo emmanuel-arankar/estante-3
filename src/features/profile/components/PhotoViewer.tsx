@@ -21,7 +21,7 @@ import {
   toastSuccessClickable,
   toastErrorClickable
 } from '@/components/ui/toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { apiClient } from '@/services/api/apiClient';
 
 interface PhotoViewerProps {

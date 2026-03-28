@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Bell, UserPlus, UserCheck, UserX, Heart, MessageSquare } from 'lucide-react';
+import { Bell, UserPlus, UserCheck, UserX, Heart, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Notification } from '@estante/common-types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,6 +26,10 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
             case 'review_comment_created':
             case 'comment_reply_created':
                 return <MessageSquare className="h-4 w-4 text-emerald-500" />;
+            case 'suggestion_approved':
+                return <CheckCircle className="h-4 w-4 text-emerald-500" />;
+            case 'suggestion_rejected':
+                return <XCircle className="h-4 w-4 text-red-500" />;
             default:
                 return <Bell className="h-4 w-4 text-gray-500" />;
         }
@@ -99,6 +103,22 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                         {' '}respondeu ao seu comentário
                     </>
                 );
+            case 'suggestion_approved': {
+                const title = notification.metadata?.suggestionTitle;
+                return (
+                    <>
+                        Sua sugestão{title ? <> de <span className="font-semibold">{title}</span></> : ''} foi <span className="font-semibold text-emerald-600">aprovada!</span> 🎉
+                    </>
+                );
+            }
+            case 'suggestion_rejected': {
+                const title = notification.metadata?.suggestionTitle;
+                return (
+                    <>
+                        Sua sugestão{title ? <> de <span className="font-semibold">{title}</span></> : ''} foi <span className="font-semibold text-red-600">rejeitada</span>.
+                    </>
+                );
+            }
             default:
                 return `Nova notificação${actorName !== 'Alguém' ? ` de ${actorName}` : ''}`;
         }
@@ -125,6 +145,10 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                 if (notification.metadata?.workId) {
                     return `/work/${notification.metadata.workId}`;
                 }
+                return '/notifications';
+            case 'suggestion_approved':
+            case 'suggestion_rejected':
+                // Leva para a página de notificações onde o usuário pode ver o histórico
                 return '/notifications';
             default:
                 return '/notifications';
@@ -164,6 +188,13 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                 <p className="text-sm text-gray-900">
                     {getNotificationText()}
                 </p>
+                {/* Nota de justificativa (apenas para sugestões) */}
+                {(notification.type === 'suggestion_approved' || notification.type === 'suggestion_rejected') &&
+                    notification.metadata?.reviewNote && (
+                    <p className="text-xs text-gray-400 mt-0.5 italic line-clamp-1">
+                        "{notification.metadata.reviewNote}"
+                    </p>
+                )}
                 <p className="text-xs text-gray-500 mt-0.5">
                     {formatDistanceToNow(notification.createdAt, {
                         addSuffix: true,

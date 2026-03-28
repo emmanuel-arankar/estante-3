@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { itemVariants, SMOOTH_TRANSITION } from '@/lib/animations'; 
+import { itemVariants, SMOOTH_TRANSITION } from '@/lib/animations';
 import { PATHS } from '@/router/paths';
 
 interface BreadcrumbHandle {

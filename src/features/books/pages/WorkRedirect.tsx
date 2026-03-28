@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getWorkEditionsAPI } from '@/services/api/booksApi';
+import { getWorkEditionsAPI } from '@/features/books/services/booksApi';
 import { PATHS } from '@/router/paths';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen } from 'lucide-react';

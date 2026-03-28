@@ -4,7 +4,7 @@
  */
 
 import { DenormalizedFriendship } from '@estante/common-types';
-import { invalidateMutualFriendsCache } from '@/hooks/useMutualFriendsCache';
+import { invalidateMutualFriendsCache } from '@/features/friends/hooks/useMutualFriendsCache';
 import { apiClient } from '@/services/api/apiClient';
 
 // ==================== TIPOS ====================

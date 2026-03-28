@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createReviewAPI, updateReviewAPI } from '@/services/api/reviewsApi';
+import { createReviewAPI, updateReviewAPI } from '@/features/books/services/reviewsApi';
 import { Loader2, SendHorizonal } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Review } from '@estante/common-types';
 import { trackEvent } from '@/lib/analytics';
@@ -65,7 +65,7 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, m
   if (!user) {
     return (
       <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-100">
-        <h3 className="font-bold text-gray-900 mb-2">Faça login para avaliar</h3>
+        <h3 className="font-bold text-gray-900 mb-2">Faça LoginPage para avaliar</h3>
         <p className="text-gray-500 text-sm">Você precisa de uma conta ativa para interagir com a comunidade literária.</p>
       </div>
     );

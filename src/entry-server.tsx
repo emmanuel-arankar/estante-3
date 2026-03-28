@@ -1,7 +1,7 @@
 import React from 'react';
-import { 
-  renderToPipeableStream, 
-  PipeableStream 
+import {
+  renderToPipeableStream,
+  PipeableStream
 } from 'react-dom/server';
 import { HelmetProvider } from 'react-helmet-async';
 import {
@@ -9,15 +9,14 @@ import {
   createStaticRouter,
   StaticRouterProvider,
 } from 'react-router-dom/server';
-import { 
-  QueryClientProvider, 
-  HydrationBoundary, 
-  dehydrate 
+import {
+  QueryClientProvider,
+  HydrationBoundary,
+  dehydrate
 } from '@tanstack/react-query';
 import { routes } from '@/router/routes';
 import { queryClient as client } from '@/lib/queryClient';
 
-// # atualizado: Exportamos o queryClient para ser usado na Cloud Function
 export const queryClient = client;
 
 interface RenderOptions {

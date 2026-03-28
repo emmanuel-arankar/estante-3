@@ -4,7 +4,7 @@ import { Edition } from '@estante/common-types';
 import { editionQuery, workQuery } from '@/features/books/books.queries';
 import { formatPublicationDate, isFutureDate } from '@/lib/utils';
 import { formatISBN } from '@/lib/isbn';
-import { PageMetadata } from '@/components/seo/PageMetadata';
+import { PageMetadata } from '@/common/PageMetadata';
 import { PATHS } from '@/router/paths';
 import { ShelfButton } from '@/features/books/components/ShelfButton';
 import { StarRating } from '@/features/books/components/StarRating';
@@ -13,17 +13,16 @@ import { ShelfTagsPanel } from '@/features/books/components/ShelfTagsPanel';
 import { ReviewsTab } from '@/features/books/components/ReviewsTab';
 import { getLanguageName, getLanguageFlag } from '@/data/book-languages';
 import { getFormatById, getCategoryIconByFormatId } from '@/data/book-formats';
-// Alternate names imports removed as they were unused
 import { BookOpen, Tablet, Headphones, Trash2 } from 'lucide-react';
 import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
 import { ReadMore } from '@/features/books/components/ReadMore';
 import { AuthorBioSection } from '@/features/books/components/AuthorBioSection';
 import { EditionsCarousel } from '@/features/books/components/EditionsCarousel';
 import { myReviewByEditionQuery } from '@/features/books/reviews.queries';
-import { createReviewAPI, updateReviewAPI, deleteReviewAPI } from '@/services/api/reviewsApi';
-import { useAuth } from '@/hooks/useAuth';
+import { createReviewAPI, updateReviewAPI, deleteReviewAPI } from '@/features/books/services/reviewsApi';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import {
   Breadcrumb,
@@ -32,16 +31,19 @@ import {
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
 import { motion } from 'framer-motion';
-import { Home, Book, ChevronRight } from 'lucide-react';
+import { Home, Book, ChevronRight, Edit3 } from 'lucide-react';
 import { itemVariants, SMOOTH_TRANSITION } from '@/lib/animations';
 
 const FormatIcon = ({ formatId }: { formatId: string }) => {
   const iconName = getCategoryIconByFormatId(formatId);
   switch (iconName) {
-    case 'tablet': return <Tablet className="w-4 h-4 mr-1.5 inline text-gray-400" />;
-    case 'headphones': return <Headphones className="w-4 h-4 mr-1.5 inline text-gray-400" />;
+    case 'tablet':
+      return <Tablet className="w-4 h-4 mr-1.5 inline text-gray-400" />;
+    case 'headphones':
+      return <Headphones className="w-4 h-4 mr-1.5 inline text-gray-400" />;
     case 'book-open':
-    default: return <BookOpen className="w-4 h-4 mr-1.5 inline text-gray-400" />;
+    default:
+      return <BookOpen className="w-4 h-4 mr-1.5 inline text-gray-400" />;
   }
 };
 
@@ -54,8 +56,10 @@ export function BookPage() {
     initialData: initialEdition,
   });
 
-  const { user } = useAuth();
+  const { user, isAdmin, isLibrarian } = useAuth();
   const queryClient = useQueryClient();
+
+  const isAdminOrLibrarian = isAdmin || isLibrarian;
 
   // Rastrear visualização do livro
   useEffect(() => {
@@ -320,9 +324,19 @@ export function BookPage() {
               )}
 
               {/* Detalhes da Obra Original */}
-              {work && (work.originalTitle || work.originalPublicationDate || work.originalLanguage) && (
+              {work && (work.originalTitle || work.originalPublicationDate || work.originalLanguage || isAdminOrLibrarian) && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mt-6">
-                  <h4 className="font-bold text-gray-900 mb-4">Detalhes da Obra</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-bold text-gray-900">Detalhes da Obra</h4>
+                    {isAdminOrLibrarian && (
+                      <Link
+                        to={PATHS.CURATOR_EDIT_WORK({ workId: work.id })}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-xs flex items-center gap-1 text-white font-medium px-2 py-1 rounded-md transition-colors"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                  </div>
                   <dl className="space-y-3 text-sm">
                     {work.originalTitle && work.originalTitle !== edition.title && (
                       <div className="flex justify-between">
@@ -340,8 +354,8 @@ export function BookPage() {
                       <div className="flex justify-between">
                         <dt className="text-gray-500">Idioma original</dt>
                         <dd className="font-medium text-gray-900 text-right capitalize">
-                          <span className="mr-1.5">{getLanguageFlag(work.originalLanguage)}</span>
                           {getLanguageName(work.originalLanguage)}
+                          <span className="ml-1.5">{getLanguageFlag(work.originalLanguage)}</span>
                         </dd>
                       </div>
                     )}
@@ -426,12 +440,33 @@ export function BookPage() {
 
               {/* Detalhes da Edição */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h4 className="font-bold text-gray-900 mb-4">Detalhes da Edição</h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-gray-900">Detalhes da Edição</h4>
+                  {isAdminOrLibrarian && (
+                    <Link
+                      to={PATHS.CURATOR_EDIT_EDITION({ editionId: edition.id })}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-xs flex items-center gap-1 text-white font-medium px-2 py-1 rounded-md transition-colors"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                </div>
                 <dl className="space-y-3 text-sm">
                   {edition.publisher?.name && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <dt className="text-gray-500">Editora</dt>
-                      <dd className="font-medium text-gray-900 text-right">{edition.publisher.name}</dd>
+                      <dd className="font-medium text-gray-900 text-right flex items-center justify-end gap-2">
+                        {edition.publisher.name}
+                        {isAdminOrLibrarian && edition.publisher.id && (
+                          <Link
+                            to={PATHS.CURATOR_EDIT_PUBLISHER({ publisherId: edition.publisher.id })}
+                            className="p-1 rounded bg-gray-100 text-gray-500 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
+                            title="Editar Editora Diretamente"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </Link>
+                        )}
+                      </dd>
                     </div>
                   )}
                   {edition.imprint?.name && (
@@ -522,8 +557,8 @@ export function BookPage() {
                     <div className="flex justify-between">
                       <dt className="text-gray-500">Idioma</dt>
                       <dd className="font-medium text-gray-900 text-right capitalize">
-                        <span className="mr-1.5">{getLanguageFlag(edition.language)}</span>
                         {getLanguageName(edition.language)}
+                        <span className="ml-1.5">{getLanguageFlag(edition.language)}</span>
                       </dd>
                     </div>
                   )}

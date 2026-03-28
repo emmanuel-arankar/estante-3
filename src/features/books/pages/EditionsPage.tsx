@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getWorkEditionsFilteredAPI, getWorkAPI, createReviewAPI } from '@/services/api/booksApi';
+import { getWorkEditionsFilteredAPI, getWorkAPI, createReviewAPI } from '@/features/books/services/booksApi';
 import { Edition } from '@estante/common-types';
 import { PATHS } from '@/router/paths';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -11,11 +11,11 @@ import { getLanguageName, getLanguageFlag } from '@/data/book-languages';
 import { getFormatById } from '@/data/book-formats';
 import { formatPublicationDate } from '@/lib/utils';
 import { formatISBN } from '@/lib/isbn';
-import { PageMetadata } from '@/components/seo/PageMetadata';
+import { PageMetadata } from '@/common/PageMetadata';
 import { ChevronRight, Home, Book, Layers, ArrowDownAZ, ArrowDownZA } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { itemVariants, SMOOTH_TRANSITION } from '@/lib/animations';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
 import {
   Select,

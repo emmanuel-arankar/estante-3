@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Review } from '@estante/common-types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { deleteReviewAPI, likeReviewAPI, getReviewLikersAPI } from '@/services/api/reviewsApi';
+import { deleteReviewAPI, likeReviewAPI, getReviewLikersAPI } from '@/features/books/services/reviewsApi';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MessageCircle, Heart, MoreVertical, Trash2, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toastSuccessClickable, toastErrorClickable } from '@/components/ui/toast';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
-import { PhotoViewer } from '@/components/profile/PhotoViewer';
+import { PhotoViewer } from '@/features/profile/components/PhotoViewer';
 
 // ==== ==== AVATAR GROUP DE CURTIDAS (hover popover) ==== ====
 

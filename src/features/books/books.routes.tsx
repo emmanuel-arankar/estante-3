@@ -12,8 +12,18 @@ const PersonPage = lazy(() => import('@/features/books/pages/PersonPage').then(m
 const GroupPage = lazy(() => import('@/features/books/pages/GroupPage').then(module => ({ default: module.GroupPage })));
 const EditionsPage = lazy(() => import('@/features/books/pages/EditionsPage').then(module => ({ default: module.EditionsPage })));
 const SeriesPage = lazy(() => import('@/features/books/pages/SeriesPage').then(module => ({ default: module.SeriesPage })));
+const SearchPage = lazy(() => import('@/features/books/pages/SearchPage').then(module => ({ default: module.SearchPage })));
 
 export const booksRoutes: RouteObject[] = [
+  {
+    path: '/search',
+    element: withSuspense(SearchPage),
+    errorElement: <ErrorElement />,
+    handle: {
+      id: 'search',
+      title: () => 'Busca | Estante de Bolso',
+    },
+  },
   {
     path: ROUTE_PATTERNS.BOOK_PAGE,
     element: withSuspense(BookPage),

@@ -1,6 +1,6 @@
-// src/components/chat/OnlineStatus.tsx (Versão para Teste)
+// src/components/ChatPage/OnlineStatus.tsx (Versão para Teste)
 import { cn } from '@/lib/utils';
-import { useUserPresence } from "@/hooks/useUserPresence";
+import { useUserPresence } from "@/features/users/hooks/useUserPresence";
 
 interface OnlineStatusProps {
   userId: string;

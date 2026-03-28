@@ -32,7 +32,7 @@ const convertFirestoreDate = (date: any): Date | null => {
   return !isNaN(d.getTime()) ? d : null;
 }
 
-export const EditProfile = () => {
+export const EditProfilePage = () => {
   const profile = useLoaderData() as UserModel;
   const navigate = useNavigate();
   const navigation = useNavigation();

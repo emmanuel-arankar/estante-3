@@ -4,7 +4,7 @@ import { formatDistanceToNow, isAfter, subMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Users, UserPlus, Clock, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
-import { SortDropdown } from '@/components/friends/SortDropdown';
+import { SortDropdown } from '@/features/friends/components/SortDropdown';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,19 +32,19 @@ import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { OptimizedAvatar } from '@/components/ui/optimized-avatar';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
-import { FriendCardSkeletonList } from '@/components/friends/FriendCardSkeleton';
-import { RequestCardSkeletonList } from '@/components/friends/RequestCardSkeleton';
+import { FriendCardSkeletonList } from '@/features/friends/components/FriendCardSkeleton';
+import { RequestCardSkeletonList } from '@/features/friends/components/RequestCardSkeleton';
 import { userByNicknameQuery } from '@/features/users/user.queries';
-import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
-import { useAuth } from '@/hooks/useAuth';
+import { useDenormalizedFriends } from '@/features/friends/hooks/useDenormalizedFriends';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { PATHS } from '@/router/paths';
 import { DenormalizedFriendship } from '@estante/common-types';
-import { getMutualFriendsAPI } from '@/services/api/friendshipsApi';
+import { getMutualFriendsAPI } from '@/features/friends/services/friendshipsApi';
 import {
   getMutualFriendsFromCache,
   setMutualFriendsCache,
   fetchMutualFriendsDeduped
-} from '@/hooks/useMutualFriendsCache';
+} from '@/features/friends/hooks/useMutualFriendsCache';
 
 // Componente para mostrar amigos em comum com avatar group e tooltip
 const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count: number }> = ({ userId, friendId, count }) => {

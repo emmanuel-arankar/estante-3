@@ -3,7 +3,7 @@
  */
 
 import { apiClient } from '@/services/api/apiClient';
-import { PaginatedResponse } from '@/services/api/booksApi';
+import { PaginatedResponse } from '@/features/books/services/booksApi';
 
 export interface ContentSuggestion {
     id: string;

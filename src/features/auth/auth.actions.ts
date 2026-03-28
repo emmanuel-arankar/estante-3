@@ -4,9 +4,9 @@ import {
 } from '@/components/ui/toast';
 import { queryClient } from '@/lib/queryClient';
 import { PATHS } from '@/router/paths';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/features/auth/stores/authStore';
 import { userQuery } from '@/features/users/user.queries';
-import { loginAPI, registerAPI } from '@/services/api/authApi';
+import { loginAPI, registerAPI } from '@/features/auth/services/authApi';
 import { signInWithToken } from '@/services/firebase/auth';
 
 export const loginAction = async ({ request }: any) => {

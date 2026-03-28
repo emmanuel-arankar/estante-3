@@ -3,8 +3,8 @@ import { RouteObject } from 'react-router-dom';
 import { ROUTE_PATTERNS, PATHS } from '@/router/paths';
 import { withSuspense } from '@/router/RouteSuspense';
 
-const Messages = lazy(() => import('@/pages/Messages').then(module => ({ default: module.Messages })));
-const Chat = lazy(() => import('@/pages/Chat').then(module => ({ default: module.Chat })));
+const Messages = lazy(() => import('@/features/chat/pages/MessagesPage').then(module => ({ default: module.MessagesPage })));
+const Chat = lazy(() => import('@/features/chat/pages/ChatPage').then(module => ({ default: module.ChatPage })));
 
 export const protectedChatRoutes: RouteObject[] = [
   {

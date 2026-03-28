@@ -8,44 +8,44 @@ import { ReactElement, ReactNode } from 'react';
  * Com retry desabilitado para testes mais rápidos
  */
 const createTestQueryClient = () => new QueryClient({
-    defaultOptions: {
-        queries: {
-            retry: false,
-            gcTime: 0,
-        },
-        mutations: {
-            retry: false,
-        },
+  defaultOptions: {
+    queries: {
+      retry: false,
+      gcTime: 0,
     },
+    mutations: {
+      retry: false,
+    },
+  },
 });
 
 interface AllTheProvidersProps {
-    children: ReactNode;
+  children: ReactNode;
 }
 
 /**
  * Wrapper com todos os providers necessários
  */
 function AllTheProviders({ children }: AllTheProvidersProps) {
-    const testQueryClient = createTestQueryClient();
+  const testQueryClient = createTestQueryClient();
 
-    return (
-        <QueryClientProvider client={testQueryClient}>
-            <BrowserRouter>
-                {children}
-            </BrowserRouter>
-        </QueryClientProvider>
-    );
+  return (
+    <QueryClientProvider client={testQueryClient}>
+      <BrowserRouter>
+        {children}
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
 }
 
 /**
  * Renderiza componente com todos os providers
  */
 export function renderWithProviders(
-    ui: ReactElement,
-    options?: Omit<RenderOptions, 'wrapper'>
+  ui: ReactElement,
+  options?: Omit<RenderOptions, 'wrapper'>
 ) {
-    return render(ui, { wrapper: AllTheProviders, ...options });
+  return render(ui, { wrapper: AllTheProviders, ...options });
 }
 
 // Re-export tudo do @testing-library/react

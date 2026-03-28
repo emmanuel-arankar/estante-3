@@ -4,7 +4,7 @@ import { reviewsByEditionQuery } from '@/features/books/reviews.queries';
 import { ReviewCard } from './ReviewCard';
 import { ReviewEditor } from './ReviewEditor';
 import { Star, PenLine } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Review } from '@estante/common-types';
 
 interface ReviewsTabProps {
@@ -47,10 +47,10 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({ editionId, workId, myRev
           {!isWriting && user && !userHasReviewed && (
             <button
               onClick={() => setIsWriting(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm"
             >
               <PenLine className="w-4 h-4" />
-              Escrever Sua Resenha
+              Escrever Resenha
             </button>
           )}
         </div>

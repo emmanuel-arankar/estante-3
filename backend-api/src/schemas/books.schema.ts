@@ -59,6 +59,13 @@ export const createWorkSchema = z.object({
 export type CreateWorkInput = z.infer<typeof createWorkSchema>;
 
 /**
+ * @name Schema de Atualização de Obra
+ * @summary Usado para edição direta (Curatorship)
+ */
+export const updateWorkSchema = createWorkSchema.partial();
+export type UpdateWorkInput = z.infer<typeof updateWorkSchema>;
+
+/**
  * @name Schema de Busca de Obras
  * @summary Valida parâmetros de busca.
  */
@@ -137,6 +144,13 @@ export const createEditionSchema = z.object({
 export type CreateEditionInput = z.infer<typeof createEditionSchema>;
 
 /**
+ * @name Schema de Atualização de Edição
+ * @summary Usado para edição direta (Curatorship)
+ */
+export const updateEditionSchema = createEditionSchema.partial();
+export type UpdateEditionInput = z.infer<typeof updateEditionSchema>;
+
+/**
  * @name Schema de ID de Edição
  */
 export const editionIdParamSchema = z.object({
@@ -204,6 +218,13 @@ export const createPersonSchema = z.object({
 export type CreatePersonInput = z.infer<typeof createPersonSchema>;
 
 /**
+ * @name Schema de Atualização de Pessoa
+ * @summary Usado para edição direta (Curatorship)
+ */
+export const updatePersonSchema = createPersonSchema.partial();
+export type UpdatePersonInput = z.infer<typeof updatePersonSchema>;
+
+/**
  * @name Schema de ID de Pessoa
  */
 export const personIdParamSchema = z.object({
@@ -259,6 +280,13 @@ export const createPublisherSchema = z.object({
 });
 
 export type CreatePublisherInput = z.infer<typeof createPublisherSchema>;
+
+/**
+ * @name Schema de Atualização de Editora
+ * @summary Usado para edição direta (Curatorship)
+ */
+export const updatePublisherSchema = createPublisherSchema.partial();
+export type UpdatePublisherInput = z.infer<typeof updatePublisherSchema>;
 
 // =============================================================================
 // SCHEMAS DE SÉRIES

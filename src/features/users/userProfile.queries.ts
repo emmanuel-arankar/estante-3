@@ -1,4 +1,4 @@
-import { getUserProfileAPI } from '@/services/api/usersApi';
+import { getUserProfileAPI } from '@/features/users/services/usersApi';
 import { User } from '@estante/common-types';
 
 /**
