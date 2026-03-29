@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -223,7 +223,7 @@ export const Chat = () => {
     viewOnce?: boolean,
     images?: Blob[]
   ) => {
-    await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
+    await sendMessage(content, type as 'text' | 'image' | 'audio' | 'video' | 'file' | 'location', isTemporary, file, waveform, duration, caption, viewOnce, images);
   }, [sendMessage]);
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
@@ -723,7 +723,7 @@ export const Chat = () => {
           {/* Input de Mensagem */}
           <div className="border-t border-gray-200 p-4 bg-white shrink-0">
             <ChatInput
-              onSendMessage={handleSendMessage as any}
+              onSendMessage={handleSendMessage}
               onTyping={updateTyping}
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
