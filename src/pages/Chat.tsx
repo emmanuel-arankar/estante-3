@@ -118,7 +118,7 @@ export const Chat = () => {
   };
 
   // Auto-scroll para o final
-  const scrollToBottom = (behavior: ScrollBehavior = 'smooth', force: boolean = false) => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth', force: boolean = false) => {
     if (scrollRef.current && (force || isAtBottom())) {
       const scrollHeight = scrollRef.current.scrollHeight;
       scrollRef.current.scrollTo({
@@ -126,7 +126,7 @@ export const Chat = () => {
         behavior
       });
     }
-  };
+  }, []);
 
   // Track previous messages
   const prevMessagesRef = useRef<ChatMessage[]>([]);
@@ -157,7 +157,7 @@ export const Chat = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [messages]);
+  }, [messages, scrollToBottom, user?.uid]);
 
   // Use ResizeObserver to stay at bottom when content size changes (e.g. images loading)
   useEffect(() => {
@@ -176,7 +176,7 @@ export const Chat = () => {
     if (innerContainer) observer.observe(innerContainer);
 
     return () => observer.disconnect();
-  }, []);
+  }, [scrollToBottom]);
 
 
   // Track if initial scroll has happened
@@ -190,14 +190,14 @@ export const Chat = () => {
       // Double check after layout settles
       setTimeout(() => scrollToBottom('auto', true), 300);
     }
-  }, [loading, messages.length]);
+  }, [loading, messages.length, scrollToBottom]);
 
   // Scroll on typing/recording start
   useEffect(() => {
     if (isTyping || isRecording) {
       scrollToBottom('smooth');
     }
-  }, [isTyping, isRecording]);
+  }, [isTyping, isRecording, scrollToBottom]);
 
   // Monitor scroll position to show/hide "Scroll to Bottom" button + carregar histórico
   useEffect(() => {
@@ -254,7 +254,7 @@ export const Chat = () => {
     viewOnce?: boolean,
     images?: Blob[]
   ) => {
-    await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
+    await sendMessage(content, type as ChatMessage['type'], isTemporary, file, waveform, duration, caption, viewOnce, images);
   };
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
@@ -321,16 +321,18 @@ export const Chat = () => {
     } else {
       setCurrentSearchIndex(0);
     }
-  }, [searchQuery, searchMatches.length]);
+  }, [searchQuery, searchMatches]);
 
-  // Agrupa mensagens por data (não mais filtrado por busca)
+  // ⚡ BOLT OPTIMIZATION: Reduces grouping overhead from O(N*G) to O(N) by leveraging
+  // the fact that messages are already chronologically sorted.
   const groupedMessages = useMemo(() => {
     const groups: { date: Date; messages: ChatMessage[] }[] = [];
     messages.forEach((msg) => {
       const msgDate = new Date(msg.createdAt);
-      const group = groups.find((g) => isSameDay(g.date, msgDate));
-      if (group) {
-        group.messages.push(msg);
+      const lastGroup = groups[groups.length - 1];
+
+      if (lastGroup && isSameDay(lastGroup.date, msgDate)) {
+        lastGroup.messages.push(msg);
       } else {
         groups.push({ date: msgDate, messages: [msg] });
       }
@@ -708,7 +710,7 @@ export const Chat = () => {
           {/* Input de Mensagem */}
           <div className="border-t border-gray-200 p-4 bg-white shrink-0">
             <ChatInput
-              onSendMessage={handleSendMessage as any}
+              onSendMessage={handleSendMessage}
               onTyping={updateTyping}
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
