@@ -351,12 +351,14 @@ vi.mock('firebase-admin', () => {
  * @example
  * checkAuth(req, _res, next);
  */
+import { Request, Response, NextFunction } from 'express';
+
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
+  checkAuth: vi.fn((req: Request & { user?: { uid: string } }, _res: Response, next: NextFunction) => {
     req.user = { uid: 'current-user' };
     next();
   }),
-    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
+    checkAuthOptional: vi.fn((req: Request & { user?: { uid: string } }, _res: Response, next: NextFunction) => {
         req.user = { uid: 'current-user' };
         next();
     }),
