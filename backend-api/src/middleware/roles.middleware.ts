@@ -1,4 +1,4 @@
-import { Response, NextFunction, RequestHandler } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { db } from '../firebase';
 import { AuthenticatedRequest } from './auth.middleware';
 import * as logger from 'firebase-functions/logger';
@@ -17,7 +17,7 @@ import { UserRole } from '@estante/common-types';
  * router.get('/admin/stats', checkAuth, checkRole(['admin']), ...)
  */
 export const checkRole = (allowedRoles: UserRole[]): RequestHandler =>
-    async (req: any, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const authReq = req as AuthenticatedRequest;
             const userId = authReq.user?.uid;
@@ -51,8 +51,10 @@ export const checkRole = (allowedRoles: UserRole[]): RequestHandler =>
             }
 
             // Anexa o cargo e os dados à requisição para uso posterior se necessário
-            req.userRole = userRole;
-            req.userData = userData;
+            Object.assign(req, {
+                userRole,
+                userData
+            });
 
             return next();
         } catch (error) {
