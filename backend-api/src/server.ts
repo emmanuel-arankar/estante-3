@@ -1,8 +1,9 @@
 // ==== ==== CARREGAR VARIÁVEIS DE AMBIENTE ANTES DE TUDO ==== ====
 import * as path from 'path';
+import dotenv from 'dotenv';
 try {
-  require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-} catch (error) {
+  dotenv.config({ path: path.resolve(__dirname, '../.env') });
+} catch {
   console.log('⚠️  dotenv não encontrado, usando variáveis de ambiente do sistema');
 }
 

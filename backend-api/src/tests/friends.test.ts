@@ -31,8 +31,8 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @property {Record<string, number>} queryCallCount - Contador para permitir que queries sequenciais retornem dados diferentes.
    */
   const state = {
-    docStore: {} as Record<string, any>,
-    queryResults: {} as Record<string, any[]>,
+    docStore: {} as Record<string, unknown>,
+    queryResults: {} as Record<string, Array<Record<string, unknown>>>,
     queryCallCount: {} as Record<string, number>,
   };
 
@@ -47,7 +47,7 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @example
    * const snap = makeDocSnapshot("id1", { name: "test" });
    */
-  const makeDocSnapshot = (id: string, data: any) => ({
+  const makeDocSnapshot = (id: string, data: unknown) => ({
     exists: data !== undefined,
     data: () => data,
     id,
@@ -63,8 +63,8 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @example
    * const snap = makeQuerySnapshot([{ id: "id1", name: "test" }]);
    */
-  const makeQuerySnapshot = (docs: Array<Record<string, any>>) => ({
-    docs: docs.map(d => ({ id: d.id, data: () => d, exists: true, ref: { __path: `friendships/${d.id}`, __id: d.id } })),
+  const makeQuerySnapshot = (docs: Array<Record<string, unknown>>) => ({
+    docs: docs.map(d => ({ id: d.id as string, data: () => d, exists: true, ref: { __path: `friendships/${d.id}`, __id: d.id } })),
     empty: docs.length === 0,
   });
 
@@ -98,11 +98,11 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
   const makeQueryChain = (collectionName: string) => {
     let limitVal = 1000;
     let offsetVal = 0;
-    const wheres: Array<{ field: string; op: string; val: any }> = [];
+    const wheres: Array<{ field: string; op: string; val: unknown }> = [];
     const orders: Array<{ field: string; dir: string }> = [];
-    let startAtVal: any = null;
+    let startAtVal: unknown = null;
 
-    const chain: any = {};
+    const chain: Record<string, unknown> = {};
     chain.where = vi.fn((field, op, val) => { wheres.push({ field, op, val }); return chain; });
     chain.limit = vi.fn((l) => { limitVal = l; return chain; });
     chain.offset = vi.fn((o) => { offsetVal = o; return chain; });
@@ -129,13 +129,13 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
      * @example
      * const results = applyFilters(baseResults);
      */
-    const applyFilters = (baseResults: any[]) => {
+    const applyFilters = (baseResults: Array<Record<string, unknown>>) => {
       let results = [...baseResults];
 
       // Aplicar Wheres
       for (const f of wheres) {
         results = results.filter(r => {
-          const val = f.field.split('.').reduce((obj, key) => obj?.[key], r);
+          const val = f.field.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown>)?.[key], r);
           if (f.op === '==') return val === f.val;
           if (f.op === '!=') return val !== f.val;
           if (f.op === 'in') return Array.isArray(f.val) && f.val.includes(val);
@@ -227,7 +227,7 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * const transaction = mockTransaction;
    */
   const mockTransaction = {
-    get: vi.fn((ref: any) => {
+    get: vi.fn((ref: { __path: string, __id: string }) => {
       const data = state.docStore[ref.__path];
       return Promise.resolve(makeDocSnapshot(ref.__id, data));
     }),
@@ -263,9 +263,9 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @example
    * const db = mockDb;
    */
-  const mockDb: any = {
+  const mockDb = {
     collection: vi.fn((name: string) => makeCollectionRef(name)),
-    runTransaction: vi.fn(async (cb: Function) => cb(mockTransaction)),
+    runTransaction: vi.fn(async (cb: (transaction: typeof mockTransaction) => Promise<unknown>) => cb(mockTransaction)),
     batch: vi.fn(() => mockBatch),
   };
 
@@ -296,7 +296,7 @@ vi.mock('firebase-functions/logger', () => ({
  * @returns {Object} Interface administrativa mockada
  */
 vi.mock('firebase-admin', () => {
-  const firestoreFn: any = () => mockDb;
+  const firestoreFn = (() => mockDb) as unknown as (() => typeof mockDb) & { Timestamp: unknown, FieldValue: unknown };
   firestoreFn.Timestamp = {
     now: () => ({ seconds: Math.floor(Date.now() / 1000), nanoseconds: 0, toDate: () => new Date() }),
   };
@@ -377,10 +377,10 @@ beforeEach(async () => {
 
   // Redefine implementações padrão dos mocks principais
   mockDb.collection.mockImplementation((name: string) => makeCollectionRef(name));
-  mockDb.runTransaction.mockImplementation(async (cb: Function) => cb(mockTransaction));
+  mockDb.runTransaction.mockImplementation(async (cb: (transaction: typeof mockTransaction) => Promise<unknown>) => cb(mockTransaction));
   mockDb.batch.mockImplementation(() => mockBatch);
   mockBatch.commit.mockResolvedValue(undefined);
-  mockTransaction.get.mockImplementation((ref: any) => {
+  mockTransaction.get.mockImplementation((ref: { __path: string, __id: string }) => {
     const data = state.docStore[ref.__path];
     return Promise.resolve(makeDocSnapshot(ref.__id, data));
   });
@@ -465,7 +465,7 @@ describe('GET /api/findFriends', () => {
 
     const res = await request(app).get('/api/findFriends?searchTerm=test');
     expect(res.status).toBe(200);
-    const ids = res.body.data.map((u: any) => u.id);
+    const ids = res.body.data.map((u: { id: string }) => u.id);
     expect(ids).not.toContain('current-user');
     expect(ids).toContain('user-2');
   });

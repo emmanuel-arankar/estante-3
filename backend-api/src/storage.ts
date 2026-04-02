@@ -64,7 +64,7 @@ router.post('/storage/signed-url', checkAuth, async (req: Request, res: Response
             metadata: { folder, fileName },
             ip: req.ip,
             userAgent: req.get('User-Agent')?.toString(),
-            requestId: (req as any).requestId
+            requestId: (req as Request & { requestId?: string }).requestId
         });
 
         return res.json({
@@ -112,7 +112,7 @@ router.delete('/storage', checkAuth, checkStorageOwnership, async (req: Request,
             resourceId: path,
             ip: req.ip,
             userAgent: req.get('User-Agent')?.toString(),
-            requestId: (req as any).requestId
+            requestId: (req as Request & { requestId?: string }).requestId
         });
 
         return res.json({ success: true });
