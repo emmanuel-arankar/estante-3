@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
 import { invalidatePattern } from '../lib/cache';
+import { Request, Response, NextFunction } from 'express';
 
 // =============================================================================
 // MOCKS ELEVADOS (HOISTED)
@@ -352,8 +353,12 @@ vi.mock('firebase-admin', () => {
  * checkAuth(req, _res, next);
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+  checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } });
+    next();
+  }),
+  checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } });
     next();
   }),
 }));

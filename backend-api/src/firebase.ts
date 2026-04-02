@@ -69,7 +69,18 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+    const config: admin.AppOptions = {};
+
+    if (projectId) {
+      config.projectId = projectId;
+      config.databaseURL = `https://${projectId}-default-rtdb.firebaseio.com`;
+    } else if (process.env.NODE_ENV === 'test') {
+      config.projectId = 'test-project';
+      config.databaseURL = 'https://test-project-default-rtdb.firebaseio.com';
+    }
+
+    admin.initializeApp(config);
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }

@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
+import { Request, Response, NextFunction } from 'express';
 import { invalidatePattern } from '../lib/cache';
 
 // =============================================================================
@@ -340,10 +341,14 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+    checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
     next();
   }),
+    checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====

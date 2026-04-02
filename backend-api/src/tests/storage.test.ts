@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
-import { bucket } from '../firebase';
+import { Request, Response, NextFunction } from 'express';
 
 /**
  * @name Mock Factory Storage
@@ -27,13 +27,22 @@ vi.mock('../firebase', () => ({
     admin: {
         auth: () => ({}),
     },
+    db: {
+        collection: vi.fn(() => ({
+            add: vi.fn(() => Promise.resolve({ id: 'mock-audit-id' }))
+        }))
+    },
     bucket: mockBucket,
 }));
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-        req.user = { uid: 'current-user' };
+    checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
+        next();
+    }),
+    checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
         next();
     }),
 }));

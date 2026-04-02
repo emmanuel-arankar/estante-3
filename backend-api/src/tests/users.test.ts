@@ -5,7 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
-import { admin, db } from '../firebase';
+import { Request, Response, NextFunction } from 'express';
+import { admin } from '../firebase';
 import { invalidatePattern } from '../lib/cache';
 
 // =============================================================================
@@ -368,10 +369,14 @@ vi.mock('firebase-admin', () => {
  * @description Garante que todas as requisições API sejam processadas com o UID 'current-user'.
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+    checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
     next();
   }),
+    checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
