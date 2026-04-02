@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -14,7 +14,9 @@ import {
     Smile,
     Eye,
     Pencil,
-    X
+    X,
+    Loader2,
+    FileText
 } from 'lucide-react';
 import {
     Avatar,
@@ -36,31 +38,35 @@ import {
 } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType } from '@estante/common-types';
+import { useAudioStore } from '@/hooks/useAudioStore';
+import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
+import { formatAudioTime } from '@/utils/audioUtils';
+import { requestTranscription } from '@/services/firebase/functions';
+
+// ⚡ BOLT OPTIMIZATION: Hoisted static assets to prevent re-allocation.
+const DEFAULT_WAVEFORM = Array.from({ length: 30 });
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
-    onReply?: () => void;
-    onDelete?: () => void;
-    onReact?: (emoji: string) => void;
+    onReply?: (message: ChatMessageType) => void;
+    onDelete?: (id: string) => void;
+    onReact?: (id: string, emoji: string) => void;
     onMarkTemporaryAsPlayed?: (messageId: string) => Promise<void>;
     onMarkAsViewed?: (messageId: string) => Promise<void>;
     currentUserId?: string;
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (id: string) => void;
+    onEdit?: (message: ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
 }
 
-import { useAudioStore } from '@/hooks/useAudioStore';
-import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
-import { formatAudioTime } from '@/utils/audioUtils';
-
-const AudioPlayer = ({
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -166,7 +172,7 @@ const AudioPlayer = ({
 
                     // Play next audio if available
                     if (onPlayNext) {
-                        onPlayNext();
+                        onPlayNext(id);
                     }
                 });
             } catch (err) {
@@ -176,36 +182,43 @@ const AudioPlayer = ({
         }
     };
 
-    const getProgressFromEvent = (clientX: number): number => {
+    const getProgressFromEvent = useCallback((clientX: number): number => {
         if (!progressBarRef.current) return 0;
         const rect = progressBarRef.current.getBoundingClientRect();
         return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    };
+    }, []);
 
-    const handleSeekStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleSeekStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         if (isTemporary || isSending || isExpired || hasError) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         setIsDragging(true);
         setDragProgress(getProgressFromEvent(clientX));
-    };
+    }, [isTemporary, isSending, isExpired, hasError, getProgressFromEvent]);
 
-    const handleSeekMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleSeekMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
         if (!isDragging) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         setDragProgress(getProgressFromEvent(clientX));
-    };
+    }, [isDragging, getProgressFromEvent]);
 
-    const handleSeekEnd = () => {
+    // ⚡ BOLT OPTIMIZATION: Use ref to keep handleSeekEnd stable during drag
+    const dragProgressRef = useRef(dragProgress);
+    useEffect(() => {
+        dragProgressRef.current = dragProgress;
+    }, [dragProgress]);
+
+    const handleSeekEnd = useCallback(() => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
 
-        audio.currentTime = (dragProgress / 100) * duration;
-        setProgress(dragProgress);
-        setCurrentTime((dragProgress / 100) * duration);
+        const finalProgress = dragProgressRef.current;
+        audio.currentTime = (finalProgress / 100) * duration;
+        setProgress(finalProgress);
+        setCurrentTime((finalProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, duration, id, getAudioElement]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -224,7 +237,7 @@ const AudioPlayer = ({
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, getProgressFromEvent, handleSeekEnd]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -275,7 +288,7 @@ const AudioPlayer = ({
                         )}
                     >
                         {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+                            const bars = waveform && waveform.length > 0 ? waveform : DEFAULT_WAVEFORM;
                             const MAX_BARS = 35;
                             const step = Math.ceil(bars.length / MAX_BARS);
                             const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
@@ -357,12 +370,11 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
 
-import { requestTranscription } from '@/services/firebase/functions';
-import { Loader2, FileText } from 'lucide-react';
+AudioPlayer.displayName = 'AudioPlayer';
 
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +435,11 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+TranscriptionControl.displayName = 'TranscriptionControl';
+
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +472,11 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
-export const ChatBubble = ({
+MessageHighlighter.displayName = 'MessageHighlighter';
+
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -488,6 +504,7 @@ export const ChatBubble = ({
     };
 
     const handleCopy = () => {
+        if (!message.content) return;
         navigator.clipboard.writeText(message.content);
     };
 
@@ -523,11 +540,11 @@ export const ChatBubble = ({
     );
 
     const handleReply = () => {
-        onReply?.();
+        onReply?.(message);
     };
 
     const handleDelete = () => {
-        onDelete?.();
+        onDelete?.(message.id);
     };
 
     return (
@@ -569,10 +586,10 @@ export const ChatBubble = ({
                         </PopoverTriggerUI>
                         <PopoverContentUI side="top" align="center" className="w-auto p-1 rounded-full shadow-lg border-gray-100">
                             <div className="flex items-center space-x-1">
-                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                {REACTION_EMOJIS.map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -594,7 +611,7 @@ export const ChatBubble = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={() => onEdit?.(message)}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
@@ -912,7 +929,7 @@ export const ChatBubble = ({
                             {Object.entries(message.reactions).map(([emoji, users]) => (
                                 <button
                                     key={emoji}
-                                    onClick={() => onReact?.(emoji)}
+                                    onClick={() => onReact?.(message.id, emoji)}
                                     className={cn(
                                         "px-1.5 py-0.5 rounded-full text-[10px] flex items-center space-x-1 transition-all",
                                         users.includes(currentUserId || '')
@@ -948,10 +965,10 @@ export const ChatBubble = ({
                         </PopoverTriggerUI>
                         <PopoverContentUI side="top" align="center" className="w-auto p-1 rounded-full shadow-lg border-gray-100">
                             <div className="flex items-center space-x-1">
-                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                {REACTION_EMOJIS.map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -968,4 +985,6 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+
+ChatBubble.displayName = 'ChatBubble';
