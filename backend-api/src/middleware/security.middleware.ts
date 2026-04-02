@@ -1,11 +1,12 @@
-import rateLimit from 'express-rate-limit';
+import { Request, Response, NextFunction } from 'express';
+import rateLimit, { Options } from 'express-rate-limit';
 import * as logger from 'firebase-functions/logger';
 
 /**
  * @name Handler de Excesso de Limite
  * @summary Log e resposta padronizada para 429.
  */
-const limitHandler = (message: string) => (req: any, res: any, next: any, options: any) => {
+const limitHandler = (message: string) => (req: Request, res: Response, _next: NextFunction, options: Options) => {
     logger.warn('Rate limit excedido', {
         ip: req.ip,
         path: req.path,

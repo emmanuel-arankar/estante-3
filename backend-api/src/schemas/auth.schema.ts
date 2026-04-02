@@ -118,7 +118,7 @@ export const googleAuthSchema = z.object({
   uid: z.string(),
   email: z.string().email(),
   displayName: z.string(),
-  photoURL: z.string().nullable().optional(),
+  photoURL: z.string().url().or(z.literal('')).optional(),
 });
 
 /**

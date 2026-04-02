@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
+import { Request, Response, NextFunction } from 'express';
 import { invalidatePattern } from '../lib/cache';
 
 // =============================================================================
@@ -19,7 +20,7 @@ import { invalidatePattern } from '../lib/cache';
  * 
  * @returns {Object} Interface com mocks e helpers para testes
  */
-const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hoisted(() => {
+const { state, mockDb } = vi.hoisted(() => {
   /**
    * @name Estado Global de Notificações
    * @summary Repositório de dados em memória.
@@ -30,8 +31,8 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    * @property {Record<string, number>} queryCallCount - Contador para permitir que queries sequenciais na mesma coleção retornem dados distintos.
    */
   const state = {
-    docStore: {} as Record<string, any>,
-    queryResults: {} as Record<string, any[]>,
+    docStore: {} as Record<string, unknown>,
+    queryResults: {} as Record<string, Array<Record<string, unknown>>>,
     queryCallCount: {} as Record<string, number>,
   };
 
@@ -44,7 +45,7 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    * @params {any} data - Conteúdo do documento
    * @returns {Object} Snapshot simulado
    */
-  const makeDocSnapshot = (id: string, data: any) => ({
+  const makeDocSnapshot = (id: string, data: unknown) => ({
     exists: data !== undefined,
     data: () => data,
     id,
@@ -58,9 +59,9 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    * @params {Array<Record<string, any>>} docs - Lista de dados brutos
    * @returns {Object} QuerySnapshot simulado
    */
-  const makeQuerySnapshot = (docs: Array<Record<string, any>>) => ({
+  const makeQuerySnapshot = (docs: Array<Record<string, unknown>>) => ({
     docs: docs.map(d => ({
-      id: d.id,
+      id: d.id as string,
       data: () => d,
       exists: true,
       ref: { __path: `notifications/${d.id}`, __id: d.id }
@@ -87,9 +88,9 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
       const data = state.docStore[`${collection}/${id}`];
       return Promise.resolve(makeDocSnapshot(id, data));
     }),
-    update: vi.fn((data: any) => {
+    update: vi.fn((data: Record<string, unknown>) => {
       if (state.docStore[`${collection}/${id}`]) {
-        state.docStore[`${collection}/${id}`] = { ...state.docStore[`${collection}/${id}`], ...data };
+        state.docStore[`${collection}/${id}`] = { ...state.docStore[`${collection}/${id}`] as Record<string, unknown>, ...data };
       }
       return Promise.resolve();
     }),
@@ -110,11 +111,11 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
   const makeQueryChain = (collectionName: string) => {
     let limitVal = 1000;
     let offsetVal = 0;
-    const wheres: Array<{ field: string; op: string; val: any }> = [];
+    const wheres: Array<{ field: string; op: string; val: unknown }> = [];
     const orders: Array<{ field: string; dir: string }> = [];
-    let startAfterVal: any = null;
+    let startAfterVal: unknown = null;
 
-    const chain: any = {};
+    const chain: Record<string, unknown> = {};
     chain.where = vi.fn((field, op, val) => { wheres.push({ field, op, val }); return chain; });
     chain.limit = vi.fn((l) => { limitVal = l; return chain; });
     chain.offset = vi.fn((o) => { offsetVal = o; return chain; });
@@ -130,13 +131,13 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
      * @params {any[]} baseResults - Documentos da coleção
      * @returns {any[]} Resultados processados
      */
-    const applyFilters = (baseResults: any[]) => {
+    const applyFilters = (baseResults: Array<Record<string, unknown>>) => {
       let results = [...baseResults];
 
       // Aplicar Wheres
       for (const f of wheres) {
         results = results.filter(r => {
-          const val = f.field.split('.').reduce((obj, key) => obj?.[key], r);
+          const val = f.field.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown>)?.[key], r);
           if (f.op === '==') return val === f.val;
           if (f.op === '!=') return val !== f.val;
           return true;
@@ -147,11 +148,11 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
       if (orders.length > 0) {
         results.sort((a, b) => {
           for (const o of orders) {
-            const valA = o.field.split('.').reduce((obj, key) => obj?.[key], a);
-            const valB = o.field.split('.').reduce((obj, key) => obj?.[key], b);
+            const valA = o.field.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown>)?.[key], a);
+            const valB = o.field.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown>)?.[key], b);
 
             // Tratamento especial para timestamps em memória
-            const getTime = (v: any) => v?.toMillis ? v.toMillis() : new Date(v).getTime();
+            const getTime = (v: unknown) => (v as { toMillis?: () => number })?.toMillis ? (v as { toMillis: () => number }).toMillis() : new Date(v as string).getTime();
 
             if (getTime(valA) < getTime(valB)) return o.dir === 'asc' ? -1 : 1;
             if (getTime(valA) > getTime(valB)) return o.dir === 'asc' ? 1 : -1;
@@ -162,7 +163,8 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
 
       // Aplicar Cursor (startAfter baseado em ID)
       if (startAfterVal) {
-        const lastId = startAfterVal[startAfterVal.length - 1]; // Assume que o último valor do cursor é o ID
+        const startAfterArr = startAfterVal as unknown[];
+        const lastId = startAfterArr[startAfterArr.length - 1]; // Assume que o último valor do cursor é o ID
         const index = results.findIndex(r => r.id === lastId);
         if (index !== -1) results = results.slice(index + 1);
       }
@@ -223,10 +225,10 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    * @returns {Object} Interface do WriteBatch mockado
    */
   const mockBatch = {
-    update: vi.fn((ref: any, data: any) => {
+    update: vi.fn((ref: { __path: string }, data: Record<string, unknown>) => {
       const path = ref.__path;
       if (state.docStore[path]) {
-        state.docStore[path] = { ...state.docStore[path], ...data };
+        state.docStore[path] = { ...state.docStore[path] as Record<string, unknown>, ...data };
       }
     }),
     commit: vi.fn().mockResolvedValue(undefined),
@@ -241,12 +243,12 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    * @example
    * const db = mockDb;
    */
-  const mockDb: any = {
+  const mockDb = {
     collection: vi.fn((name: string) => makeCollectionRef(name)),
     batch: vi.fn(() => mockBatch),
   };
 
-  return { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot };
+  return { state, mockDb };
 });
 
 // =============================================================================
@@ -273,7 +275,7 @@ vi.mock('firebase-functions/logger', () => ({
  * @returns {Object} Interface administrativa mockada
  */
 vi.mock('firebase-admin', () => {
-  const firestoreFn: any = () => mockDb;
+  const firestoreFn = (() => mockDb) as unknown as (() => typeof mockDb) & { Timestamp: unknown, FieldValue: unknown };
   firestoreFn.Timestamp = {
     now: () => ({
       seconds: Math.floor(Date.now() / 1000),
@@ -340,10 +342,14 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+    checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
     next();
   }),
+    checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====

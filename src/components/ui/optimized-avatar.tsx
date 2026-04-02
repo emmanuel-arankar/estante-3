@@ -4,6 +4,23 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useImageCache } from '@/hooks/useImageCache';
 
+// ⚡ BOLT OPTIMIZATION: Hoisted static style objects to prevent re-allocation.
+const SIZE_CLASSES = {
+  xs: 'h-6 w-6',
+  sm: 'h-8 w-8',
+  md: 'h-12 w-12',
+  lg: 'h-16 w-16',
+  xl: 'h-32 w-32'
+};
+
+const TEXT_CLASSES = {
+  xs: 'text-[10px]',
+  sm: 'text-xs',
+  md: 'text-sm',
+  lg: 'text-2xl',
+  xl: 'text-5xl'
+};
+
 interface OptimizedAvatarProps {
   src?: string;
   alt: string;
@@ -24,22 +41,6 @@ export const OptimizedAvatar = ({
   const { isLoaded, hasError } = useImageCache(src);
   const [showImage, setShowImage] = useState(false);
 
-  const sizeClasses = {
-    xs: 'h-6 w-6',
-    sm: 'h-8 w-8',
-    md: 'h-12 w-12',
-    lg: 'h-16 w-16',
-    xl: 'h-32 w-32'
-  };
-
-  const textClasses = {
-    xs: 'text-[10px]',
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-2xl',
-    xl: 'text-5xl'
-  };
-
   // ✅ Gerenciar o estado de exibição de forma robusta
   useEffect(() => {
     if (isLoaded) {
@@ -53,7 +54,7 @@ export const OptimizedAvatar = ({
   }, [isLoaded, src]); // Adicionado 'src' como dependência para forçar o ciclo ao mudar a imagem
 
   return (
-    <div className={`relative rounded-full ${sizeClasses[size]} ${className}`}>
+    <div className={`relative rounded-full ${SIZE_CLASSES[size]} ${className}`}>
       {/* Skeleton durante o carregamento */}
       <AnimatePresence>
         {!isLoaded && (
@@ -79,7 +80,7 @@ export const OptimizedAvatar = ({
             className="object-cover"
           />
         ) : null}
-        <AvatarFallback className={`bg-emerald-100 text-emerald-700 font-medium ${textClasses[size]}`}>
+        <AvatarFallback className={`bg-emerald-100 text-emerald-700 font-medium ${TEXT_CLASSES[size]}`}>
           {(fallback || '?').charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>

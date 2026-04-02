@@ -33,7 +33,7 @@ export interface AuditEventParams {
     action: AuditAction;     // O que foi feito
     category: AuditCategory; // Categoria da ação
     resourceId?: string;     // ID do objeto afetado (ex: targetUserId, messageId)
-    metadata?: any;          // Dados adicionais (ex: diff de campos)
+    metadata?: Record<string, unknown>; // Dados adicionais (ex: diff de campos)
     ip?: string;             // IP da requisição
     userAgent?: string;      // Browser/Device
     requestId?: string;      // ID da requisição correlacionado

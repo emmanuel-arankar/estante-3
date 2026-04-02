@@ -2,7 +2,7 @@
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, RequestHandler } from 'express';
 import { db } from './firebase';
 import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware';
 import { validate } from './middleware/validate.middleware';
@@ -46,7 +46,7 @@ router.get('/users/by-nickname/:nickname', checkAuth, asyncHandler(async (req: R
 
   // Cache: perfil por nickname (2 min)
   const cacheKey = CacheKeys.userByNickname(nickname.toLowerCase());
-  const cached = await getCached<any>(cacheKey);
+  const cached = await getCached<Record<string, unknown>>(cacheKey);
   if (cached) return res.json(cached);
 
   const snapshot = await db.collection('users')
@@ -125,7 +125,7 @@ router.get('/users/check-nickname', asyncHandler(async (req: Request, res: Respo
  * @example
  * GET /api/users/search?q=joao&limit=5
  */
-router.get('/users/search', checkAuth, searchLimiter as any, asyncHandler(async (req: Request, res: Response) => {
+router.get('/users/search', checkAuth, searchLimiter as unknown as RequestHandler, asyncHandler(async (req: Request, res: Response) => {
   const { q, limit: limitStr } = req.query;
   const searchLimit = Math.min(parseInt(limitStr as string) || 10, 20);
 
@@ -139,7 +139,7 @@ router.get('/users/search', checkAuth, searchLimiter as any, asyncHandler(async 
 
   // ==== ==== 1. BUSCA OTIMIZADA (array-contains) ==== ====
   // Tenta usar searchTerms primeiro (1 query), fallback para prefix match legado
-  let snapshot = await db.collection('users')
+  const snapshot = await db.collection('users')
     .where('searchTerms', 'array-contains', searchTerm)
     .limit(searchLimit)
     .get();
@@ -221,7 +221,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
   const authReq = req as AuthenticatedRequest;
   const currentUserId = authReq.user.uid;
 
-  const updates = req.body;
+  const updates = req.body as Record<string, unknown>;
   const userRef = db.collection('users').doc(currentUserId);
 
   try {
@@ -231,13 +231,13 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
 
       const userData = userDoc.data();
       const currentNickname = userData?.nickname;
-      const finalUpdates: any = {
+      const finalUpdates: Record<string, unknown> = {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
       // 1. Processar Nickname (se alterado)
-      if (updates.nickname && updates.nickname !== currentNickname) {
-        const newNickname = updates.nickname.toLowerCase();
+      if (updates.nickname && typeof updates.nickname === 'string' && updates.nickname !== currentNickname) {
+        const newNickname = (updates.nickname as string).toLowerCase();
         const nicknameRef = db.collection('nicknames').doc(newNickname);
         const nicknameDoc = await transaction.get(nicknameRef);
 
@@ -247,20 +247,21 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
 
         // Liberar nickname antigo e reservar novo
         if (currentNickname) {
-          transaction.delete(db.collection('nicknames').doc(currentNickname));
+          transaction.delete(db.collection('nicknames').doc(currentNickname as string));
         }
         transaction.set(nicknameRef, { userId: currentUserId });
         finalUpdates.nickname = newNickname;
       }
 
       // 2. Processar DisplayName e Versão Minúscula para Busca
-      if (updates.displayName) {
-        finalUpdates.displayName = updates.displayName;
-        finalUpdates.displayNameLower = updates.displayName.toLowerCase();
+      if (updates.displayName && typeof updates.displayName === 'string') {
+        const displayName = updates.displayName as string;
+        finalUpdates.displayName = displayName;
+        finalUpdates.displayNameLower = displayName.toLowerCase();
 
         // Atualizar também no Firebase Auth (background)
         admin.auth().updateUser(currentUserId, {
-          displayName: updates.displayName
+          displayName
         }).catch(err => logger.error('Erro ao atualizar displayName no Auth:', err));
       }
 
@@ -270,7 +271,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
       if (updates.location !== undefined) finalUpdates.location = updates.location;
       if (updates.birthDate !== undefined) {
         finalUpdates.birthDate = updates.birthDate
-          ? admin.firestore.Timestamp.fromDate(new Date(updates.birthDate))
+          ? admin.firestore.Timestamp.fromDate(new Date(updates.birthDate as string | number | Date))
           : null;
       }
       if (updates.photoURL !== undefined) {
@@ -278,27 +279,28 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
 
         // Atualizar também no Firebase Auth
         admin.auth().updateUser(currentUserId, {
-          photoURL: updates.photoURL || undefined
+          photoURL: (updates.photoURL as string) || undefined
         }).catch(err => logger.error('Erro ao atualizar photoURL no Auth:', err));
       }
 
       // 5. Gerar searchTerms para busca otimizada
       if (finalUpdates.displayName || finalUpdates.nickname) {
-        const finalDisplayName = finalUpdates.displayName || userData?.displayName;
-        const finalNickname = finalUpdates.nickname || userData?.nickname;
+        const finalDisplayName = (finalUpdates.displayName as string) || (userData?.displayName as string);
+        const finalNickname = (finalUpdates.nickname as string) || (userData?.nickname as string);
         finalUpdates.searchTerms = generateSearchTerms(finalDisplayName, finalNickname);
       }
 
       transaction.update(userRef, finalUpdates);
     });
-  } catch (error: any) {
-    if (error.message === 'nickname-taken') {
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.message === 'nickname-taken') {
       return res.status(409).json({ error: 'Este nickname já está em uso' });
     }
-    if (error.message === 'user-not-found') {
+    if (err.message === 'user-not-found') {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
-    throw error; // Repassa outros erros para o asyncHandler
+    throw err; // Repassa outros erros para o asyncHandler
   }
 
   logger.info(`Perfil do usuário ${currentUserId} atualizado com sucesso`);
@@ -318,7 +320,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
     metadata: { fields: Object.keys(updates) },
     ip: req.ip,
     userAgent: req.get('User-Agent')?.toString(),
-    requestId: (req as any).requestId
+    requestId: (req as Request & { requestId?: string }).requestId
   });
 
   // ==== ==== CASCATA: Propagar dados atualizados para Notificações e Amizades ==== ====
@@ -330,7 +332,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
       try {
         // Buscar o documento final atualizado para pegar a nova array `searchTerms`
         const updatedUserDoc = await db.collection('users').doc(currentUserId).get();
-        const updatedUserData = updatedUserDoc.data();
+        const updatedUserData = updatedUserDoc.data() as Record<string, unknown>;
 
         // 1. Atualizar notificações onde este usuário é o ator
         const notifSnapshot = await db.collection('notifications')
@@ -343,7 +345,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
           let currentBatch = db.batch();
           let opCount = 0;
 
-          const notifUpdates: Record<string, any> = {};
+          const notifUpdates: Record<string, unknown> = {};
           if (updates.displayName) notifUpdates.actorName = updates.displayName;
           if (updates.photoURL !== undefined) notifUpdates.actorPhoto = updates.photoURL || null;
           if (updates.nickname) notifUpdates['metadata.actorNickname'] = updates.nickname;
@@ -373,7 +375,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
           let currentBatch = db.batch();
           let opCount = 0;
 
-          const friendUpdates: Record<string, any> = {};
+          const friendUpdates: Record<string, unknown> = {};
           if (updates.displayName) friendUpdates['friend.displayName'] = updates.displayName;
           if (updates.photoURL !== undefined) friendUpdates['friend.photoURL'] = updates.photoURL || null;
           if (updates.nickname) friendUpdates['friend.nickname'] = updates.nickname;
@@ -423,7 +425,7 @@ router.get('/users/me/stats', checkAuth, asyncHandler(async (req: Request, res: 
 
   // Cache: stats do usuário (1 min)
   const cacheKey = CacheKeys.userStats(currentUserId);
-  const cached = await getCached<any>(cacheKey);
+  const cached = await getCached<Record<string, unknown>>(cacheKey);
   if (cached) return res.json(cached);
 
   const userDoc = await db.collection('users').doc(currentUserId).get();
@@ -473,7 +475,7 @@ router.get('/users/:userId', checkAuth, asyncHandler(async (req: Request, res: R
 
   // Cache: perfil por ID (2 min)
   const cacheKey = CacheKeys.userProfile(targetUserId);
-  const cached = await getCached<any>(cacheKey);
+  const cached = await getCached<Record<string, unknown>>(cacheKey);
   if (cached) {
     // Mesmo do cache, verificar bloqueio (sec check)
     const isBlocked = await isBlockedBy(targetUserId, currentUserId);
@@ -513,12 +515,12 @@ router.get('/users/:userId', checkAuth, asyncHandler(async (req: Request, res: R
     birthDate: userData?.birthDate?.toDate?.()?.toISOString() || userData?.birthDate || null,
     coverPhotoURL: userData?.coverPhotoURL || null,
     createdAt: userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
-    joinedAt: userData?.joinedAt?.toDate?.()?.toISOString() || userData?.joinedAt || userData?.createdAt?.toDate?.()?.toISOString() || userData?.createdAt || null,
+    joinedAt: (userData?.joinedAt as { toDate?: () => {  toISOString: () => string } })?.toDate?.()?.toISOString() || userData?.joinedAt || (userData?.createdAt as { toDate?: () => {  toISOString: () => string } })?.toDate?.()?.toISOString() || userData?.createdAt || null,
     role: userData?.role || 'user',
 
     // ==== ==== 2. CONTADORES CONSOLIDADOS ==== ====
     // Proteção anti-negativo: FieldValue.increment(-1) não tem floor
-    friendsCount: Math.max(0, userData?.stats?.friendsCount || userData?.friendsCount || 0),
+    friendsCount: Math.max(0, (userData?.stats as { friendsCount?: number })?.friendsCount || (userData?.friendsCount as number) || 0),
   };
 
   await setCache(cacheKey, publicProfile, 120);
@@ -594,8 +596,8 @@ router.post('/avatars/:avatarId/like', checkAuth, asyncHandler(async (req: Reque
     return res.status(404).json({ error: 'Avatar não encontrado' });
   }
 
-  const data = avatarDoc.data();
-  const likes: string[] = data?.likes || [];
+  const data = avatarDoc.data() as { likes?: string[] };
+  const likes = data?.likes || [];
   const isLiked = likes.includes(userId);
 
   if (isLiked) {
