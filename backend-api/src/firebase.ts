@@ -68,9 +68,19 @@ if (admin.apps.length === 0) {
       admin.initializeApp();
     }
   } else {
-    // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
-    logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
+    // ⚡ BOLT OPTIMIZATION: Fallback for test environment to prevent "Can't determine Firebase Database URL" errors.
+    if (process.env.NODE_ENV === 'test') {
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'test-project';
+      admin.initializeApp({
+        projectId,
+        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+      });
+      logger.info('Firebase Admin inicializado para AMBIENTE DE TESTE.');
+    } else {
+      // Recurso ao Application Default Credentials (ADC) em ambientes cloud
+      admin.initializeApp();
+      logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
+    }
   }
 }
 

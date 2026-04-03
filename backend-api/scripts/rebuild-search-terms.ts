@@ -33,9 +33,12 @@ async function rebuild() {
                 if (Array.isArray(val)) {
                     // Trata alternateNames que pode ser array de strings ou array de objetos { value: string }
                     if (field === 'alternateNames') {
-                        val.forEach((alt: any) => {
-                            if (typeof alt === 'string') terms.push(alt);
-                            else if (alt && typeof alt.value === 'string') terms.push(alt.value);
+                        val.forEach((alt: unknown) => {
+                            if (typeof alt === 'string') {
+                                terms.push(alt);
+                            } else if (alt && typeof alt === 'object' && 'value' in alt && typeof alt.value === 'string') {
+                                terms.push(alt.value);
+                            }
                         });
                     }
                 } else if (typeof val === 'string') {
