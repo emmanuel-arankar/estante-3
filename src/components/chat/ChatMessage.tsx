@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -14,7 +14,9 @@ import {
     Smile,
     Eye,
     Pencil,
-    X
+    X,
+    Loader2,
+    FileText
 } from 'lucide-react';
 import {
     Avatar,
@@ -36,31 +38,31 @@ import {
 } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType } from '@estante/common-types';
+import { useAudioStore } from '@/hooks/useAudioStore';
+import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
+import { formatAudioTime } from '@/utils/audioUtils';
+import { requestTranscription } from '@/services/firebase/functions';
 
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
-    onReply?: () => void;
-    onDelete?: () => void;
-    onReact?: (emoji: string) => void;
+    onReply?: (message: ChatMessageType) => void;
+    onDelete?: (messageId: string) => void;
+    onReact?: (messageId: string, emoji: string) => void;
     onMarkTemporaryAsPlayed?: (messageId: string) => Promise<void>;
     onMarkAsViewed?: (messageId: string) => Promise<void>;
     currentUserId?: string;
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (messageId: string) => void;
+    onEdit?: (message: ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
 }
 
-import { useAudioStore } from '@/hooks/useAudioStore';
-import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
-import { formatAudioTime } from '@/utils/audioUtils';
-
-const AudioPlayer = ({
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -98,6 +100,7 @@ const AudioPlayer = ({
 
     const progressBarRef = useRef<HTMLDivElement | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const dragProgressRef = useRef(0);
 
     const isPlaying = isAudioPlaying(id);
     const isSending = status === 'sending';
@@ -186,45 +189,59 @@ const AudioPlayer = ({
         e.stopPropagation();
         if (isTemporary || isSending || isExpired || hasError) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const initialProgress = getProgressFromEvent(clientX);
         setIsDragging(true);
-        setDragProgress(getProgressFromEvent(clientX));
+        setDragProgress(initialProgress);
+        dragProgressRef.current = initialProgress;
     };
 
     const handleSeekMove = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDragging) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        setDragProgress(getProgressFromEvent(clientX));
+        const newProgress = getProgressFromEvent(clientX);
+        setDragProgress(newProgress);
+        dragProgressRef.current = newProgress;
     };
 
-    const handleSeekEnd = () => {
-        if (!isDragging) return;
+    // ⚡ BOLT OPTIMIZATION: Use dragProgressRef to avoid re-attaching global event listeners
+    // every time dragProgress changes (prevents effect churn during high-frequency dragging).
+    const handleSeekEnd = useCallback(() => {
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
 
-        audio.currentTime = (dragProgress / 100) * duration;
-        setProgress(dragProgress);
-        setCurrentTime((dragProgress / 100) * duration);
+        const finalProgress = dragProgressRef.current;
+        audio.currentTime = (finalProgress / 100) * duration;
+        setProgress(finalProgress);
+        setCurrentTime((finalProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [getAudioElement, id, duration]);
 
     useEffect(() => {
         if (!isDragging) return;
+
         const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
             const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-            setDragProgress(getProgressFromEvent(clientX));
+            const newProgress = getProgressFromEvent(clientX);
+            setDragProgress(newProgress);
+            dragProgressRef.current = newProgress;
         };
-        const handleGlobalEnd = () => handleSeekEnd();
+
+        const handleGlobalEnd = () => {
+            handleSeekEnd();
+        };
+
         window.addEventListener('mousemove', handleGlobalMove);
         window.addEventListener('mouseup', handleGlobalEnd);
-        window.addEventListener('touchmove', handleGlobalMove);
+        window.addEventListener('touchmove', handleGlobalMove, { passive: false });
         window.addEventListener('touchend', handleGlobalEnd);
+
         return () => {
             window.removeEventListener('mousemove', handleGlobalMove);
             window.removeEventListener('mouseup', handleGlobalEnd);
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, handleSeekEnd]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -357,12 +374,11 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
 
-import { requestTranscription } from '@/services/firebase/functions';
-import { Loader2, FileText } from 'lucide-react';
+AudioPlayer.displayName = 'AudioPlayer';
 
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +439,11 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+TranscriptionControl.displayName = 'TranscriptionControl';
+
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +476,11 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
-export const ChatBubble = ({
+MessageHighlighter.displayName = 'MessageHighlighter';
+
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -523,11 +543,19 @@ export const ChatBubble = ({
     );
 
     const handleReply = () => {
-        onReply?.();
+        onReply?.(message);
     };
 
     const handleDelete = () => {
-        onDelete?.();
+        onDelete?.(message.id);
+    };
+
+    const handleReact = (emoji: string) => {
+        onReact?.(message.id, emoji);
+    };
+
+    const handleEdit = () => {
+        onEdit?.(message);
     };
 
     return (
@@ -572,7 +600,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => handleReact(emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -594,7 +622,7 @@ export const ChatBubble = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={handleEdit}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
@@ -682,7 +710,7 @@ export const ChatBubble = ({
                                 waveform={message.waveform}
                                 messageDuration={message.duration}
                                 onMarkAsPlayed={() => onMarkTemporaryAsPlayed?.(message.id) || Promise.resolve()}
-                                onPlayNext={onPlayNext}
+                                onPlayNext={() => onPlayNext?.(message.id)}
                             />
                             {(message.transcriptions?.[currentUserId || ''] || message.transcription) ? (
                                 <div className={cn(
@@ -912,7 +940,7 @@ export const ChatBubble = ({
                             {Object.entries(message.reactions).map(([emoji, users]) => (
                                 <button
                                     key={emoji}
-                                    onClick={() => onReact?.(emoji)}
+                                    onClick={() => handleReact(emoji)}
                                     className={cn(
                                         "px-1.5 py-0.5 rounded-full text-[10px] flex items-center space-x-1 transition-all",
                                         users.includes(currentUserId || '')
@@ -951,7 +979,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => handleReact(emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -968,4 +996,6 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+
+ChatBubble.displayName = 'ChatBubble';
