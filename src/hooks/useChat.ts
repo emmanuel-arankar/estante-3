@@ -24,7 +24,7 @@ import { queryClient } from '@/lib/queryClient';
 export const useChat = (receiverId?: string) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(false);
   const [typingStatus, setTypingStatusState] = useState<boolean | 'recording'>(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
@@ -70,7 +70,7 @@ export const useChat = (receiverId?: string) => {
       content: replyingTo.content,
       type: replyingTo.type,
       senderId: replyingTo.senderId,
-      senderName: replyingTo.senderId === user.uid ? 'Você' : (receiverInfo?.displayName || 'Usuário')
+      senderName: replyingTo.senderId === user.uid ? 'Você' : (replyingTo.senderName || 'Usuário')
     } : undefined;
 
     // UI Otimista para Áudio (Zero-Flicker Architecture)
@@ -200,7 +200,7 @@ export const useChat = (receiverId?: string) => {
       toastErrorClickable('Erro ao enviar mensagem');
       console.error('Error sending message:', error);
     }
-  }, [user, receiverId, replyingTo, receiverInfo]);
+  }, [user, receiverId, replyingTo]);
 
   // Editar mensagem
   const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
@@ -213,7 +213,7 @@ export const useChat = (receiverId?: string) => {
       toastErrorClickable('Erro ao editar mensagem');
       console.error('Error editing message:', error);
     }
-  }, [user, receiverId, receiverInfo]);
+  }, [user, receiverId]);
 
 
   // Apagar mensagem
