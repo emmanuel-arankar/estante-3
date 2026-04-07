@@ -110,15 +110,15 @@ export const Chat = () => {
   const { setActiveId } = useAudioStore();
 
   // Helper to check if user is at the bottom
-  const isAtBottom = () => {
+  const isAtBottom = useCallback(() => {
     if (!scrollRef.current) return false;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
     // Buffer de 150px para tolerância ao verificar se está no final
     return scrollHeight - scrollTop - clientHeight < 150;
-  };
+  }, []);
 
   // Auto-scroll para o final
-  const scrollToBottom = (behavior: ScrollBehavior = 'smooth', force: boolean = false) => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth', force: boolean = false) => {
     if (scrollRef.current && (force || isAtBottom())) {
       const scrollHeight = scrollRef.current.scrollHeight;
       scrollRef.current.scrollTo({
@@ -126,7 +126,7 @@ export const Chat = () => {
         behavior
       });
     }
-  };
+  }, [isAtBottom]);
 
   // Track previous messages
   const prevMessagesRef = useRef<ChatMessage[]>([]);
@@ -157,7 +157,7 @@ export const Chat = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [messages]);
+  }, [messages, scrollToBottom, user?.uid, isAtBottom]);
 
   // Use ResizeObserver to stay at bottom when content size changes (e.g. images loading)
   useEffect(() => {
@@ -176,7 +176,7 @@ export const Chat = () => {
     if (innerContainer) observer.observe(innerContainer);
 
     return () => observer.disconnect();
-  }, []);
+  }, [isAtBottom, scrollToBottom]);
 
 
   // Track if initial scroll has happened
@@ -190,14 +190,14 @@ export const Chat = () => {
       // Double check after layout settles
       setTimeout(() => scrollToBottom('auto', true), 300);
     }
-  }, [loading, messages.length]);
+  }, [loading, messages.length, scrollToBottom]);
 
   // Scroll on typing/recording start
   useEffect(() => {
     if (isTyping || isRecording) {
       scrollToBottom('smooth');
     }
-  }, [isTyping, isRecording]);
+  }, [isTyping, isRecording, scrollToBottom]);
 
   // Monitor scroll position to show/hide "Scroll to Bottom" button + carregar histórico
   useEffect(() => {
@@ -229,7 +229,7 @@ export const Chat = () => {
       scrollEl.addEventListener('scroll', handleScroll);
       return () => scrollEl.removeEventListener('scroll', handleScroll);
     }
-  }, [hasOlderMessages, loadingOlder, loadOlderMessages]);
+  }, [hasOlderMessages, loadingOlder, loadOlderMessages, isAtBottom]);
 
   useEffect(() => {
     if (!user) {
@@ -243,7 +243,7 @@ export const Chat = () => {
     }
   }, [user, receiverId, navigate]);
 
-  const handleSendMessage = async (
+  const handleSendMessage = useCallback(async (
     content: string,
     type: string = 'text',
     isTemporary?: boolean,
@@ -255,15 +255,15 @@ export const Chat = () => {
     images?: Blob[]
   ) => {
     await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
-  };
+  }, [sendMessage]);
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
-  const handleMarkTemporaryAsPlayed = async (messageId: string) => {
+  const handleMarkTemporaryAsPlayed = useCallback(async (messageId: string) => {
     if (!user || !receiverId) return;
     await markTemporaryAudioAsPlayed(user.uid, receiverId, messageId);
-  };
+  }, [user, receiverId]);
 
-  const handlePlayNext = (currentMessageId: string) => {
+  const handlePlayNext = useCallback((currentMessageId: string) => {
     const currentIndex = messages.findIndex(m => m.id === currentMessageId);
     if (currentIndex !== -1) {
       // Find next audio (sequential playback)
@@ -275,9 +275,9 @@ export const Chat = () => {
         }
       }
     }
-  };
+  }, [messages, setActiveId]);
 
-  const scrollToMessage = (messageId: string) => {
+  const scrollToMessage = useCallback((messageId: string) => {
     const element = document.getElementById(`msg-${messageId}`);
     if (element) {
       // Pequeno delay para garantir que eventuais menus/popovers fecharam
@@ -286,9 +286,26 @@ export const Chat = () => {
         element.classList.add('bg-orange-50');
         setTimeout(() => element.classList.remove('bg-orange-50'), 2000);
       }, 50);
-
     }
-  };
+  }, []);
+
+  const handleReply = useCallback((message: ChatMessage) => {
+    setEditingMessage(null);
+    setReplyingTo(message);
+  }, [setEditingMessage, setReplyingTo]);
+
+  const handleEdit = useCallback((message: ChatMessage) => {
+    setReplyingTo(null);
+    setEditingMessage(message);
+  }, [setReplyingTo, setEditingMessage]);
+
+  const handleDelete = useCallback((messageId: string) => {
+    deleteMessage(messageId);
+  }, [deleteMessage]);
+
+  const handleReact = useCallback((messageId: string, emoji: string) => {
+    reactToMessage(messageId, emoji);
+  }, [reactToMessage]);
 
 
   // Helper para formatar a data do grupo
@@ -321,7 +338,7 @@ export const Chat = () => {
     } else {
       setCurrentSearchIndex(0);
     }
-  }, [searchQuery, searchMatches.length]);
+  }, [searchQuery, searchMatches.length, scrollToMessage, searchMatches]);
 
   // Agrupa mensagens por data (não mais filtrado por busca)
   const groupedMessages = useMemo(() => {
@@ -609,13 +626,10 @@ export const Chat = () => {
                           <ChatBubble
                             message={message}
                             isOwn={message.senderId === user.uid}
-                            onReply={() => {
-                              setEditingMessage(null);
-                              setReplyingTo(message);
-                            }}
-                            onDelete={() => deleteMessage(message.id)}
+                            onReply={handleReply}
+                            onDelete={handleDelete}
                             onMarkAsViewed={markMessageAsViewed}
-                            onReact={(emoji: string) => reactToMessage(message.id, emoji)}
+                            onReact={handleReact}
                             onMarkTemporaryAsPlayed={handleMarkTemporaryAsPlayed}
                             currentUserId={user.uid}
                             showAvatar={
@@ -624,11 +638,8 @@ export const Chat = () => {
                             }
                             senderName={message.senderId === user.uid ? 'Você' : displayReceiverName}
                             senderPhoto={message.senderId === user.uid ? (user.photoURL || undefined) : (displayReceiverPhoto || undefined)}
-                            onPlayNext={() => handlePlayNext(message.id)}
-                            onEdit={() => {
-                              setReplyingTo(null);
-                              setEditingMessage(message);
-                            }}
+                            onPlayNext={handlePlayNext}
+                            onEdit={handleEdit}
                             onJumpToMessage={scrollToMessage}
                             searchQuery={searchQuery}
                             isCurrentMatch={searchMatches[currentSearchIndex] === message.id}
