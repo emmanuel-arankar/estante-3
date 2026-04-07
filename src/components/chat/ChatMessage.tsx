@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -14,7 +14,9 @@ import {
     Smile,
     Eye,
     Pencil,
-    X
+    X,
+    Loader2,
+    FileText
 } from 'lucide-react';
 import {
     Avatar,
@@ -36,6 +38,10 @@ import {
 } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType } from '@estante/common-types';
+import { useAudioStore } from '@/hooks/useAudioStore';
+import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
+import { formatAudioTime } from '@/utils/audioUtils';
+import { requestTranscription } from '@/services/firebase/functions';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -55,10 +61,6 @@ interface ChatMessageProps {
     searchQuery?: string;
     isCurrentMatch?: boolean;
 }
-
-import { useAudioStore } from '@/hooks/useAudioStore';
-import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
-import { formatAudioTime } from '@/utils/audioUtils';
 
 /**
  * ⚡ BOLT OPTIMIZATION: AudioPlayer memoization.
@@ -181,27 +183,27 @@ const AudioPlayer = memo(({
         }
     };
 
-    const getProgressFromEvent = (clientX: number): number => {
+    const getProgressFromEvent = useCallback((clientX: number): number => {
         if (!progressBarRef.current) return 0;
         const rect = progressBarRef.current.getBoundingClientRect();
         return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    };
+    }, []);
 
-    const handleSeekStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleSeekStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         if (isTemporary || isSending || isExpired || hasError) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         setIsDragging(true);
         setDragProgress(getProgressFromEvent(clientX));
-    };
+    }, [isTemporary, isSending, isExpired, hasError, getProgressFromEvent]);
 
-    const handleSeekMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleSeekMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
         if (!isDragging) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         setDragProgress(getProgressFromEvent(clientX));
-    };
+    }, [isDragging, getProgressFromEvent]);
 
-    const handleSeekEnd = () => {
+    const handleSeekEnd = useCallback(() => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
@@ -210,7 +212,7 @@ const AudioPlayer = memo(({
         setProgress(dragProgress);
         setCurrentTime((dragProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, getAudioElement, id, duration, dragProgress]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -229,7 +231,7 @@ const AudioPlayer = memo(({
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, dragProgress, duration, handleSeekEnd, getProgressFromEvent]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -364,9 +366,6 @@ const AudioPlayer = memo(({
     );
 });
 AudioPlayer.displayName = 'AudioPlayer';
-
-import { requestTranscription } from '@/services/firebase/functions';
-import { Loader2, FileText } from 'lucide-react';
 
 /**
  * ⚡ BOLT OPTIMIZATION: TranscriptionControl memoization.

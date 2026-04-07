@@ -31,7 +31,7 @@ export interface PendingImage {
 interface ChatInputProps {
   onSendMessage: (
     content: string,
-    type?: 'text' | 'image' | 'audio',
+    type?: ChatMessage['type'],
     isTemporary?: boolean,
     file?: Blob,
     waveform?: number[],
@@ -247,7 +247,7 @@ export const ChatInput = ({
   };
 
 
-  const handleEmojiSelect = (emoji: any) => {
+  const handleEmojiSelect = (emoji: { native: string }) => {
     setMessage(prev => prev + emoji.native);
     setShowEmojiPicker(false);
     textareaRef.current?.focus();
@@ -349,11 +349,7 @@ export const ChatInput = ({
     window.addEventListener('touchend', handleGlobalTouchEnd);
   };
 
-  const handleGlobalTouchMove = (e: TouchEvent) => {
-    handleMove(e.touches[0].clientY);
-  };
-
-  const handleMove = (clientY: number) => {
+  const handleMove = useCallback((clientY: number) => {
     // Check swipe up
     const deltaY = clientY - dragStartY.current;
 
@@ -363,13 +359,13 @@ export const ChatInput = ({
       // Once locked, we stop listening to gestures (input persists)
       cleanupGlobalListeners();
     }
-  };
+  }, [cleanupGlobalListeners]);
 
-  const handleGlobalTouchEnd = () => {
-    handleRelease();
-  };
+  const handleGlobalTouchMove = useCallback((e: TouchEvent) => {
+    handleMove(e.touches[0].clientY);
+  }, [handleMove]);
 
-  const handleRelease = () => {
+  const handleRelease = useCallback(() => {
     // Logic: if NOT locked, stop and send.
     // If locked, do nothing (wait for manual stop).
     // Access latest state? We can't access React state easily in raw listeners without ref or closure capture.
@@ -420,17 +416,21 @@ export const ChatInput = ({
     }
 
     cleanupGlobalListeners();
-  };
+  }, [cleanupGlobalListeners]);
 
-  const cleanupGlobalListeners = () => {
+  const handleGlobalTouchEnd = useCallback(() => {
+    handleRelease();
+  }, [handleRelease]);
+
+  const cleanupGlobalListeners = useCallback(() => {
     window.removeEventListener('touchmove', handleGlobalTouchMove);
     window.removeEventListener('touchend', handleGlobalTouchEnd);
-  };
+  }, [handleGlobalTouchMove, handleGlobalTouchEnd]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => cleanupGlobalListeners();
-  }, []);
+  }, [cleanupGlobalListeners]);
 
   if (isRecording && user) {
     return (
