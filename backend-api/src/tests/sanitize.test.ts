@@ -7,8 +7,7 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
 
     describe('Utilitário sanitize()', () => {
         it('deve remover tags script completas', () => {
-            const input = 'Olá <script>alert("xss")</script> mundo';
-            expect(sanitize(input)).toBe('Olá mundo');
+            expect(sanitize('Olá <script>alert("xss")</script> mundo')).toBe('Olá mundo');
         });
 
         it('deve remover tags HTML mas manter o texto', () => {
@@ -23,13 +22,11 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
         });
 
         it('deve neutralizar links javascript:', () => {
-            const input = 'Clique aqui: javascript:alert(1)';
-            expect(sanitize(input)).toBe('Clique aqui: x-javascript:alert(1)');
+            expect(sanitize('Clique aqui: javascript:alert(1)')).toBe('Clique aqui: x-javascript:alert(1)');
         });
 
         it('deve remover comentários HTML', () => {
-            const input = 'Inicio <!-- comentario --> Fim';
-            expect(sanitize(input)).toBe('Inicio Fim');
+            expect(sanitize('Inicio <!-- comentario --> Fim')).toBe('Inicio Fim');
         });
     });
 

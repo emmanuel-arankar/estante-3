@@ -22,8 +22,9 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
                     id
                 })),
                 update: vi.fn((data: Record<string, unknown>) => {
-                    if (state.docStore[`${col}/${id}`]) {
-                        state.docStore[`${col}/${id}`] = { ...state.docStore[`${col}/${id}`], ...data };
+                    const current = state.docStore[`${col}/${id}`] as Record<string, unknown> | undefined;
+                    if (current) {
+                        state.docStore[`${col}/${id}`] = { ...current, ...data };
                     }
                     return Promise.resolve();
                 })
@@ -33,11 +34,11 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
 
     const mockRtdb = {
         ref: vi.fn((path = '') => ({
-            set: vi.fn((val) => {
+            set: vi.fn((val: unknown) => {
                 state.rtdbStore[path] = val;
                 return Promise.resolve();
             }),
-            update: vi.fn((updates) => {
+            update: vi.fn((updates: Record<string, unknown>) => {
                 if (path) {
                     state.rtdbStore[path] = { ...(state.rtdbStore[path] || {}), ...updates };
                 } else {
@@ -49,7 +50,7 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
             }),
             push: vi.fn(() => ({
                 key: 'mock-msg-id',
-                set: vi.fn((val) => {
+                set: vi.fn((val: unknown) => {
                     state.rtdbStore[`${path}/mock-msg-id`] = val;
                     return Promise.resolve();
                 })
@@ -58,7 +59,7 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
                 exists: () => state.rtdbStore[path] !== undefined,
                 val: () => state.rtdbStore[path]
             })),
-            transaction: vi.fn(async (cb) => {
+            transaction: vi.fn(async (cb: (val: unknown) => unknown) => {
                 const current = state.rtdbStore[path] || null;
                 const result = cb(current);
                 state.rtdbStore[path] = result;
@@ -87,11 +88,11 @@ vi.mock('../firebase', () => ({
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
     checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
-        Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+        Object.assign(req, { user: { uid: 'current-user' } });
         next();
     }),
     checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
-        Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+        Object.assign(req, { user: { uid: 'current-user' } });
         next();
     }),
 }));

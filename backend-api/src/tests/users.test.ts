@@ -21,7 +21,7 @@ import { invalidatePattern } from '../lib/cache';
  * 
  * @returns {Object} Interface com mocks e helpers para testes de usuários
  */
-const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSnapshot } = vi.hoisted(() => {
+const { state, mockDb } = vi.hoisted(() => {
   /**
    * @name Estado Global de Usuários
    * @summary Repositório de dados em memória.
@@ -46,7 +46,7 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
    * @params {any} data - Conteúdo do documento
    * @returns {Object} Snapshot simulado
    */
-  const makeDocSnapshot = (id: string, data: any) => ({
+  const makeDocSnapshot = (id: string, data: unknown) => ({
     exists: data !== undefined,
     data: () => data,
     id,
@@ -65,9 +65,9 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
    *  { id: 'u2', nickname: 'bob', displayName: 'Bob Silva' },
    * ]);
    */
-  const makeQuerySnapshot = (docs: Array<Record<string, any>>) => ({
+  const makeQuerySnapshot = (docs: Array<Record<string, unknown>>) => ({
     docs: docs.map(d => ({
-      id: d.id,
+      id: d.id as string,
       data: () => d,
       exists: true,
       ref: { __path: `users/${d.id}`, __id: d.id }
@@ -94,13 +94,14 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
       const data = state.docStore[`${collection}/${id}`];
       return Promise.resolve(makeDocSnapshot(id, data));
     }),
-    update: vi.fn((data: any) => {
-      if (state.docStore[`${collection}/${id}`]) {
-        state.docStore[`${collection}/${id}`] = { ...state.docStore[`${collection}/${id}`], ...data };
+    update: vi.fn((data: Record<string, unknown>) => {
+      const current = state.docStore[`${collection}/${id}`] as Record<string, unknown> | undefined;
+      if (current) {
+        state.docStore[`${collection}/${id}`] = { ...current, ...data };
       }
       return Promise.resolve();
     }),
-    set: vi.fn((data: any) => {
+    set: vi.fn((data: Record<string, unknown>) => {
       state.docStore[`${collection}/${id}`] = data;
       return Promise.resolve();
     }),
@@ -119,15 +120,15 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
    */
   const makeQueryChain = (collectionName: string) => {
     let limitVal = 1000;
-    const wheres: Array<{ field: string; op: string; val: any }> = [];
+    const wheres: Array<{ field: string; op: string; val: unknown }> = [];
     const orders: Array<{ field: string; dir: string }> = [];
-    let startAtVal: any = null;
+    let startAtVal: unknown = null;
 
-    const chain: any = {};
-    chain.where = vi.fn((field, op, val) => { wheres.push({ field, op, val }); return chain; });
-    chain.limit = vi.fn((l) => { limitVal = l; return chain; });
-    chain.orderBy = vi.fn((field, dir = 'asc') => { orders.push({ field, dir }); return chain; });
-    chain.startAt = vi.fn((...args) => { startAtVal = args[0]; return chain; });
+    const chain: Record<string, unknown> = {};
+    chain.where = vi.fn((field: string, op: string, val: unknown) => { wheres.push({ field, op, val }); return chain; });
+    chain.limit = vi.fn((l: number) => { limitVal = l; return chain; });
+    chain.orderBy = vi.fn((field: string, dir = 'asc') => { orders.push({ field, dir }); return chain; });
+    chain.startAt = vi.fn((...args: unknown[]) => { startAtVal = args[0]; return chain; });
     chain.endAt = vi.fn().mockReturnValue(chain);
 
     /**
@@ -141,16 +142,16 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
      * @example
      * const filtered = applyFilters(state.docStore['users']);
      */
-    const applyFilters = (baseResults: any[]) => {
+    const applyFilters = (baseResults: unknown[]) => {
       let results = [...baseResults];
 
       // Aplicar Wheres
       for (const f of wheres) {
         results = results.filter(r => {
-          const val = f.field.split('.').reduce((obj, key) => obj?.[key], r);
+          const val = f.field.split('.').reduce((obj, key) => (obj as Record<string, unknown>)?.[key], r);
           if (f.op === '==') return val === f.val;
-          if (f.op === '>=') return val >= f.val;
-          if (f.op === '<=') return val <= f.val;
+          if (f.op === '>=') return val! >= f.val;
+          if (f.op === '<=') return val! <= f.val;
           if (f.op === 'array-contains') return Array.isArray(val) && val.includes(f.val);
           return true;
         });
@@ -160,9 +161,10 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
       if (startAtVal && typeof startAtVal === 'string') {
         const term = startAtVal.toLowerCase();
         results = results.filter(r => {
-          const name = (r.displayName || '').toLowerCase();
-          const nick = (r.nickname || '').toLowerCase();
-          const nameLower = (r.displayNameLower || '').toLowerCase();
+          const data = r as { displayName?: string, nickname?: string, displayNameLower?: string };
+          const name = (data.displayName || '').toLowerCase();
+          const nick = (data.nickname || '').toLowerCase();
+          const nameLower = (data.displayNameLower || '').toLowerCase();
           return name.startsWith(term) || nick.startsWith(term) || nameLower.startsWith(term);
         });
       }
@@ -191,15 +193,15 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
    * @summary Simulação de transações do Firestore.
    */
   const transactionMock = {
-    get: vi.fn((ref: any) => {
+    get: vi.fn((ref: { __path: string; __id: string }) => {
       const data = state.docStore[ref.__path];
       return Promise.resolve(makeDocSnapshot(ref.__id, data));
     }),
-    set: vi.fn((ref: any, data: any) => {
+    set: vi.fn((ref: { __path: string; __id: string }, data: Record<string, unknown>) => {
       state.docStore[ref.__path] = data;
       return transactionMock;
     }),
-    update: vi.fn((ref: any, data: any) => {
+    update: vi.fn((ref: { __path: string; __id: string }, data: Record<string, unknown>) => {
       if (state.docStore[ref.__path]) {
         state.docStore[ref.__path] = { ...state.docStore[ref.__path], ...data };
       }
@@ -266,10 +268,10 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
   const mockDb = {
     collection: vi.fn((name: string) => makeCollectionRef(name)),
     batch: vi.fn(() => mockBatch),
-    runTransaction: vi.fn((callback: (t: any) => any) => callback(transactionMock)),
+    runTransaction: vi.fn((callback: (t: unknown) => unknown) => callback(transactionMock)),
   };
 
-  return { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSnapshot };
+  return { state, mockDb };
 });
 
 // =============================================================================
@@ -294,7 +296,7 @@ vi.mock('firebase-functions/logger', () => ({
  * @description Provê instâncias mockadas de Firestore, Timestamp e FieldValue necessárias para o backend.
  */
 vi.mock('firebase-admin', () => {
-  const firestoreFn: any = () => mockDb;
+  const firestoreFn = (() => mockDb) as unknown as (() => unknown) & { Timestamp: { now: () => { seconds: number; nanoseconds: number; toDate: () => Date; toMillis: () => number }; fromDate: (d: Date) => { toDate: () => Date; toMillis: () => number } }; FieldValue: { increment: (n: number) => { __increment: number }; serverTimestamp: () => string; arrayUnion: (val: unknown) => { __op: string; val: unknown }; arrayRemove: (val: unknown) => { __op: string; val: unknown } } };
   firestoreFn.Timestamp = {
     now: () => ({
       seconds: Math.floor(Date.now() / 1000),
@@ -310,8 +312,8 @@ vi.mock('firebase-admin', () => {
   firestoreFn.FieldValue = {
     increment: (n: number) => ({ __increment: n }),
     serverTimestamp: () => new Date().toISOString(),
-    arrayUnion: (val: any) => ({ __op: 'union', val }),
-    arrayRemove: (val: any) => ({ __op: 'remove', val }),
+    arrayUnion: (val: unknown) => ({ __op: 'union', val }),
+    arrayRemove: (val: unknown) => ({ __op: 'remove', val }),
   };
 
   const authMock = {
@@ -319,12 +321,7 @@ vi.mock('firebase-admin', () => {
     createUser: vi.fn(),
     createCustomToken: vi.fn(),
     deleteUser: vi.fn(),
-  };
-
-  const authMockExtended = {
-    ...authMock,
     updateUser: vi.fn().mockResolvedValue({}),
-    verifySessionCookie: vi.fn(),
   };
 
   const databaseMock = () => ({
@@ -350,14 +347,14 @@ vi.mock('firebase-admin', () => {
       apps: [{}],
       initializeApp: vi.fn(),
       firestore: firestoreFn,
-      auth: () => authMockExtended,
+      auth: () => authMock,
       database: databaseMock,
       storage: storageMock,
     },
     apps: [{}],
     initializeApp: vi.fn(),
     firestore: firestoreFn,
-    auth: () => authMockExtended,
+    auth: () => authMock,
     database: databaseMock,
     storage: storageMock,
   };
@@ -370,11 +367,11 @@ vi.mock('firebase-admin', () => {
  */
 vi.mock('../middleware/auth.middleware', () => ({
   checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
-    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+    Object.assign(req, { user: { uid: 'current-user' } });
     next();
   }),
   checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
-    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+    Object.assign(req, { user: { uid: 'current-user' } });
     next();
   }),
 }));
@@ -597,7 +594,7 @@ describe('Avatar Endpoints', () => {
 
     const res = await request(app).get('/api/users/u1/avatars');
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(1);
+    expect((res.body as { data: unknown[] }).data).toHaveLength(1);
   });
 
   /**
@@ -647,7 +644,7 @@ describe('Avatar Endpoints', () => {
     expect(res.status).toBe(200);
 
     // Verificar Firestore
-    const updatedDoc = state.docStore['users/current-user'];
+    const updatedDoc = state.docStore['users/current-user'] as Record<string, unknown>;
     expect(updatedDoc.nickname).toBe('novo_nick');
     expect(updatedDoc.displayName).toBe('Novo Nome');
     expect(updatedDoc.photoURL).toBe('https://new-photo.jpg');
@@ -709,7 +706,7 @@ describe('User Concurrency', () => {
     // [ARRANGE] Mocks de Auth para IDs diferentes sequencialmente
     let userCounter = 0;
     vi.mocked(admin.auth().createUser).mockImplementation(() =>
-      Promise.resolve({ uid: `concurrent-user-${userCounter++}` } as any)
+      Promise.resolve({ uid: `concurrent-user-${userCounter++}` } as unknown as admin.auth.UserRecord)
     );
     vi.mocked(admin.auth().createCustomToken).mockImplementation((uid) =>
       Promise.resolve(`token-${uid}`)
@@ -731,7 +728,7 @@ describe('User Concurrency', () => {
 
     // [ASSERT] Todos devem ter sucesso (201 Created)
     results.forEach(res => {
-      if (res.status !== 201) console.error('Erro no registro concorrente:', res.body);
+      if (res.status !== 201) console.error('Erro no registro concorrente:', (res.body as Record<string, unknown>));
       expect(res.status).toBe(201);
     });
 
@@ -746,7 +743,10 @@ describe('User Concurrency', () => {
     expect(documentedNicknames).toContain('joaosilva-2');
 
     // [ASSERT] Verificar se os perfis foram criados com os nicknames correspondentes
-    const profiles = Object.values(state.docStore).filter(doc => doc.nickname && doc.email);
+    const profiles = Object.values(state.docStore).filter(doc => {
+      const d = doc as { nickname?: string, email?: string };
+      return d.nickname && d.email;
+    }) as Array<{ nickname: string }>;
     const nicknamesInProfiles = profiles.map(p => p.nickname);
 
     expect(nicknamesInProfiles).toHaveLength(3);

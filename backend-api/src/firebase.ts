@@ -56,7 +56,7 @@ if (admin.apps.length === 0) {
     try {
       const saContent = fs.readFileSync(saPath, 'utf8');
       const credential = admin.credential.cert(JSON.parse(saContent));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
 
       admin.initializeApp({
         projectId,
@@ -70,7 +70,7 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'test-project';
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
     admin.initializeApp({
       projectId,
       databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
@@ -95,7 +95,7 @@ export const rtdb = admin.database();
  * @name Instância do Storage
  * @summary Acesso ao bucket padrão do Firebase Storage.
  */
-export const bucket = admin.storage().bucket(`${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}.firebasestorage.app`);
+export const bucket = admin.storage().bucket(`${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef'}.firebasestorage.app`);
 
 /**
  * @name Instância do Auth
