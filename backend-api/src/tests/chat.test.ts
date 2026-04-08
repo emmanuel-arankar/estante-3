@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import { Request, Response, NextFunction } from 'express';
 import { app } from '../index';
-import { admin, db, rtdb } from '../firebase';
 
 /**
  * @name Mock Factory Chat
@@ -9,8 +9,8 @@ import { admin, db, rtdb } from '../firebase';
  */
 const { state, mockDb, mockRtdb } = vi.hoisted(() => {
     const state = {
-        docStore: {} as Record<string, any>,
-        rtdbStore: {} as Record<string, any>,
+        docStore: {} as Record<string, unknown>,
+        rtdbStore: {} as Record<string, unknown>,
     };
 
     const mockDb = {
@@ -21,9 +21,10 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
                     data: () => state.docStore[`${col}/${id}`],
                     id
                 })),
-                update: vi.fn((data) => {
-                    if (state.docStore[`${col}/${id}`]) {
-                        state.docStore[`${col}/${id}`] = { ...state.docStore[`${col}/${id}`], ...data };
+                update: vi.fn((data: Record<string, unknown>) => {
+                    const current = state.docStore[`${col}/${id}`] as Record<string, unknown> | undefined;
+                    if (current) {
+                        state.docStore[`${col}/${id}`] = { ...current, ...data };
                     }
                     return Promise.resolve();
                 })
@@ -33,11 +34,11 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
 
     const mockRtdb = {
         ref: vi.fn((path = '') => ({
-            set: vi.fn((val) => {
+            set: vi.fn((val: unknown) => {
                 state.rtdbStore[path] = val;
                 return Promise.resolve();
             }),
-            update: vi.fn((updates) => {
+            update: vi.fn((updates: Record<string, unknown>) => {
                 if (path) {
                     state.rtdbStore[path] = { ...(state.rtdbStore[path] || {}), ...updates };
                 } else {
@@ -49,7 +50,7 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
             }),
             push: vi.fn(() => ({
                 key: 'mock-msg-id',
-                set: vi.fn((val) => {
+                set: vi.fn((val: unknown) => {
                     state.rtdbStore[`${path}/mock-msg-id`] = val;
                     return Promise.resolve();
                 })
@@ -58,7 +59,7 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
                 exists: () => state.rtdbStore[path] !== undefined,
                 val: () => state.rtdbStore[path]
             })),
-            transaction: vi.fn(async (cb) => {
+            transaction: vi.fn(async (cb: (val: unknown) => unknown) => {
                 const current = state.rtdbStore[path] || null;
                 const result = cb(current);
                 state.rtdbStore[path] = result;
@@ -86,8 +87,12 @@ vi.mock('../firebase', () => ({
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-        req.user = { uid: 'current-user' };
+    checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
+        next();
+    }),
+    checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
         next();
     }),
 }));

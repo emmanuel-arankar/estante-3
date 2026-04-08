@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import { Request, Response, NextFunction } from 'express';
 import { app } from '../index';
 import { invalidatePattern } from '../lib/cache';
 
@@ -19,48 +20,22 @@ import { invalidatePattern } from '../lib/cache';
  * 
  * @returns {Object} Interface com mocks e helpers para testes
  */
-const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hoisted(() => {
-  /**
-   * @name Estado Global de Notificações
-   * @summary Repositório de dados em memória.
-   * @description Centraliza documentos e resultados de consulta para os mocks do Firestore.
-   * 
-   * @property {Record<string, any>} docStore - Armazena os dados brutos das notificações indexados pelo caminho (ex: 'notifications/id').
-   * @property {Record<string, any[]>} queryResults - Armazena resultados pré-definidos para simular listagens e contagens.
-   * @property {Record<string, number>} queryCallCount - Contador para permitir que queries sequenciais na mesma coleção retornem dados distintos.
-   */
+const { state, mockDb } = vi.hoisted(() => {
   const state = {
-    docStore: {} as Record<string, any>,
-    queryResults: {} as Record<string, any[]>,
+    docStore: {} as Record<string, unknown>,
+    queryResults: {} as Record<string, unknown[]>,
     queryCallCount: {} as Record<string, number>,
   };
 
-  /**
-   * @name Helper Snapshot
-   * @summary Cria snapshot de documento.
-   * @description Cria um objeto que simula um DocumentSnapshot do Firestore.
-   * 
-   * @params {string} id - ID do documento
-   * @params {any} data - Conteúdo do documento
-   * @returns {Object} Snapshot simulado
-   */
-  const makeDocSnapshot = (id: string, data: any) => ({
+  const makeDocSnapshot = (id: string, data: unknown) => ({
     exists: data !== undefined,
     data: () => data,
     id,
   });
 
-  /**
-   * @name Helper Query Snapshot
-   * @summary Simula lista de notificações.
-   * @description Cria um objeto que simula um QuerySnapshot do Firestore para notificações.
-   * 
-   * @params {Array<Record<string, any>>} docs - Lista de dados brutos
-   * @returns {Object} QuerySnapshot simulado
-   */
-  const makeQuerySnapshot = (docs: Array<Record<string, any>>) => ({
+  const makeQuerySnapshot = (docs: Array<Record<string, unknown>>) => ({
     docs: docs.map(d => ({
-      id: d.id,
+      id: d.id as string,
       data: () => d,
       exists: true,
       ref: { __path: `notifications/${d.id}`, __id: d.id }
@@ -69,17 +44,6 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
     size: docs.length,
   });
 
-  /**
-   * @name Helper Doc Reference
-   * @summary Simula referência de documento.
-   * @description Cria uma referência de documento (DocumentReference) do Firestore com suporte a get, update e delete.
-   * 
-   * @params {string} collection - Nome da coleção
-   * @params {string} id - ID do documento
-   * @returns {Object} DocumentReference simulado
-   * @example
-   * const ref = makeDocRef("notifications", "n1");
-   */
   const makeDocRef = (collection: string, id: string) => ({
     __path: `${collection}/${id}`,
     __id: id,
@@ -87,9 +51,10 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
       const data = state.docStore[`${collection}/${id}`];
       return Promise.resolve(makeDocSnapshot(id, data));
     }),
-    update: vi.fn((data: any) => {
-      if (state.docStore[`${collection}/${id}`]) {
-        state.docStore[`${collection}/${id}`] = { ...state.docStore[`${collection}/${id}`], ...data };
+    update: vi.fn((data: Record<string, unknown>) => {
+      const current = state.docStore[`${collection}/${id}`] as Record<string, unknown> | undefined;
+      if (current) {
+        state.docStore[`${collection}/${id}`] = { ...current, ...data };
       }
       return Promise.resolve();
     }),
@@ -99,60 +64,38 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
     }),
   });
 
-  /**
-   * @name Motor de Consulta (Query Engine)
-   * @summary Simulação de queries do Firestore em memória.
-   * @description Resolve lógica de filtragem (where), ordenação (orderBy) e paginação (limit/offset/startAfter).
-   * 
-   * @params {string} collectionName - Identificador da coleção no docStore.
-   * @returns {Object} Interface fluida para encadeamento de métodos do Firestore.
-   */
   const makeQueryChain = (collectionName: string) => {
     let limitVal = 1000;
     let offsetVal = 0;
-    const wheres: Array<{ field: string; op: string; val: any }> = [];
+    const wheres: Array<{ field: string; op: string; val: unknown }> = [];
     const orders: Array<{ field: string; dir: string }> = [];
-    let startAfterVal: any = null;
+    let startAfterVal: unknown[] | null = null;
 
-    const chain: any = {};
-    chain.where = vi.fn((field, op, val) => { wheres.push({ field, op, val }); return chain; });
-    chain.limit = vi.fn((l) => { limitVal = l; return chain; });
-    chain.offset = vi.fn((o) => { offsetVal = o; return chain; });
-    chain.orderBy = vi.fn((field, dir = 'asc') => { orders.push({ field, dir }); return chain; });
-    chain.startAfter = vi.fn((...args) => { startAfterVal = args; return chain; });
+    const chain: Record<string, unknown> = {};
+    chain.where = vi.fn((field: string, op: string, val: unknown) => { wheres.push({ field, op, val }); return chain; });
+    chain.limit = vi.fn((l: number) => { limitVal = l; return chain; });
+    chain.offset = vi.fn((o: number) => { offsetVal = o; return chain; });
+    chain.orderBy = vi.fn((field: string, dir = 'asc') => { orders.push({ field, dir }); return chain; });
+    chain.startAfter = vi.fn((...args: unknown[]) => { startAfterVal = args; return chain; });
 
-    /**
-     * @name Aplicar Filtros
-     * @summary Lógica de processamento de query em memória.
-     * @description Executa filtragem por campos, ordenação customizada (com suporte a timestamps) 
-     * e paginação via cursor (startAfter) sobre a coleção simulada.
-     * 
-     * @params {any[]} baseResults - Documentos da coleção
-     * @returns {any[]} Resultados processados
-     */
-    const applyFilters = (baseResults: any[]) => {
+    const applyFilters = (baseResults: unknown[]) => {
       let results = [...baseResults];
 
-      // Aplicar Wheres
       for (const f of wheres) {
         results = results.filter(r => {
-          const val = f.field.split('.').reduce((obj, key) => obj?.[key], r);
+          const val = f.field.split('.').reduce((obj, key) => (obj as Record<string, unknown>)?.[key], r);
           if (f.op === '==') return val === f.val;
           if (f.op === '!=') return val !== f.val;
           return true;
         });
       }
 
-      // Aplicar Ordenação
       if (orders.length > 0) {
         results.sort((a, b) => {
           for (const o of orders) {
-            const valA = o.field.split('.').reduce((obj, key) => obj?.[key], a);
-            const valB = o.field.split('.').reduce((obj, key) => obj?.[key], b);
-
-            // Tratamento especial para timestamps em memória
-            const getTime = (v: any) => v?.toMillis ? v.toMillis() : new Date(v).getTime();
-
+            const valA = o.field.split('.').reduce((obj, key) => (obj as Record<string, unknown>)?.[key], a);
+            const valB = o.field.split('.').reduce((obj, key) => (obj as Record<string, unknown>)?.[key], b);
+            const getTime = (v: unknown) => (v as { toMillis?: () => number })?.toMillis ? (v as { toMillis: () => number }).toMillis() : new Date(v as string).getTime();
             if (getTime(valA) < getTime(valB)) return o.dir === 'asc' ? -1 : 1;
             if (getTime(valA) > getTime(valB)) return o.dir === 'asc' ? 1 : -1;
           }
@@ -160,10 +103,9 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
         });
       }
 
-      // Aplicar Cursor (startAfter baseado em ID)
       if (startAfterVal) {
-        const lastId = startAfterVal[startAfterVal.length - 1]; // Assume que o último valor do cursor é o ID
-        const index = results.findIndex(r => r.id === lastId);
+        const lastId = startAfterVal[startAfterVal.length - 1];
+        const index = results.findIndex(r => (r as { id: string }).id === lastId);
         if (index !== -1) results = results.slice(index + 1);
       }
 
@@ -181,27 +123,16 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
     chain.get = vi.fn(() => {
       if (!state.queryCallCount[collectionName]) state.queryCallCount[collectionName] = 0;
       const idx = state.queryCallCount[collectionName]++;
-
       const specificResults = state.queryResults[`${collectionName}:${idx}`];
       if (specificResults) return Promise.resolve(makeQuerySnapshot(specificResults));
-
       const baseResults = state.queryResults[collectionName] || [];
       const filtered = applyFilters(baseResults);
       const sliced = filtered.slice(offsetVal, offsetVal + limitVal);
-
       return Promise.resolve(makeQuerySnapshot(sliced));
     });
     return chain;
   };
 
-  /**
-   * @name Mock CollectionRef
-   * @summary Simula referência de coleção.
-   * @description Cria uma referência de coleção simulada específica para o fluxo de notificações.
-   * 
-   * @params {string} name - Nome da coleção
-   * @returns {Object} CollectionReference simulado
-   */
   const makeCollectionRef = (name: string) => {
     const chain = makeQueryChain(name);
     return {
@@ -214,39 +145,23 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
     };
   };
 
-  /**
-   * @name Mock WriteBatch
-   * @summary Operações em lote para notificações.
-   * @description Simula operações em lote, essencial para funcionalidades como "Marcar todas como lidas" 
-   * que exigem atomicidade entre múltiplos documentos.
-   * 
-   * @returns {Object} Interface do WriteBatch mockado
-   */
   const mockBatch = {
-    update: vi.fn((ref: any, data: any) => {
+    update: vi.fn((ref: { __path: string }, data: Record<string, unknown>) => {
       const path = ref.__path;
-      if (state.docStore[path]) {
-        state.docStore[path] = { ...state.docStore[path], ...data };
+      const current = state.docStore[path] as Record<string, unknown> | undefined;
+      if (current) {
+        state.docStore[path] = { ...current, ...data };
       }
     }),
     commit: vi.fn().mockResolvedValue(undefined),
   };
 
-  /**
-   * @name Mock Firestore Database
-   * @summary Ponto de entrada do banco simulado.
-   * @description Provê métodos principais do Firestore (collection, batch) redirecionando para os mocks apropriados.
-   * 
-   * @returns {Object} Instância de banco de dados mockada
-   * @example
-   * const db = mockDb;
-   */
-  const mockDb: any = {
+  const mockDb = {
     collection: vi.fn((name: string) => makeCollectionRef(name)),
     batch: vi.fn(() => mockBatch),
   };
 
-  return { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot };
+  return { state, mockDb, mockBatch, makeDocSnapshot };
 });
 
 // =============================================================================
@@ -273,7 +188,7 @@ vi.mock('firebase-functions/logger', () => ({
  * @returns {Object} Interface administrativa mockada
  */
 vi.mock('firebase-admin', () => {
-  const firestoreFn: any = () => mockDb;
+  const firestoreFn = (() => mockDb) as unknown as (() => unknown) & { Timestamp: { now: () => { seconds: number; nanoseconds: number; toDate: () => Date; toMillis: () => number }; fromMillis: (ms: number) => { seconds: number; nanoseconds: number; toDate: () => Date; toMillis: () => number } }; FieldValue: { increment: (n: number) => { __increment: number } } };
   firestoreFn.Timestamp = {
     now: () => ({
       seconds: Math.floor(Date.now() / 1000),
@@ -290,6 +205,9 @@ vi.mock('firebase-admin', () => {
   };
   firestoreFn.FieldValue = {
     increment: (n: number) => ({ __increment: n }),
+    serverTimestamp: () => new Date().toISOString(),
+    arrayUnion: (val: unknown) => ({ __op: 'union', val }),
+    arrayRemove: (val: unknown) => ({ __op: 'remove', val }),
   };
 
   const authMock = () => ({ verifySessionCookie: vi.fn() });
@@ -340,8 +258,12 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+  checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+    next();
+  }),
+  checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
     next();
   }),
 }));
@@ -574,7 +496,7 @@ describe('DELETE /api/notifications/:notificationId', () => {
 
     const res = await request(app).delete('/api/notifications/n1');
     expect(res.status).toBe(200);
-    expect(res.body.data.message).toContain('sucesso');
+    expect((res.body as { data: { message: string } }).data.message).toContain('sucesso');
     expect(state.docStore['notifications/n1']).toBeUndefined();
   });
 });

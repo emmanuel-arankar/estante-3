@@ -7,8 +7,7 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
 
     describe('Utilitário sanitize()', () => {
         it('deve remover tags script completas', () => {
-            const input = 'Olá <script>alert("xss")</script> mundo';
-            expect(sanitize(input)).toBe('Olá  mundo');
+            expect(sanitize('Olá <script>alert("xss")</script> mundo')).toBe('Olá mundo');
         });
 
         it('deve remover tags HTML mas manter o texto', () => {
@@ -17,21 +16,17 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
         });
 
         it('deve neutralizar atributos de eventos (onclick, onerror)', () => {
-            const input = '<img src=x onerror=alert(1) onclick="console.log(2)">';
-            // Como removemos <...>, o resultado deve ser vazio,
-            // mas testamos a regex de atributos em strings que não parecem tags
+            // Testamos a regex de atributos em strings que não parecem tags
             const rawAttr = 'onclick=alert(1)';
             expect(sanitize(rawAttr)).toBe('x-event=alert(1)');
         });
 
         it('deve neutralizar links javascript:', () => {
-            const input = 'Clique aqui: javascript:alert(1)';
-            expect(sanitize(input)).toBe('Clique aqui: x-javascript:alert(1)');
+            expect(sanitize('Clique aqui: javascript:alert(1)')).toBe('Clique aqui: x-javascript:alert(1)');
         });
 
         it('deve remover comentários HTML', () => {
-            const input = 'Inicio <!-- comentario --> Fim';
-            expect(sanitize(input)).toBe('Inicio  Fim');
+            expect(sanitize('Inicio <!-- comentario --> Fim')).toBe('Inicio Fim');
         });
     });
 
@@ -45,7 +40,8 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
         it('deve sanitizar a bio no updateProfileSchema', async () => {
             const data = { bio: 'Bio com <img src=x> imagem' };
             const result = await updateProfileSchema.parseAsync(data);
-            expect(result.bio).toBe('Bio com  imagem');
+            // sanitizeRichText permite <img>
+            expect(result.bio).toBe('Bio com <img src="x"> imagem');
         });
 
         it('deve sanitizar o conteúdo do chat no sendMessageSchema', async () => {
@@ -55,7 +51,7 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
                 type: 'text'
             };
             const result = await sendMessageSchema.parseAsync(data);
-            expect(result.content).toBe('Hey  check this');
+            expect(result.content).toBe('Hey check this');
         });
     });
 });

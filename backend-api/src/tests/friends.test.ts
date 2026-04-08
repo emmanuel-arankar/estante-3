@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import { Request, Response, NextFunction } from 'express';
 import { app } from '../index';
 import { invalidatePattern } from '../lib/cache';
 
@@ -25,13 +26,13 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @summary Repositório de dados em memória.
    * @description Centraliza os documentos e resultados de consulta para os mocks do Firestore.
    * 
-   * @property {Record<string, any>} docStore - Simula o banco de dados chave-valor (caminho/doc).
-   * @property {Record<string, any[]>} queryResults - Armazena resultados pré-definidos para simular comportamentos específicos.
+   * @property {Record<string, unknown>} docStore - Simula o banco de dados chave-valor (caminho/doc).
+   * @property {Record<string, unknown[]>} queryResults - Armazena resultados pré-definidos para simular comportamentos específicos.
    * @property {Record<string, number>} queryCallCount - Contador para permitir que queries sequenciais retornem dados diferentes.
    */
   const state = {
-    docStore: {} as Record<string, any>,
-    queryResults: {} as Record<string, any[]>,
+    docStore: {} as Record<string, unknown>,
+    queryResults: {} as Record<string, unknown[]>,
     queryCallCount: {} as Record<string, number>,
   };
 
@@ -41,12 +42,12 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @description Cria um objeto que simula um DocumentSnapshot do Firestore.
    * 
    * @params {string} id - ID do documento
-   * @params {any} data - Conteúdo do documento
+   * @params {unknown} data - Conteúdo do documento
    * @returns {Object} Snapshot simulado
    * @example
    * const snap = makeDocSnapshot("id1", { name: "test" });
    */
-  const makeDocSnapshot = (id: string, data: any) => ({
+  const makeDocSnapshot = (id: string, data: unknown) => ({
     exists: data !== undefined,
     data: () => data,
     id,
@@ -57,13 +58,13 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @summary Simula lista de resultados do Firestore.
    * @description Cria um objeto que simula um QuerySnapshot do Firestore para listas de amizades.
    * 
-   * @params {Array<Record<string, any>>} docs - Lista de dados brutos
+   * @params {Array<Record<string, unknown>>} docs - Lista de dados brutos
    * @returns {Object} QuerySnapshot simulado
    * @example
    * const snap = makeQuerySnapshot([{ id: "id1", name: "test" }]);
    */
-  const makeQuerySnapshot = (docs: Array<Record<string, any>>) => ({
-    docs: docs.map(d => ({ id: d.id, data: () => d, exists: true, ref: { __path: `friendships/${d.id}`, __id: d.id } })),
+  const makeQuerySnapshot = (docs: Array<Record<string, unknown>>) => ({
+    docs: docs.map(d => ({ id: d.id as string, data: () => d, exists: true, ref: { __path: `friendships/${d.id}`, __id: d.id } })),
     empty: docs.length === 0,
   });
 
@@ -97,19 +98,19 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
   const makeQueryChain = (collectionName: string) => {
     let limitVal = 1000;
     let offsetVal = 0;
-    const wheres: Array<{ field: string; op: string; val: any }> = [];
+    const wheres: Array<{ field: string; op: string; val: unknown }> = [];
     const orders: Array<{ field: string; dir: string }> = [];
-    let startAtVal: any = null;
+    let startAtVal: unknown = null;
 
-    const chain: any = {};
-    chain.where = vi.fn((field, op, val) => { wheres.push({ field, op, val }); return chain; });
-    chain.limit = vi.fn((l) => { limitVal = l; return chain; });
-    chain.offset = vi.fn((o) => { offsetVal = o; return chain; });
+    const chain: Record<string, unknown> = {};
+    chain.where = vi.fn((field: string, op: string, val: unknown) => { wheres.push({ field, op, val }); return chain; });
+    chain.limit = vi.fn((l: number) => { limitVal = l; return chain; });
+    chain.offset = vi.fn((o: number) => { offsetVal = o; return chain; });
     chain.select = vi.fn().mockReturnValue(chain);
-    chain.orderBy = vi.fn((field, dir = 'asc') => { orders.push({ field, dir }); return chain; });
-    chain.startAt = vi.fn((...args) => { startAtVal = args[0]; return chain; });
+    chain.orderBy = vi.fn((field: string, dir = 'asc') => { orders.push({ field, dir }); return chain; });
+    chain.startAt = vi.fn((...args: unknown[]) => { startAtVal = args[0]; return chain; });
     chain.endAt = vi.fn().mockReturnValue(chain);
-    chain.startAfter = vi.fn((...args) => {
+    chain.startAfter = vi.fn((...args: unknown[]) => {
       // O tie-breaker (ID do documento) é o último argumento passado pelo controlador
       const tieBreaker = args[args.length - 1];
       const id = typeof tieBreaker === 'string' ? tieBreaker : '';
@@ -123,18 +124,18 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
      * @summary Motor de busca em memória.
      * @description Filtra e ordena a lista de resultados simulados baseado no estado da chain.
      * 
-     * @params {any[]} baseResults - Coleção de documentos em estado bruto.
-     * @returns {any[]} Resultados filtrados, ordenados e preparados para snapshot.
+     * @params {unknown[]} baseResults - Coleção de documentos em estado bruto.
+     * @returns {unknown[]} Resultados filtrados, ordenados e preparados para snapshot.
      * @example
      * const results = applyFilters(baseResults);
      */
-    const applyFilters = (baseResults: any[]) => {
+    const applyFilters = (baseResults: unknown[]) => {
       let results = [...baseResults];
 
       // Aplicar Wheres
       for (const f of wheres) {
         results = results.filter(r => {
-          const val = f.field.split('.').reduce((obj, key) => obj?.[key], r);
+          const val = f.field.split('.').reduce((obj, key) => (obj as Record<string, unknown>)?.[key], r);
           if (f.op === '==') return val === f.val;
           if (f.op === '!=') return val !== f.val;
           if (f.op === 'in') return Array.isArray(f.val) && f.val.includes(val);
@@ -146,8 +147,9 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
       if (startAtVal && typeof startAtVal === 'string') {
         const term = startAtVal.toLowerCase();
         results = results.filter(r => {
-          const name = (r.friend?.displayName || r.displayName || '').toLowerCase();
-          const nick = (r.friend?.nickname || r.nickname || '').toLowerCase();
+          const data = r as { friend?: { displayName?: string, nickname?: string }, displayName?: string, nickname?: string };
+          const name = (data.friend?.displayName || data.displayName || '').toLowerCase();
+          const nick = (data.friend?.nickname || data.nickname || '').toLowerCase();
           return name.includes(term) || nick.includes(term);
         });
       }
@@ -156,10 +158,10 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
       if (orders.length > 0) {
         results.sort((a, b) => {
           for (const o of orders) {
-            const valA = o.field.split('.').reduce((obj, key) => obj?.[key], a);
-            const valB = o.field.split('.').reduce((obj, key) => obj?.[key], b);
-            if (valA < valB) return o.dir === 'asc' ? -1 : 1;
-            if (valA > valB) return o.dir === 'asc' ? 1 : -1;
+            const valA = o.field.split('.').reduce((obj, key) => (obj as Record<string, unknown>)?.[key], a);
+            const valB = o.field.split('.').reduce((obj, key) => (obj as Record<string, unknown>)?.[key], b);
+            if (valA! < valB!) return o.dir === 'asc' ? -1 : 1;
+            if (valA! > valB!) return o.dir === 'asc' ? 1 : -1;
           }
           return 0;
         });
@@ -226,7 +228,7 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * const transaction = mockTransaction;
    */
   const mockTransaction = {
-    get: vi.fn((ref: any) => {
+    get: vi.fn((ref: { __path: string; __id: string }) => {
       const data = state.docStore[ref.__path];
       return Promise.resolve(makeDocSnapshot(ref.__id, data));
     }),
@@ -262,9 +264,9 @@ const { state, mockDb, mockBatch, mockTransaction, makeCollectionRef, makeDocSna
    * @example
    * const db = mockDb;
    */
-  const mockDb: any = {
+  const mockDb = {
     collection: vi.fn((name: string) => makeCollectionRef(name)),
-    runTransaction: vi.fn(async (cb: Function) => cb(mockTransaction)),
+    runTransaction: vi.fn(async (cb: (t: Record<string, unknown>) => unknown) => cb(mockTransaction as unknown as Record<string, unknown>)),
     batch: vi.fn(() => mockBatch),
   };
 
@@ -295,12 +297,15 @@ vi.mock('firebase-functions/logger', () => ({
  * @returns {Object} Interface administrativa mockada
  */
 vi.mock('firebase-admin', () => {
-  const firestoreFn: any = () => mockDb;
+  const firestoreFn = (() => mockDb) as unknown as (() => unknown) & { Timestamp: unknown; FieldValue: unknown };
   firestoreFn.Timestamp = {
     now: () => ({ seconds: Math.floor(Date.now() / 1000), nanoseconds: 0, toDate: () => new Date() }),
   };
   firestoreFn.FieldValue = {
     increment: (n: number) => ({ __increment: n }),
+    serverTimestamp: () => new Date().toISOString(),
+    arrayUnion: (val: unknown) => ({ __op: 'union', val }),
+    arrayRemove: (val: unknown) => ({ __op: 'remove', val }),
   };
 
   const authMock = () => ({ verifySessionCookie: vi.fn() });
@@ -352,8 +357,12 @@ vi.mock('firebase-admin', () => {
  * checkAuth(req, _res, next);
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+  checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+    next();
+  }),
+  checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
     next();
   }),
 }));
@@ -372,10 +381,10 @@ beforeEach(async () => {
 
   // Redefine implementações padrão dos mocks principais
   mockDb.collection.mockImplementation((name: string) => makeCollectionRef(name));
-  mockDb.runTransaction.mockImplementation(async (cb: Function) => cb(mockTransaction));
+  mockDb.runTransaction.mockImplementation(async (cb: (t: Record<string, unknown>) => unknown) => cb(mockTransaction as unknown as Record<string, unknown>));
   mockDb.batch.mockImplementation(() => mockBatch);
   mockBatch.commit.mockResolvedValue(undefined);
-  mockTransaction.get.mockImplementation((ref: any) => {
+  mockTransaction.get.mockImplementation((ref: { __path: string; __id: string }) => {
     const data = state.docStore[ref.__path];
     return Promise.resolve(makeDocSnapshot(ref.__id, data));
   });
@@ -460,7 +469,7 @@ describe('GET /api/findFriends', () => {
 
     const res = await request(app).get('/api/findFriends?searchTerm=test');
     expect(res.status).toBe(200);
-    const ids = res.body.data.map((u: any) => u.id);
+    const ids = (res.body.data as Array<{ id: string }>).map((u) => u.id);
     expect(ids).not.toContain('current-user');
     expect(ids).toContain('user-2');
   });
