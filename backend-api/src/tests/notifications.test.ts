@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import { Request, Response, NextFunction } from 'express';
 import { app } from '../index';
 import { invalidatePattern } from '../lib/cache';
 
@@ -25,13 +26,13 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    * @summary Repositório de dados em memória.
    * @description Centraliza documentos e resultados de consulta para os mocks do Firestore.
    * 
-   * @property {Record<string, any>} docStore - Armazena os dados brutos das notificações indexados pelo caminho (ex: 'notifications/id').
-   * @property {Record<string, any[]>} queryResults - Armazena resultados pré-definidos para simular listagens e contagens.
+   * @property {Record<string, unknown>} docStore - Armazena os dados brutos das notificações indexados pelo caminho (ex: 'notifications/id').
+   * @property {Record<string, unknown[]>} queryResults - Armazena resultados pré-definidos para simular listagens e contagens.
    * @property {Record<string, number>} queryCallCount - Contador para permitir que queries sequenciais na mesma coleção retornem dados distintos.
    */
   const state = {
-    docStore: {} as Record<string, any>,
-    queryResults: {} as Record<string, any[]>,
+    docStore: {} as Record<string, unknown>,
+    queryResults: {} as Record<string, unknown[]>,
     queryCallCount: {} as Record<string, number>,
   };
 
@@ -241,7 +242,7 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    * @example
    * const db = mockDb;
    */
-  const mockDb: any = {
+  const mockDb = {
     collection: vi.fn((name: string) => makeCollectionRef(name)),
     batch: vi.fn(() => mockBatch),
   };
@@ -340,8 +341,12 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+  checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+    next();
+  }),
+  checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
     next();
   }),
 }));

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import { Request, Response, NextFunction } from 'express';
 import { app } from '../index';
-import { admin, db, rtdb } from '../firebase';
 
 /**
  * @name Mock Factory Chat
@@ -9,8 +9,8 @@ import { admin, db, rtdb } from '../firebase';
  */
 const { state, mockDb, mockRtdb } = vi.hoisted(() => {
     const state = {
-        docStore: {} as Record<string, any>,
-        rtdbStore: {} as Record<string, any>,
+        docStore: {} as Record<string, unknown>,
+        rtdbStore: {} as Record<string, unknown>,
     };
 
     const mockDb = {
@@ -21,7 +21,7 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
                     data: () => state.docStore[`${col}/${id}`],
                     id
                 })),
-                update: vi.fn((data) => {
+                update: vi.fn((data: Record<string, unknown>) => {
                     if (state.docStore[`${col}/${id}`]) {
                         state.docStore[`${col}/${id}`] = { ...state.docStore[`${col}/${id}`], ...data };
                     }
@@ -86,8 +86,12 @@ vi.mock('../firebase', () => ({
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-        req.user = { uid: 'current-user' };
+    checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+        next();
+    }),
+    checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+        Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
         next();
     }),
 }));

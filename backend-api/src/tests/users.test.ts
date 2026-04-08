@@ -4,8 +4,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import { Request, Response, NextFunction } from 'express';
 import { app } from '../index';
-import { admin, db } from '../firebase';
+import { admin } from '../firebase';
 import { invalidatePattern } from '../lib/cache';
 
 // =============================================================================
@@ -26,13 +27,13 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
    * @summary Repositório de dados em memória.
    * @description Centraliza documentos de perfil, avatares e resultados de busca para os mocks do Firestore.
    * 
-   * @property {Record<string, any>} docStore - Armazena os dados brutos (perfis, blocos, avatares) por caminho.
-   * @property {Record<string, any[]>} queryResults - Resultados pré-definidos para simular buscas e listagens.
+   * @property {Record<string, unknown>} docStore - Armazena os dados brutos (perfis, blocos, avatares) por caminho.
+   * @property {Record<string, unknown[]>} queryResults - Resultados pré-definidos para simular buscas e listagens.
    * @property {Record<string, number>} queryCallCount - Contador para controle de paginação em queries simuladas.
    */
   const state = {
-    docStore: {} as Record<string, any>,
-    queryResults: {} as Record<string, any[]>,
+    docStore: {} as Record<string, unknown>,
+    queryResults: {} as Record<string, unknown[]>,
     queryCallCount: {} as Record<string, number>,
   };
 
@@ -262,10 +263,10 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
    * @example
    * const db = mockDb;
    */
-  const mockDb: any = {
+  const mockDb = {
     collection: vi.fn((name: string) => makeCollectionRef(name)),
     batch: vi.fn(() => mockBatch),
-    runTransaction: vi.fn((callback) => callback(transactionMock)),
+    runTransaction: vi.fn((callback: (t: any) => any) => callback(transactionMock)),
   };
 
   return { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSnapshot };
@@ -368,8 +369,12 @@ vi.mock('firebase-admin', () => {
  * @description Garante que todas as requisições API sejam processadas com o UID 'current-user'.
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
+  checkAuth: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
+    next();
+  }),
+  checkAuthOptional: vi.fn((req: Request, _res: Response, next: NextFunction) => {
+    Object.assign(req, { user: { uid: 'current-user' } } as Request & { user: { uid: string } });
     next();
   }),
 }));
