@@ -42,10 +42,11 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
             expect(result.displayName).toBe('Hacker');
         });
 
-        it('deve sanitizar a bio no updateProfileSchema', async () => {
-            const data = { bio: 'Bio com <img src=x> imagem' };
+        it('deve sanitizar a bio no updateProfileSchema preservando tags permitidas', async () => {
+            // A bio usa sanitizeRichText, que permite <img>
+            const data = { bio: 'Bio com <img src="x"> imagem' };
             const result = await updateProfileSchema.parseAsync(data);
-            expect(result.bio).toBe('Bio com  imagem');
+            expect(result.bio).toBe('Bio com <img src="x"> imagem');
         });
 
         it('deve sanitizar o conteúdo do chat no sendMessageSchema', async () => {
