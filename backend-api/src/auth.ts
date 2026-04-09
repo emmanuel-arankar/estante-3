@@ -384,7 +384,6 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       requestId: (req as Request & { requestId: string }).requestId
-      requestId: (req as Request & { requestId: string }).requestId
     });
 
     return res.status(200).json({ customToken });
@@ -443,7 +442,7 @@ router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), a
       metadata: { email },
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId: string }).requestId
     });
 
     return res.status(200).json({ message: 'E-mail enviado' });

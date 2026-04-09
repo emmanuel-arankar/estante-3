@@ -138,7 +138,7 @@ router.get('/books/works/search', checkAuth, async (req: Request, res: Response,
                                 workIdsToFetch.add(wDoc.id);
                                 worksFetchedDirectly.set(wDoc.id, { id: wDoc.id, ...sanitizeTimestamps(wDoc.data()) });
                             });
-                        } catch (e) {
+                        } catch {
                             // Silencioso se array-contains-any falhar
                         }
                     }
@@ -199,7 +199,7 @@ router.get('/books/works/search', checkAuth, async (req: Request, res: Response,
                             work.fallbackCoverUrl = withCover[0].coverUrl;
                         }
                     }
-                } catch (e) {
+                } catch {
                     // Silencioso
                 }
             }
