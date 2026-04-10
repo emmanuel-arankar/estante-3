@@ -31,11 +31,9 @@ vi.mock('../firebase', () => ({
 }));
 
 // Mocking Auth Middleware
-vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-        req.user = { uid: 'current-user' };
-        next();
-    }),
+vi.mock("../middleware/auth.middleware", () => ({
+    checkAuth: vi.fn((req, res, next) => { req.user = { uid: "current-user" }; if (next) next(); }),
+    checkAuthOptional: vi.fn((req, res, next) => { req.user = { uid: "current-user" }; if (next) next(); })
 }));
 
 describe('Storage Operations', () => {

@@ -271,7 +271,7 @@ export const useChat = (receiverId?: string) => {
           });
 
           return Array.from(messageMap.values()).sort((a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            a.createdAt.getTime() - b.createdAt.getTime()
           );
         });
         setLoading(false);
@@ -372,7 +372,7 @@ export const useChat = (receiverId?: string) => {
         olderMsgs.forEach(m => messageMap.set(m.id, m));
         prev.forEach(m => messageMap.set(m.id, m));
         return Array.from(messageMap.values()).sort((a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          a.createdAt.getTime() - b.createdAt.getTime()
         );
       });
     } catch (err) {
