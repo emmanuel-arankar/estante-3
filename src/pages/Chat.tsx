@@ -734,7 +734,7 @@ export const Chat = () => {
           {/* Input de Mensagem */}
           <div className="border-t border-gray-200 p-4 bg-white shrink-0">
             <ChatInput
-      onSendMessage={handleSendMessage as (content: string, type: ChatMessage['type'], isTemporary?: boolean, file?: Blob, waveform?: number[], duration?: number, caption?: string, viewOnce?: boolean, images?: Blob[]) => Promise<void>}
+              onSendMessage={handleSendMessage as (content: string, type: ChatMessage['type'], isTemporary?: boolean, file?: Blob, waveform?: number[], duration?: number, caption?: string, viewOnce?: boolean, images?: Blob[]) => Promise<void>}
               onTyping={updateTyping}
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
