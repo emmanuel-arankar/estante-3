@@ -24,7 +24,7 @@ import { queryClient } from '@/lib/queryClient';
 export const useChat = (receiverId?: string) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(false);
   const [typingStatus, setTypingStatusState] = useState<boolean | 'recording'>(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
@@ -213,7 +213,7 @@ export const useChat = (receiverId?: string) => {
       toastErrorClickable('Erro ao editar mensagem');
       console.error('Error editing message:', error);
     }
-  }, [user, receiverId, receiverInfo]);
+  }, [user, receiverId]);
 
 
   // Apagar mensagem
