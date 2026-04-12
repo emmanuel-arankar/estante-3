@@ -468,8 +468,12 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({ reviewId }) => {
     mutation.mutate(newComment);
   };
 
-  const rawTree = commentsData?.data ? buildCommentTree(commentsData.data) : [];
-  const commentTree = sortRoots(rawTree, sortMode);
+  // ⚡ BOLT OPTIMIZATION: Memoize the comment tree to prevent expensive O(N log N)
+  // sorting and O(N) tree building on every keystroke/render.
+  const commentTree = React.useMemo(() => {
+    const rawTree = commentsData?.data ? buildCommentTree(commentsData.data) : [];
+    return sortRoots(rawTree, sortMode);
+  }, [commentsData?.data, sortMode]);
   const totalCount = commentsData?.data.length ?? 0;
 
   const sortLabels: Record<SortMode, string> = {
