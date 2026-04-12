@@ -50,13 +50,13 @@ export type UserIdParam = z.infer<typeof userIdParamSchema>;
  */
 export const updateProfileSchema = z.object({
   displayName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(50).optional()
-    .transform(val => val ? sanitize(val) : val),
+    .transform(val => val ? (sanitize(val) as string) : val),
   nickname: z.string().min(3, 'Nickname deve ter pelo menos 3 caracteres')
     .max(30)
     .regex(/^[a-z0-9_-]+$/, 'Nickname só pode conter letras minúsculas, números, hífens e underscores')
     .optional(),
   bio: z.string().max(1500, 'Bio não pode exceder 1500 caracteres (incluindo formatação e emojis)').optional()
-    .transform(val => val ? sanitizeRichText(val) : val),
+    .transform(val => val ? (sanitizeRichText(val) as string) : val),
   location: z.union([
     z.string(),
     z.object({

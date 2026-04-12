@@ -30,7 +30,7 @@ import { sanitize } from '../lib/sanitize';
 export const sendMessageSchema = z.object({
     receiverId: z.string().min(1, 'receiverId é obrigatório'),
     content: z.string().min(1, 'Conteúdo não pode ser vazio')
-        .transform(val => sanitize(val)),
+        .transform(val => (sanitize(val) as string)),
     type: z.enum(['text', 'image', 'audio', 'book', 'location']).default('text'),
     replyTo: z.object({
         id: z.string(),
@@ -41,7 +41,7 @@ export const sendMessageSchema = z.object({
     waveform: z.array(z.number()).optional(),
     duration: z.number().optional(),
     caption: z.string().optional()
-        .transform(val => val ? sanitize(val) : val),
+        .transform(val => val ? (sanitize(val) as string) : val),
     viewOnce: z.boolean().optional(),
     images: z.array(z.string()).optional(),
     customId: z.string().optional(),
@@ -72,7 +72,7 @@ export const updateMessageSchema = z.object({
     playedAt: z.boolean().optional(),
     viewedAt: z.boolean().optional(),
     content: z.string().optional()
-        .transform(val => val ? sanitize(val) : val),
+        .transform(val => val ? (sanitize(val) as string) : val),
     otherId: z.string().min(1),
 });
 
