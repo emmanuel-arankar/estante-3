@@ -2,7 +2,7 @@ import { Response, NextFunction, RequestHandler } from 'express';
 import { db } from '../firebase';
 import { AuthenticatedRequest } from './auth.middleware';
 import * as logger from 'firebase-functions/logger';
-import { UserRole } from '@estante/common-types';
+import { UserRole } from '../../common-types/src';
 
 /**
  * @name Middleware de Controle de Acesso Baseado em Cargos (RBAC)
