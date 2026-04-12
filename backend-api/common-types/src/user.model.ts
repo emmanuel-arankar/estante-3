@@ -51,5 +51,5 @@ export interface UserAvatar {
   uploadedAt: Date;
   isCurrent: boolean;
   likes: string[];
-  comments: Comment[];
+  comments: any[];
 }

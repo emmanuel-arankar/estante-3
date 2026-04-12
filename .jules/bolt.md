@@ -7,4 +7,4 @@
 - Refined `ChatMessage` and `User` models to replace `any` with specific types like `Date` and `Record<string, unknown>`.
 - Aligned GitHub Action workflows with the primary project ID (`estante-75463`).
 - Updated `sanitize.test.ts` to align with normalization logic and rich text preservation rules.
-- Cleaned up unused Express middleware parameters to satisfy ESLint.
+- Cleaned up unused Express middleware parameters and fixed catch block typing to satisfy TSC/ESLint.
