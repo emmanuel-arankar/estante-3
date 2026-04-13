@@ -2,7 +2,7 @@
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
-import { Router, RequestHandler, Request, Response } from "express";
+import { Router, RequestHandler, Request, Response, NextFunction } from 'express';
 import { admin, auth, db } from './firebase';
 import { FirebaseError } from 'firebase-admin/app';
 import * as logger from 'firebase-functions/logger';
@@ -125,7 +125,7 @@ logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS
  * - Utiliza a flag `secure` em produção (exige HTTPS).
  * - A duração é ajustada dinamicamente com base na preferência do usuário.
  */
-router.post('/sessionLogin', authLimiter as Record<string, unknown> as RequestHandler, validate({ body: sessionLoginBodySchema }), async (req, res, next) => {
+router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate({ body: sessionLoginBodySchema }), async (req: Request, res: Response, next: NextFunction) => {
   // Valida req.body usando o schema
   // A validação agora é feita pelo middleware 'validate'
   const { idToken, rememberMe } = req.body;
@@ -156,12 +156,12 @@ router.post('/sessionLogin', authLimiter as Record<string, unknown> as RequestHa
     return res.status(200).send({ status: 'success' });
   } catch (error: unknown) {
     logger.error('Erro ao criar cookie de sessão:', {
-      errorMessage: error.message,
-      errorCode: error.code,
+      errorMessage: (error as Error).message,
+      errorCode: (error as Record<string, unknown>).code,
       // Evite logar o idToken inteiro por segurança
     });
 
-    const firebaseError = error as Record<string, unknown> as FirebaseError;
+    const firebaseError = error as unknown as FirebaseError;
     const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as Record<string, unknown>, validate({ body: registerSchema }), async (req: Request, res: Response) => {
+router.post('/register', authLimiter as unknown as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -257,10 +257,10 @@ router.post('/register', authLimiter as Record<string, unknown>, validate({ body
     } catch (authError: unknown) {
       console.error('CRITICAL: authError dump ->', authError);
       // ==== ==== 2. TRATAMENTO DE COLISÃO DE E-MAIL ==== ====
-      if (authError?.code === 'auth/email-already-exists') {
+      if ((authError as { code?: string })?.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'E-mail já está em uso.' });
       }
-      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details: authError?.message || JSON.stringify(authError) || String(authError) });
+      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details: (authError as { message?: string })?.message || String(authError) });
     }
 
     const { uid } = userRecord;
@@ -307,12 +307,12 @@ router.post('/register', authLimiter as Record<string, unknown>, validate({ body
         category: 'AUTH',
         ip: req.ip,
         userAgent: req.get('User-Agent')?.toString(),
-        requestId: (req as Record<string, unknown>).requestId
+        requestId: (req as Request & { requestId?: string }).requestId
       });
     } catch (dbError: unknown) {
       logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
       await admin.auth().deleteUser(uid).catch(() => logger.error(`Falha no rollback do user ${uid}`));
-      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details:  (dbError as Error)?.message || String(dbError) });
+      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: (dbError as Error)?.message || String(dbError) });
     }
 
     const customToken = await admin.auth().createCustomToken(uid);
@@ -337,7 +337,7 @@ router.post('/register', authLimiter as Record<string, unknown>, validate({ body
  * POST /api/auth/login
  * { "email": "user@example.com", "password": "password123" }
  */
-router.post('/login', authLimiter as Record<string, unknown>, validate({ body: loginSchema }), async (req: Request, res: Response) => {
+router.post('/login', authLimiter as unknown as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response) => {
   try {
     const updates = req.body;
     const apiKey = getFirebaseApiKey();
@@ -359,8 +359,9 @@ router.post('/login', authLimiter as Record<string, unknown>, validate({ body: l
 
     if (!response.ok) {
       // ==== ==== 2. TRATAMENTO DE ERROS IDENTITY TOOLKIT ==== ====
-      if (data && data.error && data.error.message) {
-        const fbError = data.error.message;
+      const errorData = data as { error?: { message?: string } };
+      if (errorData?.error?.message) {
+        const fbError = errorData.error.message;
         if (fbError === 'INVALID_PASSWORD' || fbError === 'EMAIL_NOT_FOUND' || fbError === 'INVALID_LOGIN_CREDENTIALS') {
           return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
         } else if (fbError === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
@@ -369,12 +370,12 @@ router.post('/login', authLimiter as Record<string, unknown>, validate({ body: l
           return res.status(403).json({ error: 'Sua conta foi desativada.' });
         }
       }
-      throw new Error(data.error?.message || 'Erro na autenticação.');
+      throw new Error(errorData.error?.message || 'Erro na autenticação.');
     }
 
     // ==== ==== 3. GERAÇÃO DE CUSTOM TOKEN (SDK CLIENTE) ==== ====
-    const { localId } = data;
-    const customToken = await admin.auth().createCustomToken(localId);
+    const { localId } = data as { localId: string };
+    const customToken = await auth.createCustomToken(localId);
 
     // Audit Log: Login bem-sucedido
     AuditService.logAuditEvent({
@@ -383,12 +384,12 @@ router.post('/login', authLimiter as Record<string, unknown>, validate({ body: l
       category: 'AUTH',
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as Record<string, unknown>).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ customToken });
   } catch (error: unknown) {
-    logger.error('Erro no login do backend:', error.message || error);
+    logger.error('Erro no login do backend:', (error as Error).message || error);
     return res.status(500).json({ error: 'Erro interno do servidor ao tentar autenticar.' });
   }
 });
@@ -406,7 +407,7 @@ router.post('/login', authLimiter as Record<string, unknown>, validate({ body: l
  * POST /api/auth/recover
  * { "email": "user@example.com" }
  */
-router.post('/recover', authLimiter as Record<string, unknown>, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
+router.post('/recover', authLimiter as unknown as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
   try {
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
@@ -419,19 +420,17 @@ router.post('/recover', authLimiter as Record<string, unknown>, validate({ body:
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requestType: "PASSWORD_RESET", email })
+      body: JSON.stringify({ requestType: 'PASSWORD_RESET', email })
     });
 
     const data: unknown = await response.json();
 
     if (!response.ok) {
-      if (data && data.error && data.error.message) {
-        const fbError = data.error.message;
-        if (fbError === 'EMAIL_NOT_FOUND') {
-          return res.status(404).json({ error: 'Nenhum usuário encontrado com este e-mail.' });
-        }
+      const errorData = data as { error?: { message?: string } };
+      if (errorData?.error?.message === 'EMAIL_NOT_FOUND') {
+        return res.status(404).json({ error: 'Nenhum usuário encontrado com este e-mail.' });
       }
-      throw new Error(data.error?.message || 'Erro ao enviar email de recuperação.');
+      throw new Error(errorData.error?.message || 'Erro ao enviar email de recuperação.');
     }
 
     // Audit Log: Recuperação solicitada (Não temos UID aqui, usamos o email nos metadados ou logs anônimos)
@@ -442,12 +441,12 @@ router.post('/recover', authLimiter as Record<string, unknown>, validate({ body:
       metadata: { email },
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as Record<string, unknown>).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'E-mail enviado' });
   } catch (error: unknown) {
-    logger.error('Erro na recuperação de senha:', error.message || error);
+    logger.error('Erro na recuperação de senha:', (error as Error).message || error);
     return res.status(500).json({ error: 'Erro interno ao processar recuperação.' });
   }
 });
@@ -532,7 +531,7 @@ router.post('/google', async (req: Request, res: Response) => {
           metadata: { provider: 'google' },
           ip: req.ip,
           userAgent: req.get('User-Agent'),
-          requestId: (req as Record<string, unknown>).requestId
+          requestId: (req as Request & { requestId?: string }).requestId
         });
 
         return res.status(201).json({ message: 'Documento criado', isNewUser: true });
@@ -550,12 +549,12 @@ router.post('/google', async (req: Request, res: Response) => {
       metadata: { provider: 'google' },
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as Record<string, unknown>).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'Documento já existente', isNewUser: false });
   } catch (error: unknown) {
-    logger.error('Erro login google backend:', error.message || error);
+    logger.error('Erro login google backend:', (error as Error).message || error);
     return res.status(500).json({ error: 'Erro interno no callback de login.' });
   }
 });
