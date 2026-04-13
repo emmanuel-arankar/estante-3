@@ -2,7 +2,7 @@
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from "express";
 import { admin, db } from './firebase';
 import { checkAuth, checkAuthOptional } from './middleware/auth.middleware';
 import {
@@ -20,10 +20,10 @@ const router = Router();
 // HELPERS
 // =============================================================================
 
-const sanitizeTimestamps = (data: any) => {
+const sanitizeTimestamps = (data: Record<string, unknown>) => {
     const result = { ...data };
     for (const key of ['createdAt', 'updatedAt']) {
-        if (result[key]?.toDate) result[key] = result[key].toDate();
+        if ( (result[key] as { toDate?: () => Date })?.toDate) result[key] =  (result[key] as { toDate: () => Date }).toDate();
     }
     return result;
 };
@@ -31,7 +31,7 @@ const sanitizeTimestamps = (data: any) => {
 const now = () => admin.firestore.Timestamp.now();
 
 // Dispara notificação se o ator não for o próprio dono
-async function notifyAction(targetUserId: string, actorId: string, type: string, extraMetadata: any = {}) {
+async function notifyAction(targetUserId: string, actorId: string, type: string, extraMetadata: Record<string, unknown> = {}) {
     if (targetUserId === actorId) return;
 
     try {
@@ -72,13 +72,13 @@ async function recalculateEditionMetrics(editionId: string) {
 
     snapshot.docs.forEach(doc => {
         const data = doc.data();
-        const hasText = data.title || (data.content && data.content.replace(/<[^>]*>?/gm, '').trim().length > 10);
-        const hasRating = typeof data.rating === 'number';
+        const hasText =  (data as { title?: string }).title || (((data as { content?: string }).content || "") && ((data as { content?: string }).content || "").replace(/<[^>]*>?/gm, '').trim().length > 10);
+        const hasRating = typeof  (data as { rating?: number }).rating === 'number';
 
         if (hasText) reviewsCount++;
         if (hasRating) {
             ratingsCount++;
-            sumRatings += data.rating;
+            sumRatings +=  (data as { rating?: number }).rating || 0;
         }
     });
 
@@ -92,8 +92,8 @@ async function recalculateEditionMetrics(editionId: string) {
 
     // Também recalcula a obra vinculada
     if (snapshot.docs.length > 0) {
-        const workId = snapshot.docs[0].data().workId;
-        if (workId) await recalculateWorkMetrics(workId);
+        const workId = snapshot.docs[0].data().workId as string;
+        if (workId) await recalculateWorkMetrics(workId as string);
     }
 }
 
@@ -106,13 +106,13 @@ async function recalculateWorkMetrics(workId: string) {
 
     snapshot.docs.forEach(doc => {
         const data = doc.data();
-        const hasText = data.title || (data.content && data.content.replace(/<[^>]*>?/gm, '').trim().length > 10);
-        const hasRating = typeof data.rating === 'number';
+        const hasText =  (data as { title?: string }).title || (((data as { content?: string }).content || "") && ((data as { content?: string }).content || "").replace(/<[^>]*>?/gm, '').trim().length > 10);
+        const hasRating = typeof  (data as { rating?: number }).rating === 'number';
 
         if (hasText) reviewsCount++;
         if (hasRating) {
             ratingsCount++;
-            sumRatings += data.rating;
+            sumRatings +=  (data as { rating?: number }).rating || 0;
         }
     });
 
@@ -129,7 +129,7 @@ async function recalculateWorkMetrics(workId: string) {
  * @route POST /api/reviews
  * @summary Criar uma review para uma edição
  */
-router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const v = createReviewSchema.safeParse(req.body);
         if (!v.success) {
@@ -137,11 +137,11 @@ router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
             return;
         }
 
-        const userId = req.user!.uid;
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
         const data = v.data;
 
         // Verificar se edição existe
-        const editionRef = db.collection('editions').doc(data.editionId);
+        const editionRef = db.collection('editions').doc( (data as { editionId: string }).editionId);
         const editionDoc = await editionRef.get();
 
         if (!editionDoc.exists) {
@@ -155,7 +155,7 @@ router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
         // Estratégia em cascata: Tentar ID da edição, se não tiver, usar o que veio no body (enviado pelo frontend)
         let workId = typeof editionData.workId === 'string' ? editionData.workId : editionData.workId?.id;
         if (!workId) {
-            workId = (data as any).workId;
+            workId = (data as { workId: string }).workId;
         }
         
         console.log(`[Review Debug] Final workId for UPSERT: ${workId} (from edition: ${!!editionData.workId})`);
@@ -190,21 +190,21 @@ router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
             }
 
             console.log(`[Review Debug] Executando UPDATE no documento ${reviewId}`);
-            const updates: any = { 
-                rating: data.rating !== undefined ? data.rating : reviewDoc.data().rating,
-                editionId: data.editionId, 
+            const updates: Record<string, unknown> = {
+                rating:  (data as { rating?: number }).rating !== undefined ?  (data as { rating?: number }).rating : reviewDoc.data().rating,
+                editionId:  (data as { editionId: string }).editionId,
                 updatedAt: now() 
             };
             
             await db.collection('reviews').doc(reviewId).update(updates);
             
             // Recalcula métricas com força total
-            await recalculateEditionMetrics(data.editionId);
+            await recalculateEditionMetrics( (data as { editionId: string }).editionId);
             const oldEditionId = reviewDoc.data().editionId;
-            if (oldEditionId && oldEditionId !== data.editionId) {
+            if (oldEditionId && oldEditionId !==  (data as { editionId: string }).editionId) {
                 await recalculateEditionMetrics(oldEditionId);
             }
-            await recalculateWorkMetrics(workId);
+            await recalculateWorkMetrics(workId as string);
 
             const updatedDoc = { id: reviewId, ...reviewDoc.data(), ...updates };
             res.status(200).json(sanitizeTimestamps(updatedDoc));
@@ -217,14 +217,14 @@ router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
 
         const reviewData = {
             userId,
-            editionId: data.editionId,
+            editionId:  (data as { editionId: string }).editionId,
             workId: workId,
-            rating: data.rating !== undefined ? data.rating : null,
+            rating:  (data as { rating?: number }).rating !== undefined ?  (data as { rating?: number }).rating : null,
             userName: userData.displayName || '',
             userNickname: userData.nickname || '',
             userPhotoUrl: userData.photoURL || null,
-            title: data.title || null,
-            content: data.content !== undefined ? data.content : null,
+            title:  (data as { title?: string }).title || null,
+            content:  (data as { content?: string }).content !== undefined ?  (data as { content?: string }).content : null,
             containsSpoiler: data.containsSpoiler || false,
             likesCount: 0,
             commentsCount: 0,
@@ -235,7 +235,7 @@ router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
         const docRef = await db.collection('reviews').add(reviewData);
 
         // Recalcular métricas consolidadas na edição
-        await recalculateEditionMetrics(data.editionId);
+        await recalculateEditionMetrics( (data as { editionId: string }).editionId);
 
         res.status(201).json(sanitizeTimestamps({ id: docRef.id, ...reviewData }));
     } catch (error) {
@@ -247,7 +247,7 @@ router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
  * @route GET /api/reviews/edition/:editionId/my
  * @summary Buscar resenha/avaliação do usuário atual
  */
-router.get('/reviews/edition/:editionId/my', checkAuth, async (req: any, res: any, next: any) => {
+router.get('/reviews/edition/:editionId/my', checkAuth, async (req: Request, res: Response, next: NextFunction) : Promise<Response> => {
     try {
         const v = editionIdParamSchema.safeParse(req.params);
         if (!v.success) {
@@ -257,7 +257,7 @@ router.get('/reviews/edition/:editionId/my', checkAuth, async (req: any, res: an
 
         const snapshot = await db.collection('reviews')
             .where('editionId', '==', v.data.editionId)
-            .where('userId', '==', req.user!.uid)
+            .where('userId', '==',  (req as Request & { user: { uid: string } }).user.uid)
             .limit(1)
             .get();
 
@@ -268,7 +268,7 @@ router.get('/reviews/edition/:editionId/my', checkAuth, async (req: any, res: an
         const review = sanitizeTimestamps({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() });
 
         // Embora seja a review do próprio usuário, verificamos isLiked por consistência
-        const likeDoc = await db.collection('reviews').doc(review.id).collection('likes').doc(req.user!.uid).get();
+        const likeDoc = await db.collection('reviews').doc( (review as { id: string }).id).collection('likes').doc( (req as Request & { user: { uid: string } }).user.uid).get();
         review.isLiked = likeDoc.exists;
 
         res.json({ data: review });
@@ -285,7 +285,7 @@ router.get('/reviews/edition/:editionId/my', checkAuth, async (req: any, res: an
  * @route GET /api/reviews/edition/:editionId
  * @summary Listar reviews de uma edição específica
  */
-router.get('/reviews/edition/:editionId', checkAuthOptional, async (req: any, res: any, next: any) => {
+router.get('/reviews/edition/:editionId', checkAuthOptional, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const v = editionIdParamSchema.safeParse(req.params);
         if (!v.success) {
@@ -303,7 +303,7 @@ router.get('/reviews/edition/:editionId', checkAuthOptional, async (req: any, re
             .offset((page - 1) * limit)
             .get();
 
-        const userId = req.user?.uid;
+        const userId =  (req as Request & { user?: { uid: string } }).user?.uid;
         let reviews = snapshot.docs.map(doc => sanitizeTimestamps({ id: doc.id, ...doc.data() }));
 
         if (userId && reviews.length > 0) {
@@ -329,7 +329,7 @@ router.get('/reviews/edition/:editionId', checkAuthOptional, async (req: any, re
  * @route GET /api/reviews/:reviewId
  * @summary Buscar uma review específica
  */
-router.get('/reviews/:reviewId', checkAuthOptional, async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId', checkAuthOptional, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const v = reviewIdParamSchema.safeParse(req.params);
         if (!v.success) {
@@ -345,8 +345,8 @@ router.get('/reviews/:reviewId', checkAuthOptional, async (req: any, res: any, n
 
         const review = sanitizeTimestamps({ id: doc.id, ...doc.data() });
 
-        if (req.user?.uid) {
-            const likeDoc = await db.collection('reviews').doc(review.id).collection('likes').doc(req.user.uid).get();
+        if ( (req as Request & { user?: { uid: string } }).user?.uid) {
+            const likeDoc = await db.collection('reviews').doc( (review as { id: string }).id).collection('likes').doc( (req as Request & { user: { uid: string } }).user.uid).get();
             review.isLiked = likeDoc.exists;
         }
 
@@ -360,7 +360,7 @@ router.get('/reviews/:reviewId', checkAuthOptional, async (req: any, res: any, n
  * @route PUT /api/reviews/:reviewId
  * @summary Atualizar uma review
  */
-router.put('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: any) => {
+router.put('/reviews/:reviewId', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -374,7 +374,7 @@ router.put('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: any
             return;
         }
 
-        const userId = req.user!.uid;
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
         const ref = db.collection('reviews').doc(p.data.reviewId);
 
         const doc = await ref.get();
@@ -405,7 +405,7 @@ router.put('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: any
  * @route DELETE /api/reviews/:reviewId
  * @summary Deletar uma review
  */
-router.delete('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: any) => {
+router.delete('/reviews/:reviewId', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -413,7 +413,7 @@ router.delete('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: 
             return;
         }
 
-        const userId = req.user!.uid;
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
         const ref = db.collection('reviews').doc(p.data.reviewId);
         const doc = await ref.get();
 
@@ -439,8 +439,8 @@ router.delete('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: 
         }
 
         // Recalcular métricas consolidadas na edição e na obra
-        await recalculateEditionMetrics(data.editionId);
-        if (data.workId) await recalculateWorkMetrics(data.workId);
+        await recalculateEditionMetrics( (data as { editionId: string }).editionId);
+        if ( (data as { workId: string }).workId) await recalculateWorkMetrics( (data as { workId: string }).workId);
 
         res.status(204).send();
     } catch (error) {
@@ -456,7 +456,7 @@ router.delete('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: 
  * @route POST /api/reviews/:reviewId/comments
  * @summary Adicionar comentário à review
  */
-router.post('/reviews/:reviewId/comments', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews/:reviewId/comments', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -473,7 +473,7 @@ router.post('/reviews/:reviewId/comments', checkAuth, async (req: any, res: any,
         const parentCommentId = req.body.parentCommentId as string | undefined;
 
         const reviewId = p.data.reviewId;
-        const userId = req.user!.uid;
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
 
         const reviewRef = db.collection('reviews').doc(reviewId);
         const reviewDoc = await reviewRef.get();
@@ -546,7 +546,7 @@ router.post('/reviews/:reviewId/comments', checkAuth, async (req: any, res: any,
  * @route GET /api/reviews/:reviewId/comments
  * @summary Listar comentários de uma review
  */
-router.get('/reviews/:reviewId/comments', checkAuthOptional, async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/comments', checkAuthOptional, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -559,7 +559,7 @@ router.get('/reviews/:reviewId/comments', checkAuthOptional, async (req: any, re
             .orderBy('createdAt', 'asc')
             .get();
 
-        const userId = req.user?.uid;
+        const userId =  (req as Request & { user?: { uid: string } }).user?.uid;
         let comments = snapshot.docs.map(doc => sanitizeTimestamps({ id: doc.id, ...doc.data() }));
 
         if (userId && comments.length > 0) {
@@ -588,11 +588,11 @@ router.get('/reviews/:reviewId/comments', checkAuthOptional, async (req: any, re
  * @route PUT /api/reviews/:reviewId/comments/:commentId
  * @summary Editar um comentário próprio
  */
-router.put('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: any, res: any, next: any) => {
+router.put('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const reviewId = req.params.reviewId;
-        const commentId = req.params.commentId;
-        const userId = req.user!.uid;
+        const reviewId =  (req.params.reviewId as string);
+        const commentId =  (req.params.commentId as string);
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
         const v = updateCommentSchema.safeParse(req.body);
         if (!v.success) {
             res.status(400).json({ error: 'Dados inválidos', details: v.error.flatten().fieldErrors });
@@ -633,11 +633,11 @@ router.put('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: any,
  * @route POST /api/reviews/:reviewId/comments/:commentId/like
  * @summary Curtir ou descurtir um comentário (toggle)
  */
-router.post('/reviews/:reviewId/comments/:commentId/like', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews/:reviewId/comments/:commentId/like', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const reviewId = req.params.reviewId;
-        const commentId = req.params.commentId;
-        const userId = req.user!.uid;
+        const reviewId =  (req.params.reviewId as string);
+        const commentId =  (req.params.commentId as string);
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
 
         const commentRef = db.collection('reviews').doc(reviewId).collection('comments').doc(commentId);
         const likeRef = commentRef.collection('likes').doc(userId);
@@ -691,11 +691,11 @@ router.post('/reviews/:reviewId/comments/:commentId/like', checkAuth, async (req
  * @route DELETE /api/reviews/:reviewId/comments/:commentId
  * @summary Deletar um comentário
  */
-router.delete('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: any, res: any, next: any) => {
+router.delete('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const reviewId = req.params.reviewId;
-        const commentId = req.params.commentId;
-        const userId = req.user!.uid;
+        const reviewId =  (req.params.reviewId as string);
+        const commentId =  (req.params.commentId as string);
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
 
         const reviewRef = db.collection('reviews').doc(reviewId);
         const commentRef = reviewRef.collection('comments').doc(commentId);
@@ -745,10 +745,10 @@ router.delete('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: a
  * @route POST /api/reviews/:reviewId/like
  * @summary Curtir ou descurtir uma review (toggle)
  */
-router.post('/reviews/:reviewId/like', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews/:reviewId/like', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const reviewId = req.params.reviewId;
-        const userId = req.user!.uid;
+        const reviewId =  (req.params.reviewId as string);
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
 
         const reviewRef = db.collection('reviews').doc(reviewId);
         const likeRef = reviewRef.collection('likes').doc(userId);
@@ -796,9 +796,9 @@ router.post('/reviews/:reviewId/like', checkAuth, async (req: any, res: any, nex
  * @route GET /api/reviews/:reviewId/likes
  * @summary Listar quem curtiu uma review (primeiros 10)
  */
-router.get('/reviews/:reviewId/likes', async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/likes', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const reviewId = req.params.reviewId;
+        const reviewId =  (req.params.reviewId as string);
         const snapshot = await db.collection('reviews').doc(reviewId)
             .collection('likes')
             .orderBy('createdAt', 'desc')
@@ -816,10 +816,10 @@ router.get('/reviews/:reviewId/likes', async (req: any, res: any, next: any) => 
  * @route GET /api/reviews/:reviewId/likes/me
  * @summary Verificar se o usuário atual curtiu a review
  */
-router.get('/reviews/:reviewId/likes/me', checkAuth, async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/likes/me', checkAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const reviewId = req.params.reviewId;
-        const userId = req.user!.uid;
+        const reviewId =  (req.params.reviewId as string);
+        const userId =  (req as Request & { user: { uid: string } }).user.uid;
         const likeDoc = await db.collection('reviews').doc(reviewId).collection('likes').doc(userId).get();
         res.json({ liked: likeDoc.exists });
     } catch (error) {
@@ -831,9 +831,9 @@ router.get('/reviews/:reviewId/likes/me', checkAuth, async (req: any, res: any, 
  * @route GET /api/reviews/:reviewId/comments/:commentId/likes
  * @summary Listar quem curtiu um comentário (primeiros 10)
  */
-router.get('/reviews/:reviewId/comments/:commentId/likes', async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/comments/:commentId/likes', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { reviewId, commentId } = req.params;
+        const { reviewId, commentId } = req.params as { reviewId: string; commentId: string };
         const snapshot = await db.collection('reviews').doc(reviewId)
             .collection('comments').doc(commentId)
             .collection('likes')
