@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 const imageCache = new Map<string, HTMLImageElement>();
 
 export const useImageCache = (src?: string) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // ⚡ BOLT OPTIMIZATION: Use lazy initializer to check cache immediately on mount
+  // preventing 1-frame flicker for cached images.
+  const [isLoaded, setIsLoaded] = useState(() => !!src && imageCache.has(src));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -13,7 +15,7 @@ export const useImageCache = (src?: string) => {
       return;
     }
 
-    // ✅ Verificar se já está no cache
+    // ✅ Verificar se já está no cache (caso src tenha mudado)
     if (imageCache.has(src)) {
       setIsLoaded(true);
       return;
