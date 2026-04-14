@@ -66,10 +66,12 @@ export function sanitize(input: string, options: SanitizeOptions = {}): string {
     input = input.normalize('NFC').replace(/[\u0300-\u036F]/g, '');
 
     // 1.3 Remover Caracteres de Controle não-imprimíveis, poupando \n, \r e \t
+    // eslint-disable-next-line no-control-regex
     const CONTROL_CHARS_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
     input = input.replace(CONTROL_CHARS_REGEX, '');
 
     // 1.4 Remover Códigos de Escape ANSI (Terminal Injection / Log Spoofing)
+    // eslint-disable-next-line no-control-regex
     const ANSI_REGEX = /\x1B\[[0-?]*[ -/]*[@-~]/g;
     input = input.replace(ANSI_REGEX, '');
 

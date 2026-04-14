@@ -69,7 +69,15 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+    const config: admin.AppOptions = { projectId };
+
+    // Em ambiente de teste ou CI sem FIREBASE_CONFIG, precisamos setar a URL manualmente para o RTDB não falhar no import
+    if (!process.env.FIREBASE_CONFIG) {
+        config.databaseURL = `https://${projectId}-default-rtdb.firebaseio.com`;
+    }
+
+    admin.initializeApp(config);
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
