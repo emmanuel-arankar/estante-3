@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
-import { admin, db, rtdb } from '../firebase';
 
 /**
  * @name Mock Factory Chat
@@ -9,8 +8,8 @@ import { admin, db, rtdb } from '../firebase';
  */
 const { state, mockDb, mockRtdb } = vi.hoisted(() => {
     const state = {
-        docStore: {} as Record<string, any>,
-        rtdbStore: {} as Record<string, any>,
+        docStore: {} as Record<string, unknown>,
+        rtdbStore: {} as Record<string, unknown>,
     };
 
     const mockDb = {
@@ -86,8 +85,12 @@ vi.mock('../firebase', () => ({
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-        req.user = { uid: 'current-user' };
+    checkAuth: vi.fn((req, _res, next) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
+        next();
+    }),
+    checkAuthOptional: vi.fn((req, _res, next) => {
+        Object.assign(req, { user: { uid: 'current-user' } });
         next();
     }),
 }));
