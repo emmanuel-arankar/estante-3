@@ -1,0 +1,3 @@
+## 2026-04-16 - [Stable Callback Pattern with useRef]
+**Learning:** In high-frequency components like Chat, even memoized callbacks (useCallback) can cause performance issues if their dependencies change frequently (e.g., messages array). Using a `useRef` to track the current state and updating it in a `useEffect` allows callbacks to remain referentially stable while still accessing the latest data.
+**Action:** Use the `useRef` + `useEffect` pattern for callbacks that are passed as dependencies to event listeners (scroll, mouse move) or memoized child components to prevent unnecessary re-attachment or re-renders.

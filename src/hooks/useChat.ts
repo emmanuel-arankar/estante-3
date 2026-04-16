@@ -24,7 +24,14 @@ import { queryClient } from '@/lib/queryClient';
 export const useChat = (receiverId?: string) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chats, setChats] = useState<any[]>([]);
+  // ⚡ BOLT OPTIMIZATION: Keep a ref of messages to stabilize handleLoadOlderMessages.
+  // This avoids re-attaching scroll listeners and other effects in components.
+  const messagesRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const [chats, setChats] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(false);
   const [typingStatus, setTypingStatusState] = useState<boolean | 'recording'>(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
@@ -200,7 +207,7 @@ export const useChat = (receiverId?: string) => {
       toastErrorClickable('Erro ao enviar mensagem');
       console.error('Error sending message:', error);
     }
-  }, [user, receiverId, replyingTo, receiverInfo]);
+  }, [user, receiverId, replyingTo, receiverInfo?.displayName]);
 
   // Editar mensagem
   const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
@@ -213,7 +220,7 @@ export const useChat = (receiverId?: string) => {
       toastErrorClickable('Erro ao editar mensagem');
       console.error('Error editing message:', error);
     }
-  }, [user, receiverId, receiverInfo]);
+  }, [user, receiverId]);
 
 
   // Apagar mensagem
@@ -350,7 +357,8 @@ export const useChat = (receiverId?: string) => {
     if (!user || !receiverId || !hasOlderMessages) return;
     // Bloqueio síncrono via ref para evitar re-triggers do scroll event
     if (loadingOlderRef.current) return;
-    const oldestId = messages[0]?.id;
+    // Use the ref to get the oldest message ID without making this callback depend on 'messages'
+    const oldestId = messagesRef.current[0]?.id;
     if (!oldestId) return;
 
     loadingOlderRef.current = true;
@@ -382,7 +390,7 @@ export const useChat = (receiverId?: string) => {
       // Cooldown de 1s para evitar re-trigger imediato pelo scroll restoration
       setTimeout(() => { loadingOlderRef.current = false; }, 1000);
     }
-  }, [user, receiverId, messages, hasOlderMessages]);
+  }, [user, receiverId, hasOlderMessages]);
 
   return {
     messages,
