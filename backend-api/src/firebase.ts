@@ -5,6 +5,7 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * @name Gestão de Ambiente
@@ -44,17 +45,18 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
  * - Caso falhe, recorre ao Application Default Credentials (ADC).
  */
 if (admin.apps.length === 0) {
-  const fs = require('fs');
   const saPath = path.resolve(__dirname, '..', 'serviceAccountKey.json');
 
   // Se estamos no Cloud Run / Functions V2, ou Cloud Functions G1, as variáveis de gerência estarão ativas.
   const isManagedCloud = !!process.env.K_SERVICE || !!process.env.FUNCTION_NAME || !!process.env.FIREBASE_CONFIG;
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+  const isTest = process.env.NODE_ENV === 'test';
 
   // Usar JSON apenas localmente ou explícito pelo emulador (ignora se estiver fisicamente na nuvem para usar ADC nativo do Compute Engine)
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
-      const credential = admin.credential.cert(require(saPath));
+      const saContent = fs.readFileSync(saPath, 'utf8');
+      const credential = admin.credential.cert(JSON.parse(saContent));
       const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
 
       admin.initializeApp({
@@ -69,7 +71,11 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+    admin.initializeApp({
+      projectId,
+      databaseURL: isTest ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
