@@ -377,7 +377,7 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
     // ==== ==== 3. GERAÇÃO DE CUSTOM TOKEN (SDK CLIENTE) ==== ====
     const { localId } = data;
     if (!localId) throw new Error('localId não retornado pela Identity Toolkit API.');
-    const customToken = await admin.auth().createCustomToken(localId);
+    const customToken = await admin.auth().createCustomToken(localId as string);
 
     // Audit Log: Login bem-sucedido
     AuditService.logAuditEvent({
