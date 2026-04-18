@@ -358,11 +358,11 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
       body: JSON.stringify({ email, password, returnSecureToken: true })
     });
 
-    const data = await response.json() as Record<string, unknown>;
+    const data = await response.json() as { localId?: string; error?: { message?: string } };
 
     if (!response.ok) {
       // ==== ==== 2. TRATAMENTO DE ERROS IDENTITY TOOLKIT ==== ====
-      const errorData = data as { error?: { message?: string } };
+      const errorData = data;
       if (errorData?.error?.message) {
         const fbError = errorData.error.message;
         if (fbError === 'INVALID_PASSWORD' || fbError === 'EMAIL_NOT_FOUND' || fbError === 'INVALID_LOGIN_CREDENTIALS') {
@@ -377,7 +377,8 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
     }
 
     // ==== ==== 3. GERAÇÃO DE CUSTOM TOKEN (SDK CLIENTE) ==== ====
-    const { localId } = data as { localId: string };
+    const { localId } = data;
+    if (!localId) throw new Error('Falha ao recuperar ID do usuário.');
     const customToken = await admin.auth().createCustomToken(localId);
 
     // Audit Log: Login bem-sucedido
@@ -427,10 +428,10 @@ router.post('/recover', authLimiter as unknown as RequestHandler, validate({ bod
       body: JSON.stringify({ requestType: "PASSWORD_RESET", email })
     });
 
-    const data = await response.json() as Record<string, unknown>;
+    const data = await response.json() as { error?: { message?: string } };
 
     if (!response.ok) {
-      const errorData = data as { error?: { message?: string } };
+      const errorData = data;
       if (errorData?.error?.message) {
         const fbError = errorData.error.message;
         if (fbError === 'EMAIL_NOT_FOUND') {
