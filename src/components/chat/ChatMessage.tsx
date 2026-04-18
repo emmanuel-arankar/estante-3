@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -14,7 +14,9 @@ import {
     Smile,
     Eye,
     Pencil,
-    X
+    X,
+    Loader2,
+    FileText
 } from 'lucide-react';
 import {
     Avatar,
@@ -36,12 +38,20 @@ import {
 } from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType } from '@estante/common-types';
+import { useAudioStore } from '@/hooks/useAudioStore';
+import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
+import { formatAudioTime } from '@/utils/audioUtils';
+import { requestTranscription } from '@/services/firebase/functions';
+
+// ⚡ BOLT OPTIMIZATION: Hoisted static assets to prevent re-allocation
+const DEFAULT_WAVEFORM = Array.from({ length: 30 });
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
-    onReply?: () => void;
-    onDelete?: () => void;
+    onReply?: (message: ChatMessageType) => void;
+    onDelete?: (messageId: string) => void;
     onReact?: (emoji: string) => void;
     onMarkTemporaryAsPlayed?: (messageId: string) => Promise<void>;
     onMarkAsViewed?: (messageId: string) => Promise<void>;
@@ -49,18 +59,14 @@ interface ChatMessageProps {
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (messageId: string) => void;
+    onEdit?: (message: ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
 }
 
-import { useAudioStore } from '@/hooks/useAudioStore';
-import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
-import { formatAudioTime } from '@/utils/audioUtils';
-
-const AudioPlayer = ({
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -196,16 +202,22 @@ const AudioPlayer = ({
         setDragProgress(getProgressFromEvent(clientX));
     };
 
-    const handleSeekEnd = () => {
+    const dragProgressRef = useRef(dragProgress);
+    useEffect(() => {
+        dragProgressRef.current = dragProgress;
+    }, [dragProgress]);
+
+    const handleSeekEnd = useCallback(() => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
 
-        audio.currentTime = (dragProgress / 100) * duration;
-        setProgress(dragProgress);
-        setCurrentTime((dragProgress / 100) * duration);
+        const currentDragProgress = dragProgressRef.current;
+        audio.currentTime = (currentDragProgress / 100) * duration;
+        setProgress(currentDragProgress);
+        setCurrentTime((currentDragProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, getAudioElement, id, duration]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -224,7 +236,7 @@ const AudioPlayer = ({
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, handleSeekEnd]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -275,7 +287,7 @@ const AudioPlayer = ({
                         )}
                     >
                         {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+                            const bars = waveform && waveform.length > 0 ? waveform : DEFAULT_WAVEFORM;
                             const MAX_BARS = 35;
                             const step = Math.ceil(bars.length / MAX_BARS);
                             const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
@@ -357,12 +369,10 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
+AudioPlayer.displayName = 'AudioPlayer';
 
-import { requestTranscription } from '@/services/firebase/functions';
-import { Loader2, FileText } from 'lucide-react';
-
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +433,10 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
+TranscriptionControl.displayName = 'TranscriptionControl';
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +469,10 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
+MessageHighlighter.displayName = 'MessageHighlighter';
 
-export const ChatBubble = ({
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -523,11 +535,11 @@ export const ChatBubble = ({
     );
 
     const handleReply = () => {
-        onReply?.();
+        onReply?.(message);
     };
 
     const handleDelete = () => {
-        onDelete?.();
+        onDelete?.(message.id);
     };
 
     return (
@@ -569,7 +581,7 @@ export const ChatBubble = ({
                         </PopoverTriggerUI>
                         <PopoverContentUI side="top" align="center" className="w-auto p-1 rounded-full shadow-lg border-gray-100">
                             <div className="flex items-center space-x-1">
-                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                {REACTION_EMOJIS.map(emoji => (
                                     <button
                                         key={emoji}
                                         onClick={() => onReact?.(emoji)}
@@ -594,7 +606,7 @@ export const ChatBubble = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={() => onEdit?.(message)}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
@@ -948,7 +960,7 @@ export const ChatBubble = ({
                         </PopoverTriggerUI>
                         <PopoverContentUI side="top" align="center" className="w-auto p-1 rounded-full shadow-lg border-gray-100">
                             <div className="flex items-center space-x-1">
-                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                {REACTION_EMOJIS.map(emoji => (
                                     <button
                                         key={emoji}
                                         onClick={() => onReact?.(emoji)}
@@ -968,4 +980,5 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+ChatBubble.displayName = 'ChatBubble';
