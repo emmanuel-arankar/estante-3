@@ -17,4 +17,4 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ESTANTE_75463 }}
           channelId: live
-          projectId: jules-ee26c6f9-75463
+          projectId: estante-75463

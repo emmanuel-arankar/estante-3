@@ -362,8 +362,9 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
 
     if (!response.ok) {
       // ==== ==== 2. TRATAMENTO DE ERROS IDENTITY TOOLKIT ==== ====
-      if (data && data.error && data.error.message) {
-        const fbError = data.error.message;
+      const errorData = data as { error?: { message?: string } };
+      if (errorData?.error?.message) {
+        const fbError = errorData.error.message;
         if (fbError === 'INVALID_PASSWORD' || fbError === 'EMAIL_NOT_FOUND' || fbError === 'INVALID_LOGIN_CREDENTIALS') {
           return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
         } else if (fbError === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
@@ -372,11 +373,11 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
           return res.status(403).json({ error: 'Sua conta foi desativada.' });
         }
       }
-      throw new Error(data.error?.message || 'Erro na autenticação.');
+      throw new Error(errorData?.error?.message || 'Erro na autenticação.');
     }
 
     // ==== ==== 3. GERAÇÃO DE CUSTOM TOKEN (SDK CLIENTE) ==== ====
-    const { localId } = data;
+    const { localId } = data as { localId: string };
     const customToken = await admin.auth().createCustomToken(localId);
 
     // Audit Log: Login bem-sucedido
@@ -429,13 +430,14 @@ router.post('/recover', authLimiter as unknown as RequestHandler, validate({ bod
     const data = await response.json() as Record<string, unknown>;
 
     if (!response.ok) {
-      if (data && data.error && data.error.message) {
-        const fbError = data.error.message;
+      const errorData = data as { error?: { message?: string } };
+      if (errorData?.error?.message) {
+        const fbError = errorData.error.message;
         if (fbError === 'EMAIL_NOT_FOUND') {
           return res.status(404).json({ error: 'Nenhum usuário encontrado com este e-mail.' });
         }
       }
-      throw new Error(data.error?.message || 'Erro ao enviar email de recuperação.');
+      throw new Error(errorData?.error?.message || 'Erro ao enviar email de recuperação.');
     }
 
     // Audit Log: Recuperação solicitada (Não temos UID aqui, usamos o email nos metadados ou logs anônimos)
