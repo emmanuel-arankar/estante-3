@@ -65,11 +65,17 @@ if (admin.apps.length === 0) {
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
       logger.error('Falha ao carregar credenciais locais. Usando ADC.', e);
-      admin.initializeApp();
+      admin.initializeApp({
+        projectId: 'estante-75463',
+        databaseURL: `https://estante-75463-default-rtdb.firebaseio.com`
+      });
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    admin.initializeApp({
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463',
+      databaseURL: `https://${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}-default-rtdb.firebaseio.com`
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }

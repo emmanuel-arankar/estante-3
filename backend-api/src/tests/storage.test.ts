@@ -32,6 +32,7 @@ vi.mock('../firebase', () => ({
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
+    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
     checkAuth: vi.fn((req: any, _res: any, next: any) => {
         req.user = { uid: 'current-user' };
         next();
