@@ -324,13 +324,15 @@ export const Chat = () => {
   }, [searchQuery, searchMatches.length]);
 
   // Agrupa mensagens por data (não mais filtrado por busca)
+  // ⚡ BOLT OPTIMIZATION: Reduces grouping overhead from O(N*G) to O(N) by leveraging chronological order.
   const groupedMessages = useMemo(() => {
     const groups: { date: Date; messages: ChatMessage[] }[] = [];
     messages.forEach((msg) => {
       const msgDate = new Date(msg.createdAt);
-      const group = groups.find((g) => isSameDay(g.date, msgDate));
-      if (group) {
-        group.messages.push(msg);
+      const lastGroup = groups[groups.length - 1];
+
+      if (lastGroup && isSameDay(lastGroup.date, msgDate)) {
+        lastGroup.messages.push(msg);
       } else {
         groups.push({ date: msgDate, messages: [msg] });
       }
