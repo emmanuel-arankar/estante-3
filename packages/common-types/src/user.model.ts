@@ -50,7 +50,7 @@ export interface UserAvatar {
     x: number;
     y: number;
     zoom: number;
-    croppedArea: Record<string, unknown>;
+    croppedArea: any;
   };
   uploadedAt: Date;
   isCurrent: boolean;
