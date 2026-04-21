@@ -55,7 +55,7 @@ if (admin.apps.length === 0) {
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
       const credential = admin.credential.cert(require(saPath));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
 
       admin.initializeApp({
         projectId,
@@ -69,7 +69,17 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
+    const options: admin.AppOptions = {
+      projectId,
+    };
+
+    // No ambiente de teste ou se não houver FIREBASE_CONFIG, precisamos setar a URL do DB explicitamente para o admin.database() funcionar
+    if (process.env.NODE_ENV === 'test' || !process.env.FIREBASE_CONFIG) {
+      options.databaseURL = `https://${projectId}-default-rtdb.firebaseio.com`;
+    }
+
+    admin.initializeApp(options);
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
@@ -90,7 +100,7 @@ export const rtdb = admin.database();
  * @name Instância do Storage
  * @summary Acesso ao bucket padrão do Firebase Storage.
  */
-export const bucket = admin.storage().bucket(`${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}.firebasestorage.app`);
+export const bucket = admin.storage().bucket(`${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef'}.firebasestorage.app`);
 
 /**
  * @name Instância do Auth
