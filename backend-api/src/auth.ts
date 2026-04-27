@@ -162,7 +162,7 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     });
 
     const firebaseError = error as FirebaseError;
-    let statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
+    const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
 
@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as any, validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/register', authLimiter as unknown as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -307,7 +307,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         category: 'AUTH',
         ip: req.ip,
         userAgent: req.get('User-Agent')?.toString(),
-        requestId: (req as any).requestId
+        requestId: (req as Request & { requestId?: string }).requestId
       });
     } catch (dbError: any) {
       logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
@@ -337,7 +337,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
  * POST /api/auth/login
  * { "email": "user@example.com", "password": "password123" }
  */
-router.post('/login', authLimiter as any, validate({ body: loginSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/login', authLimiter as unknown as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const updates = req.body;
     const apiKey = getFirebaseApiKey();
@@ -383,7 +383,7 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
       category: 'AUTH',
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ customToken });
@@ -406,7 +406,7 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
  * POST /api/auth/recover
  * { "email": "user@example.com" }
  */
-router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/recover', authLimiter as unknown as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
@@ -442,7 +442,7 @@ router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), a
       metadata: { email },
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'E-mail enviado' });
@@ -532,7 +532,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
           metadata: { provider: 'google' },
           ip: req.ip,
           userAgent: req.get('User-Agent'),
-          requestId: (req as any).requestId
+          requestId: (req as Request & { requestId?: string }).requestId
         });
 
         return res.status(201).json({ message: 'Documento criado', isNewUser: true });
@@ -550,7 +550,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
       metadata: { provider: 'google' },
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as any).requestId
+      requestId: (req as Request & { requestId?: string }).requestId
     });
 
     return res.status(200).json({ message: 'Documento já existente', isNewUser: false });

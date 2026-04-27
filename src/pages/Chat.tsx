@@ -254,7 +254,7 @@ export const Chat = () => {
     viewOnce?: boolean,
     images?: Blob[]
   ) => {
-    await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
+    await sendMessage(content, type as ChatMessage['type'], isTemporary, file, waveform, duration, caption, viewOnce, images);
   };
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
