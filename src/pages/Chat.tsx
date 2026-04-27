@@ -229,7 +229,7 @@ export const Chat = () => {
       scrollEl.addEventListener('scroll', handleScroll);
       return () => scrollEl.removeEventListener('scroll', handleScroll);
     }
-  }, [hasOlderMessages, loadingOlder, loadOlderMessages]);
+  }, [hasOlderMessages, loadingOlder, loadOlderMessages, isAtBottom]);
 
   useEffect(() => {
     if (!user) {
