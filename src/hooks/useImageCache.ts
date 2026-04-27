@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 const imageCache = new Map<string, HTMLImageElement>();
 
 export const useImageCache = (src?: string) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(() => !!src && imageCache.has(src));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
