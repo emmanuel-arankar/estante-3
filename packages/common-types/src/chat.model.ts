@@ -3,8 +3,8 @@ export interface ChatMessage {
     senderId: string;
     receiverId: string;
     content: string;
-    type: 'text' | 'image' | 'audio' | 'book' | 'viewOnce';
-    createdAt: any;
+    type: 'text' | 'image' | 'audio' | 'book' | 'location' | 'viewOnce';
+    createdAt: Date;
     isDeleted?: boolean;
     status?: 'sending' | 'sent' | 'error';
     replyTo?: {
@@ -15,17 +15,17 @@ export interface ChatMessage {
         senderName: string;
     };
     reactions?: Record<string, string[]>;
-    editedAt?: any;
-    readAt?: any;
+    editedAt?: Date;
+    readAt?: Date;
     images?: string[];
     caption?: string;
     viewOnce?: boolean;
     isViewed?: boolean;
-    viewedAt?: any;
+    viewedAt?: Date;
     transcription?: string;
     transcriptions?: Record<string, string>;
     isTemporary?: boolean;
-    playedAt?: any;
+    playedAt?: Date;
     duration?: number;
     waveform?: number[];
     uploadProgress?: number;
