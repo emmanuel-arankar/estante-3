@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -40,17 +40,17 @@ import { ChatMessage as ChatMessageType } from '@estante/common-types';
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
-    onReply?: () => void;
-    onDelete?: () => void;
-    onReact?: (emoji: string) => void;
+    onReply?: (message: ChatMessageType) => void;
+    onDelete?: (messageId: string) => void;
+    onReact?: (messageId: string, emoji: string) => void;
     onMarkTemporaryAsPlayed?: (messageId: string) => Promise<void>;
     onMarkAsViewed?: (messageId: string) => Promise<void>;
     currentUserId?: string;
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (messageId: string) => void;
+    onEdit?: (message: ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
@@ -80,7 +80,7 @@ const AudioPlayer = ({
     status?: 'sending' | 'sent' | 'error';
     onMarkAsPlayed?: () => Promise<void>;
     waveform?: number[];
-    onPlayNext?: () => void;
+    onPlayNext?: (id: string) => void;
     messageDuration?: number;
 }) => {
     // Use AudioPlayerContext for centralized state management
@@ -95,6 +95,14 @@ const AudioPlayer = ({
     const [isDragging, setIsDragging] = useState(false);
     const [dragProgress, setDragProgress] = useState(0);
     const [hasError, setHasError] = useState(false);
+
+    // ⚡ BOLT OPTIMIZATION: Memoized waveform bars to avoid redundant calculations during high-frequency animation frames
+    const displayBars = useMemo(() => {
+        const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+        const MAX_BARS = 35;
+        const step = Math.ceil(bars.length / MAX_BARS);
+        return bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
+    }, [waveform]);
 
     const progressBarRef = useRef<HTMLDivElement | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -166,7 +174,7 @@ const AudioPlayer = ({
 
                     // Play next audio if available
                     if (onPlayNext) {
-                        onPlayNext();
+                        onPlayNext(id);
                     }
                 });
             } catch (err) {
@@ -274,48 +282,41 @@ const AudioPlayer = ({
                             isTemporary || isSending || isExpired || hasError ? "cursor-not-allowed" : "cursor-pointer"
                         )}
                     >
-                        {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
-                            const MAX_BARS = 35;
-                            const step = Math.ceil(bars.length / MAX_BARS);
-                            const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
+                        {displayBars.map((value, i, arr) => {
+                            const barProgress = (i / arr.length) * 100;
+                            const isActive = barProgress <= displayProgress;
 
-                            return displayBars.map((value, i, arr) => {
-                                const barProgress = (i / arr.length) * 100;
-                                const isActive = barProgress <= displayProgress;
+                            let baseHeight: number;
+                            if (waveform && waveform.length > 0) {
+                                const val = typeof value === 'number' ? value : 0;
+                                baseHeight = 6 + (val * 18);
+                            } else {
+                                baseHeight = 10 + (Math.sin(i * 0.8 + id.charCodeAt(0)) * 6) + (Math.cos(i * 0.4) * 4);
+                            }
 
-                                let baseHeight: number;
-                                if (waveform && waveform.length > 0) {
-                                    const val = typeof value === 'number' ? value : 0;
-                                    baseHeight = 6 + (val * 18);
-                                } else {
-                                    baseHeight = 10 + (Math.sin(i * 0.8 + id.charCodeAt(0)) * 6) + (Math.cos(i * 0.4) * 4);
-                                }
+                            const tick = performance.now() / 150;
+                            const pulseAmount = isPlaying && isActive ? Math.sin(tick + i * 0.5) * 4 + 2 : 0;
+                            const height = baseHeight + pulseAmount;
 
-                                const tick = performance.now() / 150;
-                                const pulseAmount = isPlaying && isActive ? Math.sin(tick + i * 0.5) * 4 + 2 : 0;
-                                const height = baseHeight + pulseAmount;
-
-                                return (
-                                    <motion.div
-                                        key={i}
-                                        initial={false}
-                                        animate={{
-                                            height: Math.max(4, height),
-                                            opacity: isActive ? 1 : 0.35,
-                                            scale: isDragging && Math.abs(barProgress - displayProgress) < 4 ? 1.2 : 1
-                                        }}
-                                        transition={{ duration: 0.1 }}
-                                        className={cn(
-                                            "w-1 rounded-full transition-colors shrink-0",
-                                            isOwn
-                                                ? isActive ? "bg-white" : "bg-white/40"
-                                                : isActive ? "bg-emerald-500" : "bg-emerald-200"
-                                        )}
-                                    />
-                                );
-                            });
-                        })()}
+                            return (
+                                <motion.div
+                                    key={i}
+                                    initial={false}
+                                    animate={{
+                                        height: Math.max(4, height),
+                                        opacity: isActive ? 1 : 0.35,
+                                        scale: isDragging && Math.abs(barProgress - displayProgress) < 4 ? 1.2 : 1
+                                    }}
+                                    transition={{ duration: 0.1 }}
+                                    className={cn(
+                                        "w-1 rounded-full transition-colors shrink-0",
+                                        isOwn
+                                            ? isActive ? "bg-white" : "bg-white/40"
+                                            : isActive ? "bg-emerald-500" : "bg-emerald-200"
+                                    )}
+                                />
+                            );
+                        })}
 
                         <div
                             className={cn(
@@ -361,6 +362,7 @@ const AudioPlayer = ({
 
 import { requestTranscription } from '@/services/firebase/functions';
 import { Loader2, FileText } from 'lucide-react';
+import React from 'react';
 
 const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
@@ -460,7 +462,9 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     return <>{parts}</>;
 };
 
-export const ChatBubble = ({
+// ⚡ BOLT OPTIMIZATION: Memoized ChatBubble to prevent O(N) re-renders of the entire message list
+// during global state updates (typing indicators, search index changes, etc.)
+export const ChatBubble = React.memo(({
     message,
     isOwn,
     onReply,
@@ -523,11 +527,11 @@ export const ChatBubble = ({
     );
 
     const handleReply = () => {
-        onReply?.();
+        onReply?.(message);
     };
 
     const handleDelete = () => {
-        onDelete?.();
+        onDelete?.(message.id);
     };
 
     return (
@@ -572,7 +576,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -594,7 +598,7 @@ export const ChatBubble = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={() => onEdit?.(message)}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
@@ -912,7 +916,7 @@ export const ChatBubble = ({
                             {Object.entries(message.reactions).map(([emoji, users]) => (
                                 <button
                                     key={emoji}
-                                    onClick={() => onReact?.(emoji)}
+                                    onClick={() => onReact?.(message.id, emoji)}
                                     className={cn(
                                         "px-1.5 py-0.5 rounded-full text-[10px] flex items-center space-x-1 transition-all",
                                         users.includes(currentUserId || '')
@@ -951,7 +955,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -968,4 +972,6 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+
+ChatBubble.displayName = 'ChatBubble';

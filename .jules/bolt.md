@@ -1,0 +1,3 @@
+## 2026-04-28 - Chat Performance Optimization
+**Learning:** React memoization for large lists (like chat messages) is only effective if all props passed to the child component are referentially stable. Even a single inline arrow function (e.g., `onReply={() => ...}`) in the parent will break memoization and cause O(N) re-renders on every parent update (like typing indicators).
+**Action:** Always wrap action handlers in `useCallback` when passing them to memoized list items. For handlers that need the item's data, consider passing the data back to the handler (e.g., `onReply(message)`) rather than creating a closure for each item.
