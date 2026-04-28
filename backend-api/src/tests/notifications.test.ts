@@ -3,6 +3,8 @@
 // =============================================================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextFunction } from 'express';
+import { NextFunction } from 'express';
 import request from 'supertest';
 import { app } from '../index';
 import { invalidatePattern } from '../lib/cache';
@@ -340,11 +342,11 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
+  checkAuth: vi.fn((req: any, _res: any, next: NextFunction) => {
     req.user = { uid: 'current-user' };
     next();
   }),
-  checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
+  checkAuthOptional: vi.fn((req: any, _res: any, next: NextFunction) => {
     req.user = { uid: 'current-user' };
     next();
   }),
