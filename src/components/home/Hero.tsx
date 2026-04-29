@@ -1,8 +1,52 @@
-import { CSSProperties, useState } from 'react';
+import React, { CSSProperties, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+
+/**
+ * ⚡ BOLT OPTIMIZATION: Memoized background dots.
+ * Problem: Random dots were being re-calculated on every keystroke in the search input.
+ * Solution: Extract to a memoized component with stable random values.
+ * Impact: Eliminates ~80 Math.random() calls and 20 motion.div re-renders per keystroke.
+ */
+const BackgroundDots = React.memo(() => {
+  const dots = useMemo(() => {
+    return [...Array(20)].map((_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+    }));
+  }, []);
+
+  return (
+    <div className="absolute inset-0 bg-black/10">
+      {dots.map((dot) => (
+        <motion.div
+          key={dot.id}
+          className="absolute w-2 h-2 bg-white/20 rounded-full"
+          style={{
+            left: dot.left,
+            top: dot.top,
+          } as CSSProperties}
+          animate={{
+            y: [0, -100, 0],
+            opacity: [0.2, 0.8, 0.2],
+          }}
+          transition={{
+            duration: dot.duration,
+            repeat: Infinity,
+            delay: dot.delay,
+          }}
+        />
+      ))}
+    </div>
+  );
+});
+
+BackgroundDots.displayName = 'BackgroundDots';
 
 export const Hero = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,27 +62,7 @@ export const Hero = () => {
   return (
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
-      <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-white/20 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            } as CSSProperties}
-            animate={{
-              y: [0, -100, 0],
-              opacity: [0.2, 0.8, 0.2],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }} 
-          />
-        ))}
-      </div>
+      <BackgroundDots />
 
       <div className="relative container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto w-full">
