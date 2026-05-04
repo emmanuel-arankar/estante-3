@@ -2,7 +2,7 @@
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
-import { Router, RequestHandler, Request, Response, NextFunction } from 'express';
+import { Router, RequestHandler, Request, Response } from 'express';
 import { admin, auth, db } from './firebase';
 import { FirebaseError } from 'firebase-admin/app';
 import * as logger from 'firebase-functions/logger';
@@ -242,7 +242,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as (req: Request, res: Response, next: NextFunction) => void, validate({ body: registerSchema }), async (req: Request, res: Response) => {
+router.post('/register', authLimiter as unknown as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -340,7 +340,7 @@ router.post('/register', authLimiter as (req: Request, res: Response, next: Next
  * POST /api/auth/login
  * { "email": "user@example.com", "password": "password123" }
  */
-router.post('/login', authLimiter as (req: Request, res: Response, next: NextFunction) => void, validate({ body: loginSchema }), async (req: Request, res: Response) => {
+router.post('/login', authLimiter as unknown as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response) => {
   try {
     const updates = req.body;
     const apiKey = getFirebaseApiKey();
@@ -377,6 +377,9 @@ router.post('/login', authLimiter as (req: Request, res: Response, next: NextFun
 
     // ==== ==== 3. GERAÇÃO DE CUSTOM TOKEN (SDK CLIENTE) ==== ====
     const { localId } = data;
+    if (!localId) {
+      throw new Error('LocalId não retornado pela API de autenticação.');
+    }
     const customToken = await admin.auth().createCustomToken(localId);
 
     // Audit Log: Login bem-sucedido
@@ -410,7 +413,7 @@ router.post('/login', authLimiter as (req: Request, res: Response, next: NextFun
  * POST /api/auth/recover
  * { "email": "user@example.com" }
  */
-router.post('/recover', authLimiter as (req: Request, res: Response, next: NextFunction) => void, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
+router.post('/recover', authLimiter as unknown as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
   try {
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
