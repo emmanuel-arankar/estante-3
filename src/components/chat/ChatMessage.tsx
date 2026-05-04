@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -40,17 +40,17 @@ import { ChatMessage as ChatMessageType } from '@estante/common-types';
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
-    onReply?: () => void;
-    onDelete?: () => void;
-    onReact?: (emoji: string) => void;
+    onReply?: (message: ChatMessageType) => void;
+    onDelete?: (messageId: string) => void;
+    onReact?: (messageId: string, emoji: string) => void;
     onMarkTemporaryAsPlayed?: (messageId: string) => Promise<void>;
     onMarkAsViewed?: (messageId: string) => Promise<void>;
     currentUserId?: string;
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (messageId: string) => void;
+    onEdit?: (message: ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
@@ -101,6 +101,13 @@ const AudioPlayer = ({
 
     const isPlaying = isAudioPlaying(id);
     const isSending = status === 'sending';
+
+    const displayBars = useMemo(() => {
+        const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+        const MAX_BARS = 35;
+        const step = Math.ceil(bars.length / MAX_BARS);
+        return bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
+    }, [waveform]);
 
     // Update playback rate when it changes
     useEffect(() => {
@@ -190,13 +197,13 @@ const AudioPlayer = ({
         setDragProgress(getProgressFromEvent(clientX));
     };
 
-    const handleSeekMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleSeekMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
         if (!isDragging) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         setDragProgress(getProgressFromEvent(clientX));
-    };
+    }, [isDragging]);
 
-    const handleSeekEnd = () => {
+    const handleSeekEnd = useCallback(() => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
@@ -205,7 +212,7 @@ const AudioPlayer = ({
         setProgress(dragProgress);
         setCurrentTime((dragProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, getAudioElement, id, duration, dragProgress]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -224,7 +231,7 @@ const AudioPlayer = ({
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, handleSeekEnd]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -274,14 +281,8 @@ const AudioPlayer = ({
                             isTemporary || isSending || isExpired || hasError ? "cursor-not-allowed" : "cursor-pointer"
                         )}
                     >
-                        {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
-                            const MAX_BARS = 35;
-                            const step = Math.ceil(bars.length / MAX_BARS);
-                            const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
-
-                            return displayBars.map((value, i, arr) => {
-                                const barProgress = (i / arr.length) * 100;
+                        {displayBars.map((value, i, arr) => {
+                            const barProgress = (i / arr.length) * 100;
                                 const isActive = barProgress <= displayProgress;
 
                                 let baseHeight: number;
@@ -296,26 +297,25 @@ const AudioPlayer = ({
                                 const pulseAmount = isPlaying && isActive ? Math.sin(tick + i * 0.5) * 4 + 2 : 0;
                                 const height = baseHeight + pulseAmount;
 
-                                return (
-                                    <motion.div
-                                        key={i}
-                                        initial={false}
-                                        animate={{
-                                            height: Math.max(4, height),
-                                            opacity: isActive ? 1 : 0.35,
-                                            scale: isDragging && Math.abs(barProgress - displayProgress) < 4 ? 1.2 : 1
-                                        }}
-                                        transition={{ duration: 0.1 }}
-                                        className={cn(
-                                            "w-1 rounded-full transition-colors shrink-0",
-                                            isOwn
-                                                ? isActive ? "bg-white" : "bg-white/40"
-                                                : isActive ? "bg-emerald-500" : "bg-emerald-200"
-                                        )}
-                                    />
-                                );
-                            });
-                        })()}
+                            return (
+                                <motion.div
+                                    key={i}
+                                    initial={false}
+                                    animate={{
+                                        height: Math.max(4, height),
+                                        opacity: isActive ? 1 : 0.35,
+                                        scale: isDragging && Math.abs(barProgress - displayProgress) < 4 ? 1.2 : 1
+                                    }}
+                                    transition={{ duration: 0.1 }}
+                                    className={cn(
+                                        "w-1 rounded-full transition-colors shrink-0",
+                                        isOwn
+                                            ? isActive ? "bg-white" : "bg-white/40"
+                                            : isActive ? "bg-emerald-500" : "bg-emerald-200"
+                                    )}
+                                />
+                            );
+                        })}
 
                         <div
                             className={cn(
@@ -366,7 +366,7 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleTranscribe = async (e: React.MouseEvent) => {
+    const handleTranscribe = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (isLoading) return;
 
@@ -386,7 +386,7 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [isLoading, currentUserId, message.id, message.senderId, message.receiverId]);
 
     if (error) {
         return (
@@ -460,7 +460,7 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     return <>{parts}</>;
 };
 
-export const ChatBubble = ({
+export const ChatBubble = React.memo(({
     message,
     isOwn,
     onReply,
@@ -523,11 +523,11 @@ export const ChatBubble = ({
     );
 
     const handleReply = () => {
-        onReply?.();
+        onReply?.(message);
     };
 
     const handleDelete = () => {
-        onDelete?.();
+        onDelete?.(message.id);
     };
 
     return (
@@ -572,7 +572,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -594,7 +594,7 @@ export const ChatBubble = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={() => onEdit?.(message)}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
@@ -682,7 +682,7 @@ export const ChatBubble = ({
                                 waveform={message.waveform}
                                 messageDuration={message.duration}
                                 onMarkAsPlayed={() => onMarkTemporaryAsPlayed?.(message.id) || Promise.resolve()}
-                                onPlayNext={onPlayNext}
+                                onPlayNext={() => onPlayNext?.(message.id)}
                             />
                             {(message.transcriptions?.[currentUserId || ''] || message.transcription) ? (
                                 <div className={cn(
@@ -912,7 +912,7 @@ export const ChatBubble = ({
                             {Object.entries(message.reactions).map(([emoji, users]) => (
                                 <button
                                     key={emoji}
-                                    onClick={() => onReact?.(emoji)}
+                                    onClick={() => onReact?.(message.id, emoji)}
                                     className={cn(
                                         "px-1.5 py-0.5 rounded-full text-[10px] flex items-center space-x-1 transition-all",
                                         users.includes(currentUserId || '')
@@ -951,7 +951,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -968,4 +968,4 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
