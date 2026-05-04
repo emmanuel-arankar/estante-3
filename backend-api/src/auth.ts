@@ -2,7 +2,7 @@
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
-import { Router, RequestHandler, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { admin, auth, db } from './firebase';
 import { FirebaseError } from 'firebase-admin/app';
 import * as logger from 'firebase-functions/logger';
@@ -125,7 +125,8 @@ logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS
  * - Utiliza a flag `secure` em produção (exige HTTPS).
  * - A duração é ajustada dinamicamente com base na preferência do usuário.
  */
-router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate({ body: sessionLoginBodySchema }), async (req, res, next) => {
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+router.post('/sessionLogin', authLimiter as any, validate({ body: sessionLoginBodySchema }), async (req, res, next) => {
   // Valida req.body usando o schema
   // A validação agora é feita pelo middleware 'validate'
   const { idToken, rememberMe } = req.body;
@@ -242,7 +243,8 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as unknown as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response) => {
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+router.post('/register', authLimiter as any, validate({ body: registerSchema }), async (req: Request, res: Response) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -340,7 +342,8 @@ router.post('/register', authLimiter as unknown as RequestHandler, validate({ bo
  * POST /api/auth/login
  * { "email": "user@example.com", "password": "password123" }
  */
-router.post('/login', authLimiter as unknown as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response) => {
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+router.post('/login', authLimiter as any, validate({ body: loginSchema }), async (req: Request, res: Response) => {
   try {
     const updates = req.body;
     const apiKey = getFirebaseApiKey();
@@ -380,11 +383,11 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
     if (!localId) {
       throw new Error('LocalId não retornado pela API de autenticação.');
     }
-    const customToken = await admin.auth().createCustomToken(localId);
+    const customToken = await admin.auth().createCustomToken(localId as string);
 
     // Audit Log: Login bem-sucedido
     AuditService.logAuditEvent({
-      userId: localId,
+      userId: localId as string,
       action: 'USER_LOGIN',
       category: 'AUTH',
       ip: req.ip || '',
@@ -413,7 +416,8 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
  * POST /api/auth/recover
  * { "email": "user@example.com" }
  */
-router.post('/recover', authLimiter as unknown as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
   try {
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {

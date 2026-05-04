@@ -68,7 +68,7 @@ if (admin.apps.length === 0) {
       const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
       admin.initializeApp({
         projectId,
-        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+        databaseURL: process.env.FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.firebaseio.com`
       });
     }
   } else {
@@ -76,7 +76,7 @@ if (admin.apps.length === 0) {
     const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
     admin.initializeApp({
       projectId,
-      databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+      databaseURL: process.env.FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.firebaseio.com`
     });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
