@@ -1,0 +1,3 @@
+## 2026-05-05 - Stabilizing random background elements
+**Learning:** Background elements using `Math.random()` for layout (top/left) or animation parameters (duration/delay) within a component that frequently re-renders (e.g., due to an input field) cause visual jitter and "teleportation" of elements. This happens because React re-executes the render function on every state change, generating new random values.
+**Action:** Always wrap random value generation in `useMemo` with an empty dependency array to ensure stability across re-renders while maintaining the desired randomness on initial mount.
