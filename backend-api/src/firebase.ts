@@ -43,8 +43,9 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
  * - Tenta carregar o caminho do JSON definido em `GOOGLE_APPLICATION_CREDENTIALS`.
  * - Caso falhe, recorre ao Application Default Credentials (ADC).
  */
+import * as fs from 'fs';
+
 if (admin.apps.length === 0) {
-  const fs = require('fs');
   const saPath = path.resolve(__dirname, '..', 'serviceAccountKey.json');
 
   // Se estamos no Cloud Run / Functions V2, ou Cloud Functions G1, as variáveis de gerência estarão ativas.
@@ -54,7 +55,8 @@ if (admin.apps.length === 0) {
   // Usar JSON apenas localmente ou explícito pelo emulador (ignora se estiver fisicamente na nuvem para usar ADC nativo do Compute Engine)
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
-      const credential = admin.credential.cert(require(saPath));
+      const saData = JSON.parse(fs.readFileSync(saPath, 'utf8'));
+      const credential = admin.credential.cert(saData);
       const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
 
       admin.initializeApp({
@@ -69,7 +71,11 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+    admin.initializeApp({
+      projectId,
+      databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
