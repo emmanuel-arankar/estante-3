@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response) => {
+router.post('/register', authLimiter as unknown as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -340,7 +340,7 @@ router.post('/register', authLimiter as RequestHandler, validate({ body: registe
  * POST /api/auth/login
  * { "email": "user@example.com", "password": "password123" }
  */
-router.post('/login', authLimiter as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response) => {
+router.post('/login', authLimiter as unknown as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response) => {
   try {
     const updates = req.body;
     const apiKey = getFirebaseApiKey();
@@ -373,7 +373,7 @@ router.post('/login', authLimiter as RequestHandler, validate({ body: loginSchem
           return res.status(403).json({ error: 'Sua conta foi desativada.' });
         }
       }
-      throw new Error(data.error?.message || 'Erro na autenticação.');
+      throw new Error(errorData.error?.message || 'Erro na autenticação.');
     }
 
     // ==== ==== 3. GERAÇÃO DE CUSTOM TOKEN (SDK CLIENTE) ==== ====
@@ -412,7 +412,7 @@ router.post('/login', authLimiter as RequestHandler, validate({ body: loginSchem
  * POST /api/auth/recover
  * { "email": "user@example.com" }
  */
-router.post('/recover', authLimiter as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
+router.post('/recover', authLimiter as unknown as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
   try {
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
@@ -438,7 +438,7 @@ router.post('/recover', authLimiter as RequestHandler, validate({ body: recoverS
           return res.status(404).json({ error: 'Nenhum usuário encontrado com este e-mail.' });
         }
       }
-      throw new Error(data.error?.message || 'Erro ao enviar email de recuperação.');
+      throw new Error(errorData.error?.message || 'Erro ao enviar email de recuperação.');
     }
 
     // Audit Log: Recuperação solicitada (Não temos UID aqui, usamos o email nos metadados ou logs anônimos)
