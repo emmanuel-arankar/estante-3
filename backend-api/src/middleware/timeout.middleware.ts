@@ -19,14 +19,14 @@ export const timeoutMiddleware = (ms: number = 30000) => {
                     method: req.method,
                     path: req.path,
                     timeoutMs: ms,
-                    requestId: (req as any).requestId,
-                    userId: (req as any).user?.uid
+                    requestId: req.requestId,
+                    userId: req.user?.uid
                 });
 
                 res.status(504).json({
                     error: 'Tempo de resposta excedido (Gateway Timeout)',
                     code: 'TIMEOUT_ERROR',
-                    requestId: (req as any).requestId
+                    requestId: req.requestId
                 });
             }
         }, ms);

@@ -361,7 +361,7 @@ router.delete('/chat/messages/:messageId', checkAuth, async (req: Request, res: 
             metadata: { chatId, otherId: String(otherId) },
             ip: req.ip,
             userAgent: req.get('User-Agent')?.toString(),
-            requestId: (req as any).requestId
+            requestId: req.requestId
         });
 
         return res.json({ success: true });
@@ -400,7 +400,7 @@ router.delete('/chat/:otherId', checkAuth, async (req: Request, res: Response, n
             metadata: { otherId: String(otherId) },
             ip: req.ip,
             userAgent: req.get('User-Agent')?.toString(),
-            requestId: (req as any).requestId
+            requestId: req.requestId
         });
 
         return res.json({ success: true });

@@ -30,8 +30,8 @@ export const performanceMiddleware = (threshold: number = 1000) => {
                     durationMs: Math.round(durationInMs),
                     thresholdMs: threshold,
                     status: res.statusCode,
-                    requestId: req.get('X-Request-Id') || (req as any).requestId,
-                    userId: (req as any).user?.uid
+                    requestId: req.get('X-Request-Id') || req.requestId,
+                    userId: req.user?.uid
                 });
             }
         });
