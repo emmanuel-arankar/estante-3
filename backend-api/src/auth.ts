@@ -256,13 +256,16 @@ router.post('/register', authLimiter as unknown as RequestHandler, validate({ bo
       });
     } catch (authError: unknown) {
       console.error('CRITICAL: authError dump ->', authError);
-      const fbError = authError as FirebaseError;
       // ==== ==== 2. TRATAMENTO DE COLISÃO DE E-MAIL ==== ====
-      if (fbError?.code === 'auth/email-already-exists') {
+      const fbError = authError as FirebaseError;
+      if (fbError && typeof fbError === 'object' && 'code' in fbError && fbError.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'E-mail já está em uso.' });
       }
       const message = fbError?.message || (authError instanceof Error ? authError.message : String(authError));
-      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details: message });
+      return res.status(500).json({
+        error: 'Erro ao criar conta no Firebase.',
+        details: message
+      });
     }
 
     const { uid } = userRecord;
@@ -315,7 +318,10 @@ router.post('/register', authLimiter as unknown as RequestHandler, validate({ bo
       logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
       await admin.auth().deleteUser(uid).catch(() => logger.error(`Falha no rollback do user ${uid}`));
       const message = dbError instanceof Error ? dbError.message : String(dbError);
-      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: message });
+      return res.status(500).json({
+        error: 'Erro ao configurar perfil de usuário. Tente novamente.',
+        details: message
+      });
     }
 
     const customToken = await admin.auth().createCustomToken(uid);
