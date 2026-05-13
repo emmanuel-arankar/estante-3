@@ -26,7 +26,7 @@ const CURATOR_ROLES = ['admin', 'librarian'] as const;
  */
 router.get('/curatorship/verify', checkAuth, checkRole([...CURATOR_ROLES]), async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
-    const role = (req as any).userRole;
+    const role = req.userRole;
     logger.info('Verificação de acesso ao painel admin aprovada', { userId: authReq.user.uid, role });
     return res.status(200).json({ ok: true, role });
 });
@@ -137,7 +137,7 @@ router.patch('/curatorship/suggestions/:id/review', checkAuth, checkRole([...CUR
         const updatePayload: any = {
             status: v.data.status,
             reviewedBy: authReq.user.uid,
-            reviewedByRole: (req as any).userRole,
+            reviewedByRole: req.userRole,
             reviewNote: v.data.reviewNote || null,
             resolvedAt: timestamp,
         };

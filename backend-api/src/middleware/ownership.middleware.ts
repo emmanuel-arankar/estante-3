@@ -70,7 +70,7 @@ export const checkOwnership = (options: OwnershipOptions): RequestHandler =>
             }
 
             // Anexar o documento à requisição para evitar dupla leitura na rota
-            (req as any).resourceData = data;
+            req.resourceData = data;
 
             return next();
         } catch (error) {

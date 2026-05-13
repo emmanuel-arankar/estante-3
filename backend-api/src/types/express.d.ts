@@ -9,6 +9,9 @@ declare global {
         [key: string]: any;
       };
       requestId?: string;
+      locale?: string;
+      userRole?: string;
+      resourceData?: any;
     }
   }
 }

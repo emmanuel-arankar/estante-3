@@ -534,7 +534,7 @@ router.get('/books/works/:workId/editions', checkAuth, async (req: Request, res:
         const paginatedData = editions.slice((page - 1) * limit, page * limit);
 
         // Injetar nota do usuário atual (se houver)
-        const currentUserId = (req as any).user?.uid;
+        const currentUserId = req.user?.uid;
         if (currentUserId && paginatedData.length > 0) {
             // Pegar o workId REAL de um documento de edição (pode ser diferente do slug na URL)
             const realWorkId = typeof paginatedData[0].workId === 'string' 

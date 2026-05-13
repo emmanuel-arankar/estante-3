@@ -20,7 +20,7 @@ export const timeoutMiddleware = (ms: number = 30000) => {
                     path: req.path,
                     timeoutMs: ms,
                     requestId: req.requestId,
-                    userId: (req as any).user?.uid
+                    userId: req.user?.uid
                 });
 
                 res.status(504).json({

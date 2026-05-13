@@ -35,7 +35,7 @@ export const responseWrapper: RequestHandler = (req, res, next) => {
                 timestamp: new Date().toISOString(),
                 path: req.originalUrl,
                 method: req.method,
-                locale: (req as any).locale
+                locale: req.locale
             }
         };
 
