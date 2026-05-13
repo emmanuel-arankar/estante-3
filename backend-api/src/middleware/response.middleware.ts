@@ -26,7 +26,7 @@ export const responseWrapper: RequestHandler = (req, res, next) => {
 
         const standardResponse = {
             status: isError ? 'error' : 'success',
-            requestId: (req as any).requestId || 'unknown',
+            requestId: req.requestId || 'unknown',
             data: isError ? undefined : body,
             // Extrai a mensagem explicita de forma segura com Optional Chaining para não quebrar no Express
             error: isError ? (body?.error || body?.message || (typeof body === 'string' ? body : 'Erro Interno da API')) : undefined,

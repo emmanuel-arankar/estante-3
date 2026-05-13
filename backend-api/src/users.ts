@@ -318,7 +318,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
     metadata: { fields: Object.keys(updates) },
     ip: req.ip,
     userAgent: req.get('User-Agent')?.toString(),
-    requestId: (req as any).requestId
+    requestId: req.requestId
   });
 
   // ==== ==== CASCATA: Propagar dados atualizados para Notificações e Amizades ==== ====

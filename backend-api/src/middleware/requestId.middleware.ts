@@ -14,7 +14,7 @@ export const requestIdMiddleware: RequestHandler = (req, res, next) => {
     const requestId = (req.headers['x-request-id'] as string) || randomUUID();
 
     // Injetar na requisição para uso posterior
-    (req as any).requestId = requestId;
+    req.requestId = requestId;
 
     // Retornar no cabeçalho da resposta
     res.setHeader('X-Request-Id', requestId);

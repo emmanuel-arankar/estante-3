@@ -356,6 +356,10 @@ vi.mock('../middleware/auth.middleware', () => ({
     req.user = { uid: 'current-user' };
     next();
   }),
+    checkAuthOptional: vi.fn((req, res, next) => {
+        req.user = { uid: 'user123', email: 'test@example.com' };
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====

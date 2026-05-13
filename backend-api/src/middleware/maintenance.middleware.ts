@@ -27,7 +27,7 @@ export const maintenanceMiddleware: RequestHandler = (req, res, next) => {
     logger.warn('Tentativa de escrita bloqueada: Modo Manutenção Ativo', {
         method: req.method,
         path: req.path,
-        requestId: (req as any).requestId
+        requestId: req.requestId
     });
 
     return res.status(503).json({

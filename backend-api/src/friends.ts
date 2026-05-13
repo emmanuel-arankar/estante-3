@@ -907,7 +907,7 @@ router.post('/friendships/request', checkAuth, async (req: Request, res: Respons
       resourceId: targetUserId,
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: req.requestId
     });
 
     // Registro de notificação fora da transação de escrita (eventual consistency)
@@ -1110,7 +1110,7 @@ router.post('/friendships/:friendshipId/accept', checkAuth, async (req: Request,
       resourceId: friendId,
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: req.requestId
     });
 
     return res.status(200).json({ message: 'Solicitação aceita com sucesso' });
@@ -1275,7 +1275,7 @@ router.delete('/friendships/:friendshipId', checkAuth, async (req: Request, res:
       metadata: { previousStatus: status },
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: req.requestId
     });
 
     return res.status(200).json({ message: 'Relação removida com sucesso' });
@@ -2098,7 +2098,7 @@ router.post('/friendships/block', checkAuth, async (req: Request, res: Response,
       resourceId: targetUserId,
       ip: req.ip,
       userAgent: req.get('User-Agent')?.toString(),
-      requestId: (req as any).requestId
+      requestId: req.requestId
     });
 
     return res.status(200).json({ message: 'Usuário bloqueado com sucesso', blockId });
@@ -2156,7 +2156,7 @@ router.post('/friendships/unblock', checkAuth, async (req: Request, res: Respons
       resourceId: targetUserId,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      requestId: (req as any).requestId
+      requestId: req.requestId
     });
 
     return res.status(200).json({ message: 'Usuário desbloqueado com sucesso' });
