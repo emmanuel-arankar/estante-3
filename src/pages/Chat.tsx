@@ -323,14 +323,17 @@ export const Chat = () => {
     }
   }, [searchQuery, searchMatches.length]);
 
-  // Agrupa mensagens por data (não mais filtrado por busca)
+  // Agrupa mensagens por data - O(N) optimized assuming messages are chronologically sorted
   const groupedMessages = useMemo(() => {
     const groups: { date: Date; messages: ChatMessage[] }[] = [];
     messages.forEach((msg) => {
       const msgDate = new Date(msg.createdAt);
-      const group = groups.find((g) => isSameDay(g.date, msgDate));
-      if (group) {
-        group.messages.push(msg);
+      const lastGroup = groups[groups.length - 1];
+
+      // Because messages arrive sorted from the stream, we only need to check the last group
+      // This reduces complexity from O(N * D) to O(N)
+      if (lastGroup && isSameDay(lastGroup.date, msgDate)) {
+        lastGroup.messages.push(msg);
       } else {
         groups.push({ date: msgDate, messages: [msg] });
       }
