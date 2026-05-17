@@ -84,7 +84,7 @@ export const db = admin.firestore();
  * @name Instância do Realtime Database
  * @summary Acesso global ao banco de dados em tempo real.
  */
-export const rtdb = admin.database();
+export const rtdb = (process.env.NODE_ENV === 'test' && !process.env.FIREBASE_DATABASE_URL) ? { ref: () => ({ on: () => {}, once: () => Promise.resolve({ val: () => ({}) }), set: () => Promise.resolve(), update: () => Promise.resolve(), push: () => ({ key: 'mock' }) }) } as any : admin.database();
 
 /**
  * @name Instância do Storage
