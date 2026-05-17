@@ -125,7 +125,7 @@ logger.info(`Usando duração do cookie de sessão: ${SESSION_COOKIE_DURATION_MS
  * - Utiliza a flag `secure` em produção (exige HTTPS).
  * - A duração é ajustada dinamicamente com base na preferência do usuário.
  */
-router.post('/sessionLogin', authLimiter as any /* eslint-disable-line @typescript-eslint/no-explicit-any */, validate({ body: sessionLoginBodySchema }), async (req, res) => {
+router.post('/sessionLogin', authLimiter as any /* eslint-disable-line @typescript-eslint/no-explicit-any */, validate({ body: sessionLoginBodySchema }), async (req, res, next) => {
   // Valida req.body usando o schema
   // A validação agora é feita pelo middleware 'validate'
   const { idToken, rememberMe } = req.body;
@@ -156,12 +156,12 @@ router.post('/sessionLogin', authLimiter as any /* eslint-disable-line @typescri
     return res.status(200).send({ status: 'success' });
   } catch (error: unknown) {
     logger.error('Erro ao criar cookie de sessão:', {
-      errorMessage: (error as unknown).message,
-      errorCode: (error as unknown).code,
+      errorMessage: (error as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.message,
+      errorCode: (error as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.code,
       // Evite logar o idToken inteiro por segurança
     });
 
-    const firebaseError = error as unknown;
+    const firebaseError = error as any; /* eslint-disable-line @typescript-eslint/no-explicit-any */
     const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter, validate({ body: registerSchema }), async (req: Request, res: Response) => {
+router.post('/register', authLimiter as any, /* eslint-disable-line @typescript-eslint/no-explicit-any */ validate({ body: registerSchema }), async (req: Request, res: Response) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -258,10 +258,10 @@ router.post('/register', authLimiter, validate({ body: registerSchema }), async 
       console.error('CRITICAL: authError dump ->', authError);
       // ==== ==== 2. TRATAMENTO DE COLISÃO DE E-MAIL ==== ====
 
-      if ((authError as unknown)?.code === 'auth/email-already-exists') {
+      if ((authError as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */?.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'E-mail já está em uso.' });
       }
-      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details:  (authError as unknown)?.message || JSON.stringify(authError) || String(authError) });
+      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details:  (authError as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */?.message || JSON.stringify(authError) || String(authError) });
     }
 
     const { uid } = userRecord;
@@ -308,12 +308,12 @@ router.post('/register', authLimiter, validate({ body: registerSchema }), async 
         category: 'AUTH',
         ip: req.ip,
         userAgent: req.get('User-Agent')?.toString(),
-        requestId: (req as unknown).requestId
+        requestId: (req as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.requestId
       });
     } catch (dbError: unknown) {
       logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
       await admin.auth().deleteUser(uid).catch(() => logger.error(`Falha no rollback do user ${uid}`));
-      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: (dbError as unknown)?.message || dbError
+      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: (dbError as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */?.message || dbError
       });
     }
 
@@ -339,7 +339,7 @@ router.post('/register', authLimiter, validate({ body: registerSchema }), async 
  * POST /api/auth/login
  * { "email": "user@example.com", "password": "password123" }
  */
-router.post('/login', authLimiter, validate({ body: loginSchema }), async (req: Request, res: Response) => {
+router.post('/login', authLimiter as any, /* eslint-disable-line @typescript-eslint/no-explicit-any */ validate({ body: loginSchema }), async (req: Request, res: Response) => {
   try {
     const updates = req.body;
     const apiKey = getFirebaseApiKey();
@@ -385,12 +385,12 @@ router.post('/login', authLimiter, validate({ body: loginSchema }), async (req: 
       category: 'AUTH',
       ip: req.ip,
       userAgent: req.get('User-Agent') || '',
-      requestId: (req as unknown).requestId
+      requestId: (req as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.requestId
     });
 
     return res.status(200).json({ customToken });
   } catch (error: unknown) {
-    logger.error('Erro no login do backend:', (error as unknown).message || error);
+    logger.error('Erro no login do backend:', (error as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.message || error);
     return res.status(500).json({ error: 'Erro interno do servidor ao tentar autenticar.' });
   }
 });
@@ -408,7 +408,7 @@ router.post('/login', authLimiter, validate({ body: loginSchema }), async (req: 
  * POST /api/auth/recover
  * { "email": "user@example.com" }
  */
-router.post('/recover', authLimiter, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
+router.post('/recover', authLimiter as any, /* eslint-disable-line @typescript-eslint/no-explicit-any */ validate({ body: recoverSchema }), async (req: Request, res: Response) => {
   try {
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
@@ -444,12 +444,12 @@ router.post('/recover', authLimiter, validate({ body: recoverSchema }), async (r
       metadata: { email },
       ip: req.ip,
       userAgent: req.get('User-Agent') || '',
-      requestId: (req as unknown).requestId
+      requestId: (req as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.requestId
     });
 
     return res.status(200).json({ message: 'E-mail enviado' });
   } catch (error: unknown) {
-    logger.error('Erro na recuperação de senha:', (error as unknown).message || error);
+    logger.error('Erro na recuperação de senha:', (error as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.message || error);
     return res.status(500).json({ error: 'Erro interno ao processar recuperação.' });
   }
 });
@@ -534,7 +534,7 @@ router.post('/google', async (req: Request, res: Response) => {
           metadata: { provider: 'google' },
           ip: req.ip,
           userAgent: req.get('User-Agent') || '',
-          requestId: (req as unknown).requestId
+          requestId: (req as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.requestId
         });
 
         return res.status(201).json({ message: 'Documento criado', isNewUser: true });
@@ -552,12 +552,12 @@ router.post('/google', async (req: Request, res: Response) => {
       metadata: { provider: 'google' },
       ip: req.ip,
       userAgent: req.get('User-Agent') || '',
-      requestId: (req as unknown).requestId
+      requestId: (req as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.requestId
     });
 
     return res.status(200).json({ message: 'Documento já existente', isNewUser: false });
   } catch (error: unknown) {
-    logger.error('Erro login google backend:', (error as unknown).message || error);
+    logger.error('Erro login google backend:', (error as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */.message || error);
     return res.status(500).json({ error: 'Erro interno no callback de login.' });
   }
 });
