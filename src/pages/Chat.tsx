@@ -330,8 +330,6 @@ export const Chat = () => {
       const msgDate = new Date(msg.createdAt);
       const lastGroup = groups[groups.length - 1];
 
-      // O(N) optimization: since messages are sorted by date, we only need to check
-      // if the current message belongs to the last group instead of searching all groups.
       if (lastGroup && isSameDay(lastGroup.date, msgDate)) {
         lastGroup.messages.push(msg);
       } else {
