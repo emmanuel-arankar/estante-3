@@ -4,6 +4,23 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
+
+// Mocking Firebase to prevent RTDB initialization error during health check test
+vi.mock('../firebase', () => ({
+  admin: {
+    database: vi.fn(),
+    auth: vi.fn(),
+    firestore: vi.fn(),
+    storage: vi.fn(),
+  },
+  db: {},
+  rtdb: {
+    ref: vi.fn()
+  },
+  bucket: {},
+  auth: {}
+}));
+
 import { app } from '../index';
 
 // =============================================================================
