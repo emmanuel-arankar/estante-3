@@ -403,7 +403,7 @@ const FriendListItem = React.memo(({ friendship, userId, onAction }: { friendshi
 FriendListItem.displayName = 'FriendListItem';
 
 // # atualizado: RequestListItem com PrefetchLink, amigos em comum e tooltip
-const RequestListItem = React.memo(({ friendship, userId, onAccept, onReject }: { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }) => (
+const RequestListItem = React.memo(({ friendship, userId, onAccept, onReject }: { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }>(({ friendship, userId, onAccept, onReject }) => (
   <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200">
     <div className="flex items-center space-x-4">
       <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
