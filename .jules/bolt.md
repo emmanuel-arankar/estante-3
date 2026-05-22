@@ -1,0 +1,3 @@
+## 2026-05-22 - [Hero component optimization]
+**Learning:** Using `Math.random()` directly in the render loop for component properties (especially those passed to animation libraries like Framer Motion) causes visual jitter and redundant processing because values change on every re-render. Additionally, keeping input state at the top level of a large component with expensive sub-elements (like background animations and stats) leads to sluggish input performance due to unnecessary full-component re-renders on every keystroke.
+**Action:** Extract search state into a standalone component to localize re-renders. Use `useMemo` to stabilize random properties for animations so they remain consistent across re-renders.
