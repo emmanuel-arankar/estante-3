@@ -15,7 +15,7 @@ interface SortDropdownProps {
   onSortChange: (sortBy: SortOption, sortDirection: SortDirection) => void;
 }
 
-export const SortDropdown: React.FC<SortDropdownProps> = ({
+export const SortDropdown = React.memo<SortDropdownProps>(({
   sortBy,
   sortDirection,
   onSortChange,
@@ -100,4 +100,5 @@ export const SortDropdown: React.FC<SortDropdownProps> = ({
       </DropdownMenu>
     </div>
   );
-};
+});
+SortDropdown.displayName = 'SortDropdown';

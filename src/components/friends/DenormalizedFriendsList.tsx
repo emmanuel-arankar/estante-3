@@ -3,7 +3,7 @@ import { useLocation, useOutletContext } from 'react-router-dom';
 import { formatDistanceToNow, isAfter, subMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, UserPlus, Clock, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
+import { Search, Users, UserPlus, Clock, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { SortDropdown } from '@/components/friends/SortDropdown';
 import {
   AlertDialog,
@@ -41,13 +41,11 @@ import { PATHS } from '@/router/paths';
 import { DenormalizedFriendship } from '@estante/common-types';
 import { getMutualFriendsAPI } from '@/services/api/friendshipsApi';
 import {
-  getMutualFriendsFromCache,
-  setMutualFriendsCache,
   fetchMutualFriendsDeduped
 } from '@/hooks/useMutualFriendsCache';
 
 // Componente para mostrar amigos em comum com avatar group e tooltip
-const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count: number }> = ({ userId, friendId, count }) => {
+const MutualFriendsIndicator = React.memo<{ userId: string; friendId: string; count: number }>(({ userId, friendId, count }) => {
   const [avatarFriends, setAvatarFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
   const [allFriends, setAllFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -163,10 +161,11 @@ const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count
       </Tooltip>
     </TooltipProvider>
   );
-};
+});
+MutualFriendsIndicator.displayName = 'MutualFriendsIndicator';
 
 // Componente auxiliar para calcular amigos em comum dinamicamente
-const DynamicMutualFriendsIndicator: React.FC<{ userId: string; friendId: string }> = ({ userId, friendId }) => {
+const DynamicMutualFriendsIndicator = React.memo<{ userId: string; friendId: string }>(({ userId, friendId }) => {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
@@ -233,10 +232,11 @@ const DynamicMutualFriendsIndicator: React.FC<{ userId: string; friendId: string
   if (!count) return null;
 
   return <MutualFriendsIndicator userId={userId} friendId={friendId} count={count} />;
-};
+});
+DynamicMutualFriendsIndicator.displayName = 'DynamicMutualFriendsIndicator';
 
 // # atualizado: FriendCard com PrefetchLink e amigos em comum (usa valor armazenado)
-const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }>(
+const FriendCard = React.memo(React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }>(
   ({ friendship, userId, onAction }, ref) => {
     const { friend, friendId, mutualFriendsCount } = friendship;
 
@@ -291,11 +291,12 @@ const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFr
       </motion.div>
     );
   }
-);
+));
+FriendCard.displayName = 'FriendCard';
 
 // # atualizado: RequestCard com PrefetchLink, amigos em comum sempre dinâmico
 // Para solicitações pendentes, sempre buscamos dinamicamente para garantir precisão
-const RequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }>(
+const RequestCard = React.memo(React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }>(
   ({ friendship, userId, onAccept, onReject }, ref) => {
     const { friend, friendId } = friendship;
 
@@ -326,11 +327,12 @@ const RequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedF
       </motion.div>
     );
   }
-);
+));
+RequestCard.displayName = 'RequestCard';
 
 // # atualizado: SentRequestCard com PrefetchLink, amigos em comum sempre dinâmico
 // Para solicitações pendentes, sempre buscamos dinamicamente para garantir precisão
-const SentRequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }>(
+const SentRequestCard = React.memo(React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }>(
   ({ friendship, userId, onCancel }, ref) => {
     const { friend, friendId } = friendship;
 
@@ -358,10 +360,11 @@ const SentRequestCard = React.forwardRef<HTMLDivElement, { friendship: Denormali
       </motion.div>
     );
   }
-);
+));
+SentRequestCard.displayName = 'SentRequestCard';
 
 // # atualizado: FriendListItem com PrefetchLink e amigos em comum (usa valor armazenado)
-const FriendListItem = ({ friendship, userId, onAction }: { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }) => (
+const FriendListItem = React.memo(({ friendship, userId, onAction }: { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }) => (
   <motion.div
     layout
     initial={{ opacity: 0 }}
@@ -390,10 +393,11 @@ const FriendListItem = ({ friendship, userId, onAction }: { friendship: Denormal
       <Button variant="outline" size="sm" onClick={() => onAction(friendship.id)}>Remover</Button>
     </div>
   </motion.div>
-);
+));
+FriendListItem.displayName = 'FriendListItem';
 
 // # atualizado: RequestListItem com PrefetchLink, amigos em comum e tooltip
-const RequestListItem = ({ friendship, userId, onAccept, onReject }: { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }) => (
+const RequestListItem = React.memo(({ friendship, userId, onAccept, onReject }: { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }) => (
   <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200">
     <div className="flex items-center space-x-4">
       <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
@@ -419,10 +423,11 @@ const RequestListItem = ({ friendship, userId, onAccept, onReject }: { friendshi
       </div>
     </div>
   </motion.div>
-);
+));
+RequestListItem.displayName = 'RequestListItem';
 
 // # atualizado: SentRequestListItem com PrefetchLink, amigos em comum e tooltip
-const SentRequestListItem = ({ friendship, userId, onCancel }: { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }) => (
+const SentRequestListItem = React.memo(({ friendship, userId, onCancel }: { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }) => (
   <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200">
     <div className="flex items-center space-x-4">
       <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
@@ -445,10 +450,11 @@ const SentRequestListItem = ({ friendship, userId, onCancel }: { friendship: Den
       <Button variant="outline" size="sm" onClick={() => onCancel(friendship.id)}>Cancelar</Button>
     </div>
   </motion.div>
-);
+));
+SentRequestListItem.displayName = 'SentRequestListItem';
 
 // Estado Vazio e Ações em Massa
-const EmptyState = ({ icon: Icon, title, description, actionLabel, onAction }: { icon: React.ComponentType<{ className?: string }>, title: string, description: string, actionLabel?: string, onAction?: () => void }) => (
+const EmptyState = React.memo(({ icon: Icon, title, description, actionLabel, onAction }: { icon: React.ComponentType<{ className?: string }>, title: string, description: string, actionLabel?: string, onAction?: () => void }) => (
   <div className="text-center py-12">
     <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
       <Icon className="h-8 w-8 text-gray-400" />
@@ -462,14 +468,16 @@ const EmptyState = ({ icon: Icon, title, description, actionLabel, onAction }: {
       </Button>
     )}
   </div>
-);
+));
+EmptyState.displayName = 'EmptyState';
 
-const BulkActions = ({ onAction, actionLabel, count, variant = 'default', loading = false, disabled = false }: { onAction: () => void, actionLabel: string, count: number, variant?: 'default' | 'destructive', loading?: boolean, disabled?: boolean }) => {
+const BulkActions = React.memo(({ onAction, actionLabel, count, variant = 'default', loading = false, disabled = false }: { onAction: () => void, actionLabel: string, count: number, variant?: 'default' | 'destructive', loading?: boolean, disabled?: boolean }) => {
   if (count === 0) return null;
   return (<Button variant={variant === 'destructive' ? 'destructive' : 'outline'} size="sm" onClick={onAction} className="ml-auto" disabled={disabled || loading}>{loading ? <><LoadingSpinner size="sm" className="mr-2" />Processando...</> : `${actionLabel} todos (${count})`}</Button>);
-};
+});
+BulkActions.displayName = 'BulkActions';
 
-const RequestsBulkActions = ({ onAcceptAll, onRejectAll, count, loading = false, disabled = false }: { onAcceptAll: () => void, onRejectAll: () => void, count: number, loading?: boolean, disabled?: boolean }) => {
+const RequestsBulkActions = React.memo(({ onAcceptAll, onRejectAll, count, loading = false, disabled = false }: { onAcceptAll: () => void, onRejectAll: () => void, count: number, loading?: boolean, disabled?: boolean }) => {
   if (count === 0) return null;
   return (
     <div className="flex items-center space-x-2">
@@ -481,34 +489,38 @@ const RequestsBulkActions = ({ onAcceptAll, onRejectAll, count, loading = false,
       </Button>
     </div>
   );
-};
+});
+RequestsBulkActions.displayName = 'RequestsBulkActions';
 
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, count, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, count: number, loading: boolean }) => (
+const DeleteConfirmationModal = React.memo(({ isOpen, onClose, onConfirm, count, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, count: number, loading: boolean }) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
     <AlertDialogContent>
       <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir todas as {count} solicitações enviadas? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
       <AlertDialogFooter><AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onConfirm} disabled={loading} className="bg-red-600 hover:bg-red-700">{loading ? 'Excluindo...' : 'Excluir Todos'}</AlertDialogAction></AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
-);
+));
+DeleteConfirmationModal.displayName = 'DeleteConfirmationModal';
 
-const AcceptAllConfirmationModal = ({ isOpen, onClose, onConfirm, count, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, count: number, loading: boolean }) => (
+const AcceptAllConfirmationModal = React.memo(({ isOpen, onClose, onConfirm, count, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, count: number, loading: boolean }) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
     <AlertDialogContent>
       <AlertDialogHeader><AlertDialogTitle>Confirmar aceitação</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja aceitar todas as {count} solicitações de amizade? Todas essas pessoas se tornarão seus amigos.</AlertDialogDescription></AlertDialogHeader>
       <AlertDialogFooter><AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onConfirm} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white">{loading ? 'Aceitando...' : `Aceitar ${count} Solicitações`}</AlertDialogAction></AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
-);
+));
+AcceptAllConfirmationModal.displayName = 'AcceptAllConfirmationModal';
 
-const RejectAllConfirmationModal = ({ isOpen, onClose, onConfirm, count, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, count: number, loading: boolean }) => (
+const RejectAllConfirmationModal = React.memo(({ isOpen, onClose, onConfirm, count, loading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, count: number, loading: boolean }) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
     <AlertDialogContent>
       <AlertDialogHeader><AlertDialogTitle>Confirmar recusa</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja recusar todas as {count} solicitações de amizade? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
       <AlertDialogFooter><AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onConfirm} disabled={loading} className="bg-red-600 hover:bg-red-700">{loading ? 'Recusando...' : `Recusar ${count} Solicitações`}</AlertDialogAction></AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
-);
+));
+RejectAllConfirmationModal.displayName = 'RejectAllConfirmationModal';
 
 // Componente Principal
 export const DenormalizedFriendsList: React.FC = () => {
