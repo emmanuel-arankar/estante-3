@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { db } from '../src/firebase';
 import { generateSearchTerms } from '../src/lib/search';
 

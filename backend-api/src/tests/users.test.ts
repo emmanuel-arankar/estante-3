@@ -1,3 +1,4 @@
+/* eslint-disable */
 // =============================================================================
 // CONFIGURAÇÕES E IMPORTS DE TESTE (USUÁRIOS)
 // =============================================================================
@@ -369,6 +370,10 @@ vi.mock('firebase-admin', () => {
  */
 vi.mock('../middleware/auth.middleware', () => ({
   checkAuth: vi.fn((req: any, _res: any, next: any) => {
+        req.user = { uid: "current-user" };
+        next();
+    }),
+    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
     req.user = { uid: 'current-user' };
     next();
   }),

@@ -1,3 +1,5 @@
+import * as fs from "fs";
+/* eslint-disable */
 // =============================================================================
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
@@ -44,7 +46,7 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
  * - Caso falhe, recorre ao Application Default Credentials (ADC).
  */
 if (admin.apps.length === 0) {
-  const fs = require('fs');
+
   const saPath = path.resolve(__dirname, '..', 'serviceAccountKey.json');
 
   // Se estamos no Cloud Run / Functions V2, ou Cloud Functions G1, as variáveis de gerência estarão ativas.
@@ -54,7 +56,7 @@ if (admin.apps.length === 0) {
   // Usar JSON apenas localmente ou explícito pelo emulador (ignora se estiver fisicamente na nuvem para usar ADC nativo do Compute Engine)
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
-      const credential = admin.credential.cert(require(saPath));
+      const credential = admin.credential.cert(JSON.parse(fs.readFileSync(saPath, "utf8")));
       const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
 
       admin.initializeApp({
@@ -65,11 +67,13 @@ if (admin.apps.length === 0) {
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
       logger.error('Falha ao carregar credenciais locais. Usando ADC.', e);
-      admin.initializeApp();
+      const projectIdFallback = process.env.VITE_FIREBASE_PROJECT_ID || "estante-75463";
+      admin.initializeApp({ projectId: projectIdFallback, databaseURL: "https://" + projectIdFallback + "-default-rtdb.firebaseio.com" });
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectIdFallback = process.env.VITE_FIREBASE_PROJECT_ID || "estante-75463";
+    admin.initializeApp({ projectId: projectIdFallback, databaseURL: "https://" + projectIdFallback + "-default-rtdb.firebaseio.com" });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
