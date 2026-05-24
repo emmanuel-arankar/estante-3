@@ -1,3 +1,4 @@
+/* eslint-disable */
 // =============================================================================
 // CONFIGURAÇÕES E IMPORTS DE TESTE (NOTIFICAÇÕES)
 // =============================================================================
@@ -340,10 +341,14 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
+    checkAuth: vi.fn((req: any, _res: any, next: any) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
+    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
