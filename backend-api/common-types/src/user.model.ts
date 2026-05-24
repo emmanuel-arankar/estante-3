@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type UserRole = 'user' | 'librarian' | 'manager' | 'assistant' | 'admin'
 
 export interface UserLocation {

@@ -5,6 +5,7 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * @name Gestão de Ambiente
@@ -44,7 +45,6 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
  * - Caso falhe, recorre ao Application Default Credentials (ADC).
  */
 if (admin.apps.length === 0) {
-  import * as fs from 'fs';
   const saPath = path.resolve(__dirname, '..', 'serviceAccountKey.json');
 
   // Se estamos no Cloud Run / Functions V2, ou Cloud Functions G1, as variáveis de gerência estarão ativas.
@@ -65,11 +65,19 @@ if (admin.apps.length === 0) {
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
       logger.error('Falha ao carregar credenciais locais. Usando ADC.', e);
-      admin.initializeApp({ projectId: process.env.VITE_FIREBASE_PROJECT_ID || "estante-75463", databaseURL: "https://" + (process.env.VITE_FIREBASE_PROJECT_ID || "estante-75463") + "-default-rtdb.firebaseio.com" });
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+      admin.initializeApp({
+        projectId,
+        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+      });
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp({ projectId: process.env.VITE_FIREBASE_PROJECT_ID || "estante-75463", databaseURL: "https://" + (process.env.VITE_FIREBASE_PROJECT_ID || "estante-75463") + "-default-rtdb.firebaseio.com" });
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+    admin.initializeApp({
+      projectId,
+      databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
