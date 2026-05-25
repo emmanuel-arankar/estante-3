@@ -69,7 +69,7 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    // [TESTE] Garantir que em testes unitários (VITEST) tenhamos valores mínimos
+    // [TESTE] Fornecer valores dummy para evitar erro de inicialização durante testes unitários
     const isTest = process.env.NODE_ENV === 'test';
 
     admin.initializeApp({
