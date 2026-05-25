@@ -1,0 +1,3 @@
+## 2025-05-25 - Search state extraction and background animation stabilization
+**Learning:** Extracting search state into a standalone `SearchBar` component in `src/components/home/Hero.tsx` prevents full-component re-renders on keystrokes, ensuring that expensive background animations and stats remain static while typing. Additionally, using `Math.random()` directly in the render loop for component properties (especially for Framer Motion animations) causes visual jitter and redundant processing as values regenerate on every re-render.
+**Action:** Always localize input state to the smallest possible component and stabilize random visual properties with `useMemo` to prevent jitter during state updates.

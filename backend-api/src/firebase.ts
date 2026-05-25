@@ -69,7 +69,13 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    // [TESTE] Fornecer valores dummy para evitar erro de inicialização durante testes unitários
+    const isTest = process.env.NODE_ENV === 'test';
+
+    admin.initializeApp({
+      projectId: isTest ? 'test-project' : undefined,
+      databaseURL: isTest ? 'https://test-project-default-rtdb.firebaseio.com' : undefined
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
