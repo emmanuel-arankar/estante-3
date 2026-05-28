@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { formatDistanceToNow, isAfter, subMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, UserPlus, Clock, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
+import { Search, Users, UserPlus, Clock, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { SortDropdown } from '@/components/friends/SortDropdown';
 import {
   AlertDialog,
@@ -41,13 +41,11 @@ import { PATHS } from '@/router/paths';
 import { DenormalizedFriendship } from '@estante/common-types';
 import { getMutualFriendsAPI } from '@/services/api/friendshipsApi';
 import {
-  getMutualFriendsFromCache,
-  setMutualFriendsCache,
   fetchMutualFriendsDeduped
 } from '@/hooks/useMutualFriendsCache';
 
 // Componente para mostrar amigos em comum com avatar group e tooltip
-const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count: number }> = ({ userId, friendId, count }) => {
+const MutualFriendsIndicator = React.memo<{ userId: string; friendId: string; count: number }>(({ userId, friendId, count }) => {
   const [avatarFriends, setAvatarFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
   const [allFriends, setAllFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -163,10 +161,12 @@ const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count
       </Tooltip>
     </TooltipProvider>
   );
-};
+});
+
+MutualFriendsIndicator.displayName = 'MutualFriendsIndicator';
 
 // Componente auxiliar para calcular amigos em comum dinamicamente
-const DynamicMutualFriendsIndicator: React.FC<{ userId: string; friendId: string }> = ({ userId, friendId }) => {
+const DynamicMutualFriendsIndicator = React.memo<{ userId: string; friendId: string }>(({ userId, friendId }) => {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
@@ -233,10 +233,12 @@ const DynamicMutualFriendsIndicator: React.FC<{ userId: string; friendId: string
   if (!count) return null;
 
   return <MutualFriendsIndicator userId={userId} friendId={friendId} count={count} />;
-};
+});
+
+DynamicMutualFriendsIndicator.displayName = 'DynamicMutualFriendsIndicator';
 
 // # atualizado: FriendCard com PrefetchLink e amigos em comum (usa valor armazenado)
-const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }>(
+const FriendCard = React.memo(React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }>(
   ({ friendship, userId, onAction }, ref) => {
     const { friend, friendId, mutualFriendsCount } = friendship;
 
@@ -291,11 +293,13 @@ const FriendCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFr
       </motion.div>
     );
   }
-);
+));
+
+FriendCard.displayName = 'FriendCard';
 
 // # atualizado: RequestCard com PrefetchLink, amigos em comum sempre dinâmico
 // Para solicitações pendentes, sempre buscamos dinamicamente para garantir precisão
-const RequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }>(
+const RequestCard = React.memo(React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }>(
   ({ friendship, userId, onAccept, onReject }, ref) => {
     const { friend, friendId } = friendship;
 
@@ -326,11 +330,13 @@ const RequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedF
       </motion.div>
     );
   }
-);
+));
+
+RequestCard.displayName = 'RequestCard';
 
 // # atualizado: SentRequestCard com PrefetchLink, amigos em comum sempre dinâmico
 // Para solicitações pendentes, sempre buscamos dinamicamente para garantir precisão
-const SentRequestCard = React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }>(
+const SentRequestCard = React.memo(React.forwardRef<HTMLDivElement, { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }>(
   ({ friendship, userId, onCancel }, ref) => {
     const { friend, friendId } = friendship;
 
@@ -358,10 +364,12 @@ const SentRequestCard = React.forwardRef<HTMLDivElement, { friendship: Denormali
       </motion.div>
     );
   }
-);
+));
+
+SentRequestCard.displayName = 'SentRequestCard';
 
 // # atualizado: FriendListItem com PrefetchLink e amigos em comum (usa valor armazenado)
-const FriendListItem = ({ friendship, userId, onAction }: { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }) => (
+const FriendListItem = React.memo(({ friendship, userId, onAction }: { friendship: DenormalizedFriendship; userId: string; onAction: (id: string) => void }) => (
   <motion.div
     layout
     initial={{ opacity: 0 }}
@@ -390,10 +398,12 @@ const FriendListItem = ({ friendship, userId, onAction }: { friendship: Denormal
       <Button variant="outline" size="sm" onClick={() => onAction(friendship.id)}>Remover</Button>
     </div>
   </motion.div>
-);
+));
+
+FriendListItem.displayName = 'FriendListItem';
 
 // # atualizado: RequestListItem com PrefetchLink, amigos em comum e tooltip
-const RequestListItem = ({ friendship, userId, onAccept, onReject }: { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }) => (
+const RequestListItem = React.memo(({ friendship, userId, onAccept, onReject }: { friendship: DenormalizedFriendship; userId: string; onAccept: (id: string) => void; onReject: (id: string) => void }) => (
   <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200">
     <div className="flex items-center space-x-4">
       <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
@@ -419,10 +429,12 @@ const RequestListItem = ({ friendship, userId, onAccept, onReject }: { friendshi
       </div>
     </div>
   </motion.div>
-);
+));
+
+RequestListItem.displayName = 'RequestListItem';
 
 // # atualizado: SentRequestListItem com PrefetchLink, amigos em comum e tooltip
-const SentRequestListItem = ({ friendship, userId, onCancel }: { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }) => (
+const SentRequestListItem = React.memo(({ friendship, userId, onCancel }: { friendship: DenormalizedFriendship; userId: string; onCancel: (id: string) => void }) => (
   <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-emerald-200 transition-all duration-200">
     <div className="flex items-center space-x-4">
       <OptimizedAvatar src={friendship.friend.photoURL} alt={friendship.friend.displayName} fallback={friendship.friend.displayName} size="md" isOnline={friendship.friend.lastActive ? isAfter(new Date(friendship.friend.lastActive), subMinutes(new Date(), 5)) : false} />
@@ -445,7 +457,9 @@ const SentRequestListItem = ({ friendship, userId, onCancel }: { friendship: Den
       <Button variant="outline" size="sm" onClick={() => onCancel(friendship.id)}>Cancelar</Button>
     </div>
   </motion.div>
-);
+));
+
+SentRequestListItem.displayName = 'SentRequestListItem';
 
 // Estado Vazio e Ações em Massa
 const EmptyState = ({ icon: Icon, title, description, actionLabel, onAction }: { icon: React.ComponentType<{ className?: string }>, title: string, description: string, actionLabel?: string, onAction?: () => void }) => (
@@ -549,6 +563,11 @@ export const DenormalizedFriendsList: React.FC = () => {
     return pathSegments[2] || 'friends';
   }, [location.pathname]);
 
+  const handleSortChange = useCallback((field: SortOption, direction: SortDirection) => {
+    setSortField(field);
+    setSortDirection(direction);
+  }, [setSortField, setSortDirection]);
+
   const handleDeleteAllSentRequests = async () => {
     setShowDeleteConfirm(false); setIsDeletingAll(true);
     try { await cancelAllSentRequests(); }
@@ -616,7 +635,7 @@ export const DenormalizedFriendsList: React.FC = () => {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle className="text-lg">{searchQuery ? 'Amigos encontrados' : 'Todos os amigos'}<span className="text-sm font-normal text-gray-500 ml-2">({searchQuery ? friends.length : stats.totalFriends})</span></CardTitle>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={(field, direction) => { setSortField(field); setSortDirection(direction); }} />
+                  <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={handleSortChange} />
                   <Button onClick={refreshData} variant="outline" size="icon" className="h-8 w-8" title="Recarregar amigos"><RefreshCw className="h-4 w-4" /></Button>
                 </div>
               </CardHeader>
