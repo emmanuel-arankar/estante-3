@@ -84,7 +84,27 @@ export const db = admin.firestore();
  * @name Instância do Realtime Database
  * @summary Acesso global ao banco de dados em tempo real.
  */
-export const rtdb = admin.database();
+export const rtdb = (function() {
+  try {
+    return admin.database();
+  } catch (e) {
+    if (process.env.NODE_ENV === 'test') {
+      logger.warn('RTDB não disponível nos testes. Usando Mock.');
+      return {
+        ref: () => ({
+          on: () => {},
+          off: () => {},
+          once: () => Promise.resolve({ val: () => ({}) }),
+          set: () => Promise.resolve(),
+          update: () => Promise.resolve(),
+          push: () => ({ key: 'mock-key', set: () => Promise.resolve() }),
+          remove: () => Promise.resolve(),
+        })
+      } as any;
+    }
+    throw e;
+  }
+})();
 
 /**
  * @name Instância do Storage
