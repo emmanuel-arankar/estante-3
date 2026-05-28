@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from '../src/firebase';
 import { generateSearchTerms } from '../src/lib/search';
 
@@ -33,7 +34,7 @@ async function rebuild() {
                 if (Array.isArray(val)) {
                     // Trata alternateNames que pode ser array de strings ou array de objetos { value: string }
                     if (field === 'alternateNames') {
-                        val.forEach((alt: any) => {
+                        val.forEach((alt: unknown) => {
                             if (typeof alt === 'string') terms.push(alt);
                             else if (alt && typeof alt.value === 'string') terms.push(alt.value);
                         });

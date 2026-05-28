@@ -88,7 +88,7 @@ export const rtdb = (function() {
   try {
     return admin.database();
   } catch (e) {
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
       logger.warn('RTDB não disponível nos testes. Usando Mock.');
       return {
         ref: () => ({
