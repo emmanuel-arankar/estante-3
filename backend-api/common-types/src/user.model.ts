@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type UserRole = 'user' | 'librarian' | 'manager' | 'assistant' | 'admin'
 
 export interface UserLocation {
@@ -46,7 +47,7 @@ export interface UserAvatar {
     x: number;
     y: number;
     zoom: number;
-    croppedArea: any;
+    croppedArea: { x: number; y: number; width: number; height: number };
   };
   uploadedAt: Date;
   isCurrent: boolean;

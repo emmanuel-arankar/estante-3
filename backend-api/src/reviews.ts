@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // =============================================================================
 // IMPORTS E DEPENDÊNCIAS
 // =============================================================================
 
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { admin, db } from './firebase';
 import { checkAuth, checkAuthOptional } from './middleware/auth.middleware';
 import {
@@ -129,7 +130,7 @@ async function recalculateWorkMetrics(workId: string) {
  * @route POST /api/reviews
  * @summary Criar uma review para uma edição
  */
-router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const v = createReviewSchema.safeParse(req.body);
         if (!v.success) {
@@ -247,7 +248,7 @@ router.post('/reviews', checkAuth, async (req: any, res: any, next: any) => {
  * @route GET /api/reviews/edition/:editionId/my
  * @summary Buscar resenha/avaliação do usuário atual
  */
-router.get('/reviews/edition/:editionId/my', checkAuth, async (req: any, res: any, next: any) => {
+router.get('/reviews/edition/:editionId/my', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const v = editionIdParamSchema.safeParse(req.params);
         if (!v.success) {
@@ -285,7 +286,7 @@ router.get('/reviews/edition/:editionId/my', checkAuth, async (req: any, res: an
  * @route GET /api/reviews/edition/:editionId
  * @summary Listar reviews de uma edição específica
  */
-router.get('/reviews/edition/:editionId', checkAuthOptional, async (req: any, res: any, next: any) => {
+router.get('/reviews/edition/:editionId', checkAuthOptional, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const v = editionIdParamSchema.safeParse(req.params);
         if (!v.success) {
@@ -329,7 +330,7 @@ router.get('/reviews/edition/:editionId', checkAuthOptional, async (req: any, re
  * @route GET /api/reviews/:reviewId
  * @summary Buscar uma review específica
  */
-router.get('/reviews/:reviewId', checkAuthOptional, async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId', checkAuthOptional, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const v = reviewIdParamSchema.safeParse(req.params);
         if (!v.success) {
@@ -360,7 +361,7 @@ router.get('/reviews/:reviewId', checkAuthOptional, async (req: any, res: any, n
  * @route PUT /api/reviews/:reviewId
  * @summary Atualizar uma review
  */
-router.put('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: any) => {
+router.put('/reviews/:reviewId', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -405,7 +406,7 @@ router.put('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: any
  * @route DELETE /api/reviews/:reviewId
  * @summary Deletar uma review
  */
-router.delete('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: any) => {
+router.delete('/reviews/:reviewId', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -456,7 +457,7 @@ router.delete('/reviews/:reviewId', checkAuth, async (req: any, res: any, next: 
  * @route POST /api/reviews/:reviewId/comments
  * @summary Adicionar comentário à review
  */
-router.post('/reviews/:reviewId/comments', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews/:reviewId/comments', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -546,7 +547,7 @@ router.post('/reviews/:reviewId/comments', checkAuth, async (req: any, res: any,
  * @route GET /api/reviews/:reviewId/comments
  * @summary Listar comentários de uma review
  */
-router.get('/reviews/:reviewId/comments', checkAuthOptional, async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/comments', checkAuthOptional, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const p = reviewIdParamSchema.safeParse(req.params);
         if (!p.success) {
@@ -588,7 +589,7 @@ router.get('/reviews/:reviewId/comments', checkAuthOptional, async (req: any, re
  * @route PUT /api/reviews/:reviewId/comments/:commentId
  * @summary Editar um comentário próprio
  */
-router.put('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: any, res: any, next: any) => {
+router.put('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const reviewId = req.params.reviewId;
         const commentId = req.params.commentId;
@@ -633,7 +634,7 @@ router.put('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: any,
  * @route POST /api/reviews/:reviewId/comments/:commentId/like
  * @summary Curtir ou descurtir um comentário (toggle)
  */
-router.post('/reviews/:reviewId/comments/:commentId/like', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews/:reviewId/comments/:commentId/like', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const reviewId = req.params.reviewId;
         const commentId = req.params.commentId;
@@ -691,7 +692,7 @@ router.post('/reviews/:reviewId/comments/:commentId/like', checkAuth, async (req
  * @route DELETE /api/reviews/:reviewId/comments/:commentId
  * @summary Deletar um comentário
  */
-router.delete('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: any, res: any, next: any) => {
+router.delete('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const reviewId = req.params.reviewId;
         const commentId = req.params.commentId;
@@ -745,7 +746,7 @@ router.delete('/reviews/:reviewId/comments/:commentId', checkAuth, async (req: a
  * @route POST /api/reviews/:reviewId/like
  * @summary Curtir ou descurtir uma review (toggle)
  */
-router.post('/reviews/:reviewId/like', checkAuth, async (req: any, res: any, next: any) => {
+router.post('/reviews/:reviewId/like', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const reviewId = req.params.reviewId;
         const userId = req.user!.uid;
@@ -796,7 +797,7 @@ router.post('/reviews/:reviewId/like', checkAuth, async (req: any, res: any, nex
  * @route GET /api/reviews/:reviewId/likes
  * @summary Listar quem curtiu uma review (primeiros 10)
  */
-router.get('/reviews/:reviewId/likes', async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/likes', async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const reviewId = req.params.reviewId;
         const snapshot = await db.collection('reviews').doc(reviewId)
@@ -816,7 +817,7 @@ router.get('/reviews/:reviewId/likes', async (req: any, res: any, next: any) => 
  * @route GET /api/reviews/:reviewId/likes/me
  * @summary Verificar se o usuário atual curtiu a review
  */
-router.get('/reviews/:reviewId/likes/me', checkAuth, async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/likes/me', checkAuth, async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const reviewId = req.params.reviewId;
         const userId = req.user!.uid;
@@ -831,7 +832,7 @@ router.get('/reviews/:reviewId/likes/me', checkAuth, async (req: any, res: any, 
  * @route GET /api/reviews/:reviewId/comments/:commentId/likes
  * @summary Listar quem curtiu um comentário (primeiros 10)
  */
-router.get('/reviews/:reviewId/comments/:commentId/likes', async (req: any, res: any, next: any) => {
+router.get('/reviews/:reviewId/comments/:commentId/likes', async (req: Request, res: Response, /* eslint-disable-line @typescript-eslint/no-unused-vars */ next: NextFunction) => {
     try {
         const { reviewId, commentId } = req.params;
         const snapshot = await db.collection('reviews').doc(reviewId)

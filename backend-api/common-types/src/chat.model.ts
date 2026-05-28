@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface ChatMessage {
     id: string;
     senderId: string;
     receiverId: string;
     content: string;
     type: 'text' | 'image' | 'audio' | 'book' | 'viewOnce';
-    createdAt: any;
+    createdAt: string | number | Date | { seconds: number; nanoseconds: number };
     isDeleted?: boolean;
     status?: 'sending' | 'sent' | 'error';
     replyTo?: {
@@ -15,17 +16,17 @@ export interface ChatMessage {
         senderName: string;
     };
     reactions?: Record<string, string[]>;
-    editedAt?: any;
-    readAt?: any;
+    editedAt?: string | number | Date | { seconds: number; nanoseconds: number };
+    readAt?: string | number | Date | { seconds: number; nanoseconds: number };
     images?: string[];
     caption?: string;
     viewOnce?: boolean;
     isViewed?: boolean;
-    viewedAt?: any;
+    viewedAt?: string | number | Date | { seconds: number; nanoseconds: number };
     transcription?: string;
     transcriptions?: Record<string, string>;
     isTemporary?: boolean;
-    playedAt?: any;
+    playedAt?: string | number | Date | { seconds: number; nanoseconds: number };
     duration?: number;
     waveform?: number[];
     uploadProgress?: number;
