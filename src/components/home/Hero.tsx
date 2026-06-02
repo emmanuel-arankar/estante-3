@@ -1,10 +1,14 @@
-import { CSSProperties, useState } from 'react';
+import { CSSProperties, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-export const Hero = () => {
+/**
+ * HeroSearchBar component to isolate search state and prevent
+ * re-rendering the entire Hero section on every keystroke.
+ */
+const HeroSearchBar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
@@ -16,25 +20,59 @@ export const Hero = () => {
   };
 
   return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+      className="mb-16 w-full max-w-3xl mx-auto"
+    >
+      <form onSubmit={handleSearch}>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="O que você está procurando? Digite título, autor, ISBN..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-12 pr-4 py-4 w-full bg-white/90 text-gray-900 border-0 rounded-full text-lg shadow-lg focus:bg-white focus:ring-2 focus:ring-yellow-400"
+          />
+        </div>
+      </form>
+    </motion.div>
+  );
+};
+
+export const Hero = () => {
+  // Memoize background elements properties to prevent visual jitter and redundant re-calculations
+  const backgroundElements = useMemo(() =>
+    [...Array(20)].map((_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+    })), []);
+
+  return (
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
+        {backgroundElements.map((el) => (
           <motion.div
-            key={i}
+            key={el.id}
             className="absolute w-2 h-2 bg-white/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: el.left,
+              top: el.top,
             } as CSSProperties}
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.8, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: el.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: el.delay,
             }} 
           />
         ))}
@@ -58,26 +96,8 @@ export const Hero = () => {
             </p>
           </motion.div>
 
-          {/* Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-16 w-full max-w-3xl mx-auto"
-          >
-            <form onSubmit={handleSearch}>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="O que você está procurando? Digite título, autor, ISBN..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-4 py-4 w-full bg-white/90 text-gray-900 border-0 rounded-full text-lg shadow-lg focus:bg-white focus:ring-2 focus:ring-yellow-400"
-                />
-              </div>
-            </form>
-          </motion.div>
+          {/* Search Bar extracted to its own component */}
+          <HeroSearchBar />
 
           {/* Stats */}
           <motion.div

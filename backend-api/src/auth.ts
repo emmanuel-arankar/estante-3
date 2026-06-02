@@ -154,15 +154,15 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     // Audit Log: O UID deve ser recuperado do token se necessário, mas aqui vamos focar no login via email/pwd ou google primeiro.
 
     return res.status(200).send({ status: 'success' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Erro ao criar cookie de sessão:', {
-      errorMessage: error.message,
-      errorCode: error.code,
+      errorMessage: (error as any).message,
+      errorCode: (error as any).code,
       // Evite logar o idToken inteiro por segurança
     });
 
     const firebaseError = error as FirebaseError;
-    let statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
+    const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
 
@@ -254,13 +254,13 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         password,
         displayName,
       });
-    } catch (authError: any) {
+    } catch (authError: unknown) {
       console.error('CRITICAL: authError dump ->', authError);
       // ==== ==== 2. TRATAMENTO DE COLISÃO DE E-MAIL ==== ====
-      if (authError?.code === 'auth/email-already-exists') {
+      if ((authError as any)?.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'E-mail já está em uso.' });
       }
-      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details: authError?.message || JSON.stringify(authError) || String(authError) });
+      return res.status(500).json({ error: 'Erro ao criar conta no Firebase.', details: (authError as any)?.message || JSON.stringify(authError) || String(authError) });
     }
 
     const { uid } = userRecord;
@@ -309,15 +309,15 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         userAgent: req.get('User-Agent')?.toString(),
         requestId: (req as any).requestId
       });
-    } catch (dbError: any) {
+    } catch (dbError: unknown) {
       logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
       await admin.auth().deleteUser(uid).catch(() => logger.error(`Falha no rollback do user ${uid}`));
-      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: dbError?.message || dbError });
+      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: (dbError as any)?.message || dbError });
     }
 
     const customToken = await admin.auth().createCustomToken(uid);
     return res.status(201).json({ customToken });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Erro no registro:', error);
     return res.status(500).json({ error: 'Erro interno ao registrar usuário.' });
   }
@@ -355,12 +355,12 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
       body: JSON.stringify({ email, password, returnSecureToken: true })
     });
 
-    const data: any = await response.json();
+    const data: unknown = await response.json();
 
     if (!response.ok) {
       // ==== ==== 2. TRATAMENTO DE ERROS IDENTITY TOOLKIT ==== ====
-      if (data && data.error && data.error.message) {
-        const fbError = data.error.message;
+      if (data && (data as any).error && ((data as any).error as any).message) {
+        const fbError = ((data as any).error as any).message;
         if (fbError === 'INVALID_PASSWORD' || fbError === 'EMAIL_NOT_FOUND' || fbError === 'INVALID_LOGIN_CREDENTIALS') {
           return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
         } else if (fbError === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
@@ -369,11 +369,11 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
           return res.status(403).json({ error: 'Sua conta foi desativada.' });
         }
       }
-      throw new Error(data.error?.message || 'Erro na autenticação.');
+      throw new Error((data as any).error?.message || 'Erro na autenticação.');
     }
 
     // ==== ==== 3. GERAÇÃO DE CUSTOM TOKEN (SDK CLIENTE) ==== ====
-    const { localId } = data;
+    const { localId } = data as any;
     const customToken = await admin.auth().createCustomToken(localId);
 
     // Audit Log: Login bem-sucedido
@@ -387,8 +387,8 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
     });
 
     return res.status(200).json({ customToken });
-  } catch (error: any) {
-    logger.error('Erro no login do backend:', error.message || error);
+  } catch (error: unknown) {
+    logger.error('Erro no login do backend:', (error as any).message || error);
     return res.status(500).json({ error: 'Erro interno do servidor ao tentar autenticar.' });
   }
 });
@@ -422,16 +422,16 @@ router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), a
       body: JSON.stringify({ requestType: "PASSWORD_RESET", email })
     });
 
-    const data: any = await response.json();
+    const data: unknown = await response.json();
 
     if (!response.ok) {
-      if (data && data.error && data.error.message) {
-        const fbError = data.error.message;
+      if (data && (data as any).error && ((data as any).error as any).message) {
+        const fbError = ((data as any).error as any).message;
         if (fbError === 'EMAIL_NOT_FOUND') {
           return res.status(404).json({ error: 'Nenhum usuário encontrado com este e-mail.' });
         }
       }
-      throw new Error(data.error?.message || 'Erro ao enviar email de recuperação.');
+      throw new Error((data as any).error?.message || 'Erro ao enviar email de recuperação.');
     }
 
     // Audit Log: Recuperação solicitada (Não temos UID aqui, usamos o email nos metadados ou logs anônimos)
@@ -446,8 +446,8 @@ router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), a
     });
 
     return res.status(200).json({ message: 'E-mail enviado' });
-  } catch (error: any) {
-    logger.error('Erro na recuperação de senha:', error.message || error);
+  } catch (error: unknown) {
+    logger.error('Erro na recuperação de senha:', (error as any).message || error);
     return res.status(500).json({ error: 'Erro interno ao processar recuperação.' });
   }
 });
@@ -554,8 +554,8 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     });
 
     return res.status(200).json({ message: 'Documento já existente', isNewUser: false });
-  } catch (error: any) {
-    logger.error('Erro login google backend:', error.message || error);
+  } catch (error: unknown) {
+    logger.error('Erro login google backend:', (error as any).message || error);
     return res.status(500).json({ error: 'Erro interno no callback de login.' });
   }
 });

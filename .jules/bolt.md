@@ -1,0 +1,3 @@
+## 2026-06-02 - Stabilizing Hero Background Animations
+**Learning:** Using `Math.random()` directly in the render loop for component properties (especially for Framer Motion animations) causes visual jitter and redundant processing as values regenerate on every re-render. Extracting search state into a standalone `HeroSearchBar` component prevents full-component re-renders on keystrokes, ensuring that expensive background animations and stats remain static while typing.
+**Action:** Always use `useMemo` for random visual properties and isolate high-frequency state changes (like input) into separate components to prevent unnecessary expensive re-renders.
