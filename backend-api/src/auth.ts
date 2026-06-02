@@ -154,7 +154,7 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     // Audit Log: O UID deve ser recuperado do token se necessário, mas aqui vamos focar no login via email/pwd ou google primeiro.
 
     return res.status(200).send({ status: 'success' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Erro ao criar cookie de sessão:', {
       errorMessage: error.message,
       errorCode: error.code,
@@ -162,7 +162,7 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     });
 
     const firebaseError = error as FirebaseError;
-    let statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
+    const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
 
@@ -254,7 +254,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         password,
         displayName,
       });
-    } catch (authError: any) {
+    } catch (authError: unknown) {
       console.error('CRITICAL: authError dump ->', authError);
       // ==== ==== 2. TRATAMENTO DE COLISÃO DE E-MAIL ==== ====
       if (authError?.code === 'auth/email-already-exists') {
@@ -309,7 +309,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         userAgent: req.get('User-Agent')?.toString(),
         requestId: (req as any).requestId
       });
-    } catch (dbError: any) {
+    } catch (dbError: unknown) {
       logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
       await admin.auth().deleteUser(uid).catch(() => logger.error(`Falha no rollback do user ${uid}`));
       return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: dbError?.message || dbError });
@@ -317,7 +317,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
 
     const customToken = await admin.auth().createCustomToken(uid);
     return res.status(201).json({ customToken });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Erro no registro:', error);
     return res.status(500).json({ error: 'Erro interno ao registrar usuário.' });
   }
@@ -355,7 +355,7 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
       body: JSON.stringify({ email, password, returnSecureToken: true })
     });
 
-    const data: any = await response.json();
+    const data: unknown = await response.json();
 
     if (!response.ok) {
       // ==== ==== 2. TRATAMENTO DE ERROS IDENTITY TOOLKIT ==== ====
@@ -387,7 +387,7 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
     });
 
     return res.status(200).json({ customToken });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Erro no login do backend:', error.message || error);
     return res.status(500).json({ error: 'Erro interno do servidor ao tentar autenticar.' });
   }
@@ -422,7 +422,7 @@ router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), a
       body: JSON.stringify({ requestType: "PASSWORD_RESET", email })
     });
 
-    const data: any = await response.json();
+    const data: unknown = await response.json();
 
     if (!response.ok) {
       if (data && data.error && data.error.message) {
@@ -446,7 +446,7 @@ router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), a
     });
 
     return res.status(200).json({ message: 'E-mail enviado' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Erro na recuperação de senha:', error.message || error);
     return res.status(500).json({ error: 'Erro interno ao processar recuperação.' });
   }
@@ -554,7 +554,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
     });
 
     return res.status(200).json({ message: 'Documento já existente', isNewUser: false });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Erro login google backend:', error.message || error);
     return res.status(500).json({ error: 'Erro interno no callback de login.' });
   }
