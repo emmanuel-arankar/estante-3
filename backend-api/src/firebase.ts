@@ -55,7 +55,8 @@ if (admin.apps.length === 0) {
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
       const credential = admin.credential.cert(require(saPath));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || "estante-75463";
 
       admin.initializeApp({
         projectId,
@@ -91,7 +92,6 @@ export const rtdb = (() => {
     }
     return admin.database();
   } catch (e) {
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
     return {
       ref: (path?: string) => ({
         on: () => {},
