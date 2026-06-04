@@ -93,9 +93,8 @@ export const rtdb = (() => {
   try {
     return admin.database();
   } catch (e) {
-    // Fallback para testes se databaseURL não estiver configurado
     if (process.env.NODE_ENV === 'test') {
-      return admin.database('https://estante-75463-default-rtdb.firebaseio.com');
+      return admin.app().database('https://estante-75463-default-rtdb.firebaseio.com');
     }
     throw e;
   }
