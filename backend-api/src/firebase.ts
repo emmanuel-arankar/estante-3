@@ -69,8 +69,13 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
-    logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
+    const options: admin.AppOptions = {};
+    if (process.env.NODE_ENV === 'test') {
+      options.projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+      options.databaseURL = `https://${options.projectId}-default-rtdb.firebaseio.com`;
+    }
+    admin.initializeApp(options);
+    logger.info(`Firebase Admin inicializado em modo GERENCIADO (ADC) - Project: ${options.projectId || 'default'}`);
   }
 }
 
@@ -84,7 +89,17 @@ export const db = admin.firestore();
  * @name Instância do Realtime Database
  * @summary Acesso global ao banco de dados em tempo real.
  */
-export const rtdb = admin.database();
+export const rtdb = (() => {
+  try {
+    return admin.database();
+  } catch (e) {
+    // Fallback para testes se databaseURL não estiver configurado
+    if (process.env.NODE_ENV === 'test') {
+      return admin.database('https://estante-75463-default-rtdb.firebaseio.com');
+    }
+    throw e;
+  }
+})();
 
 /**
  * @name Instância do Storage
