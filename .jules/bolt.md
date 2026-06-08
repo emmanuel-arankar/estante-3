@@ -1,0 +1,3 @@
+## 2025-05-15 - Memoize ChatBubble and optimize chat list re-renders
+**Learning:** In the chat interface, `ChatBubble` and its sub-components (`AudioPlayer`, `TranscriptionControl`, `MessageHighlighter`) are rendered frequently. Passing anonymous functions or pre-binding handlers in the render loop breaks `React.memo` and causes O(N) re-renders on every keystroke or message update.
+**Action:** Wrap `ChatBubble` and its complex sub-components in `React.memo`. Refactor callback signatures to accept the message or its ID as an argument so the parent can provide stable `useCallback` handlers without closing over loop-specific items.
