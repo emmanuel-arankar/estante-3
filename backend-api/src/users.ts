@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { Router, Request, Response } from 'express';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware';
 import { validate } from './middleware/validate.middleware';
 import { searchLimiter } from './middleware/security.middleware';
@@ -259,7 +259,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
         finalUpdates.displayNameLower = updates.displayName.toLowerCase();
 
         // Atualizar também no Firebase Auth (background)
-        admin.auth().updateUser(currentUserId, {
+        auth.updateUser(currentUserId, {
           displayName: updates.displayName
         }).catch(err => logger.error('Erro ao atualizar displayName no Auth:', err));
       }
@@ -277,7 +277,7 @@ router.patch('/users/me', checkAuth, validate({ body: updateProfileSchema }), as
         finalUpdates.photoURL = updates.photoURL;
 
         // Atualizar também no Firebase Auth
-        admin.auth().updateUser(currentUserId, {
+        auth.updateUser(currentUserId, {
           photoURL: updates.photoURL || undefined
         }).catch(err => logger.error('Erro ao atualizar photoURL no Auth:', err));
       }
