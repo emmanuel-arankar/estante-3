@@ -26,16 +26,33 @@ const { mockBucket } = vi.hoisted(() => {
 vi.mock('../firebase', () => ({
     admin: {
         auth: () => ({}),
+        firestore: {
+            Timestamp: {
+                now: () => ({ toDate: () => new Date() })
+            }
+        }
     },
     bucket: mockBucket,
+    db: {
+        collection: () => ({
+            doc: () => ({
+                set: () => Promise.resolve()
+            }),
+            add: () => Promise.resolve({ id: 'audit-id' })
+        })
+    }
 }));
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: "current-user" }; next(); }), checkAuth: vi.fn((req: any, _res: any, next: any) => {
-        req.user = { uid: 'current-user' };
-        next();
-    }),
+  checkAuth: vi.fn((req: any, _res: any, next: any) => {
+    req.user = { uid: 'current-user' };
+    next();
+  }),
+  checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
+    req.user = { uid: 'current-user' };
+    next();
+  }),
 }));
 
 describe('Storage Operations', () => {
