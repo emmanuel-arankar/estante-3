@@ -1,0 +1,3 @@
+## 2025-05-22 - Stabilizing Animations and State Localization
+**Learning:** Using `Math.random()` directly in the render loop for Framer Motion properties causes visual jitter and redundant processing as values regenerate on every re-render, even if the re-render is triggered by an unrelated state change (like a search input). Localizing state to sub-components prevents these expensive re-renders entirely.
+**Action:** Always use `useMemo` to stabilize random values for animations and extract high-frequency state (like inputs) into dedicated child components to protect complex backgrounds or expensive sibling components from unnecessary re-renders.
