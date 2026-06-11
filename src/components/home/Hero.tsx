@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react';
+import { CSSProperties, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
@@ -7,6 +7,16 @@ import { Input } from '@/components/ui/input';
 export const Hero = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+
+  // Memoize background elements to prevent re-generation on every re-render (e.g. typing)
+  const backgroundElements = useMemo(() => {
+    return [...Array(20)].map(() => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+    }));
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,22 +29,22 @@ export const Hero = () => {
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
+        {backgroundElements.map((el, i) => (
           <motion.div
             key={i}
             className="absolute w-2 h-2 bg-white/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: el.left,
+              top: el.top,
             } as CSSProperties}
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.8, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: el.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: el.delay,
             }} 
           />
         ))}
