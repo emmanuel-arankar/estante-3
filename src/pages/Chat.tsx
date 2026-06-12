@@ -263,19 +263,25 @@ export const Chat = () => {
     await markTemporaryAudioAsPlayed(user.uid, receiverId, messageId);
   }, [user, receiverId]);
 
+  const messagesRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   const handlePlayNext = useCallback((currentMessageId: string) => {
-    const currentIndex = messages.findIndex(m => m.id === currentMessageId);
+    const currentMessages = messagesRef.current;
+    const currentIndex = currentMessages.findIndex(m => m.id === currentMessageId);
     if (currentIndex !== -1) {
       // Find next audio (sequential playback)
-      for (let i = currentIndex + 1; i < messages.length; i++) {
-        const msg = messages[i];
+      for (let i = currentIndex + 1; i < currentMessages.length; i++) {
+        const msg = currentMessages[i];
         if (msg.type === 'audio' && !msg.isDeleted) {
           setActiveId(msg.id);
           break;
         }
       }
     }
-  }, [messages, setActiveId]);
+  }, [setActiveId]);
 
   const scrollToMessage = useCallback((messageId: string) => {
     const element = document.getElementById(`msg-${messageId}`);
