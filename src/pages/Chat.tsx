@@ -299,12 +299,12 @@ export const Chat = () => {
   const handleReply = useCallback((msg: ChatMessage) => {
     setEditingMessage(null);
     setReplyingTo(msg);
-  }, [setEditingMessage, setReplyingTo]);
+  }, []);
 
   const handleEdit = useCallback((msg: ChatMessage) => {
     setReplyingTo(null);
     setEditingMessage(msg);
-  }, [setReplyingTo, setEditingMessage]);
+  }, []);
 
 
   // Helper para formatar a data do grupo
