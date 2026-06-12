@@ -1,0 +1,3 @@
+## 2025-05-15 - React.memo and useCallback Optimization
+**Learning:** In a chat application, the message list can become quite large. Even with virtualization (not present here, but grouped messages help), re-rendering the entire list on every small state change (like typing status, scroll position, or a single new message) is expensive. Memoizing individual bubbles and ensuring their props are stable (especially callbacks) significantly reduces the rendering load on the main thread.
+**Action:** Always wrap list items in `React.memo` and use `useCallback` for all handlers passed to them. Prefer passing item IDs to callbacks rather than closing over the items themselves within the loop to keep callback references stable across parent re-renders.

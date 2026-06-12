@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -40,7 +40,7 @@ interface ConversationItemProps {
   onDelete: (otherUserId: string) => Promise<void>;
 }
 
-const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
+const ConversationItem = memo(({ chat, user, onDelete }: ConversationItemProps) => {
   const { getAnonymizedUser } = useBlockedUsers();
 
   // Usar endpoint protegido que verifica bloqueio ANTES de retornar dados
@@ -150,7 +150,9 @@ const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
       </div>
     </Link>
   );
-};
+});
+
+ConversationItem.displayName = 'ConversationItem';
 
 export const Messages = () => {
   const { user } = useAuth();
@@ -160,14 +162,14 @@ export const Messages = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
 
-  const handleDeleteChat = async (otherUserId: string) => {
+  const handleDeleteChat = useCallback(async (otherUserId: string) => {
     if (!user) return;
     try {
       await deleteChat(user.uid, otherUserId);
     } catch (error) {
       console.error("Erro ao deletar chat:", error);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
