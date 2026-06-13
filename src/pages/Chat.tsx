@@ -243,7 +243,7 @@ export const Chat = () => {
     }
   }, [user, receiverId, navigate]);
 
-  const handleSendMessage = async (
+  const handleSendMessage = useCallback(async (
     content: string,
     type: string = 'text',
     isTemporary?: boolean,
@@ -255,7 +255,7 @@ export const Chat = () => {
     images?: Blob[]
   ) => {
     await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
-  };
+  }, [sendMessage]);
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
@@ -310,6 +310,14 @@ export const Chat = () => {
     setReplyingTo(null);
     setEditingMessage(message);
   }, [setReplyingTo, setEditingMessage]);
+
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+  }, [setReplyingTo]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessage(null);
+  }, [setEditingMessage]);
 
 
   // Helper para formatar a data do grupo
@@ -726,9 +734,9 @@ export const Chat = () => {
               onSendMessage={handleSendMessage as any}
               onTyping={updateTyping}
               replyingTo={replyingTo}
-              onCancelReply={() => setReplyingTo(null)}
+              onCancelReply={handleCancelReply}
               editingMessage={editingMessage}
-              onCancelEdit={() => setEditingMessage(null)}
+              onCancelEdit={handleCancelEdit}
               onEditMessage={editMessage}
               recipientName={displayReceiverName}
               disabled={isBlocked}
