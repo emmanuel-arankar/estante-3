@@ -30,7 +30,7 @@ const DEFAULT_ALLOWED_TAGS: string[] = [];
  */
 const RICH_TEXT_ALLOWED_TAGS: string[] = [
     'p', 'br', 'b', 'i', 'em', 'strong', 'u', 's', 'strike',
-    'ul', 'ol', 'li', 'blockquote', 'a', 'span', 'h1', 'h2', 'h3', 'img',
+    'ul', 'ol', 'li', 'blockquote', 'a', 'span', 'h1', 'h2', 'h3',
     'sub', 'sup', 'code', 'pre', 'mark'
 ];
 
