@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter , validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/register', authLimiter as unknown as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -337,7 +337,7 @@ router.post('/register', authLimiter , validate({ body: registerSchema }), async
  * POST /api/auth/login
  * { "email": "user@example.com", "password": "password123" }
  */
-router.post('/login', authLimiter , validate({ body: loginSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/login', authLimiter as unknown as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const updates = req.body;
     const apiKey = getFirebaseApiKey();
@@ -406,7 +406,7 @@ router.post('/login', authLimiter , validate({ body: loginSchema }), async (req:
  * POST /api/auth/recover
  * { "email": "user@example.com" }
  */
-router.post('/recover', authLimiter , validate({ body: recoverSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/recover', authLimiter as unknown as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
