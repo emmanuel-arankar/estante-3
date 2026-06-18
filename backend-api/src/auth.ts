@@ -14,7 +14,7 @@ import {
   googleAuthSchema
 } from './schemas/auth.schema';
 import { validate } from './middleware/validate.middleware';
-import { authLimiter } from './middleware/security.middleware';
+import { authLimiter } from "./middleware/security.middleware";
 import { AuditService } from './services/audit.service';
 import { generateSearchTerms } from './lib/search';
 
