@@ -351,8 +351,8 @@ vi.mock('firebase-admin', () => {
  * @example
  * checkAuth(req, _res, next);
  */
-vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
+vi.mock("../middleware/auth.middleware", () => ({
+    checkAuth: vi.fn((req: any, _res: any, next: any) => {
         req.user = { uid: "current-user" };
         next();
     }),
@@ -360,10 +360,6 @@ vi.mock('../middleware/auth.middleware', () => ({
         req.user = { uid: "current-user" };
         next();
     }),
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====

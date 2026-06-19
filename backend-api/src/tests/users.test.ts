@@ -367,8 +367,8 @@ vi.mock('firebase-admin', () => {
  * @summary Usuário logado persistente.
  * @description Garante que todas as requisições API sejam processadas com o UID 'current-user'.
  */
-vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
+vi.mock("../middleware/auth.middleware", () => ({
+    checkAuth: vi.fn((req: any, _res: any, next: any) => {
         req.user = { uid: "current-user" };
         next();
     }),
@@ -376,10 +376,6 @@ vi.mock('../middleware/auth.middleware', () => ({
         req.user = { uid: "current-user" };
         next();
     }),
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
