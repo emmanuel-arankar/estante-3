@@ -45,12 +45,7 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
         it('deve sanitizar a bio no updateProfileSchema', async () => {
             const data = { bio: 'Bio com <img src=x> imagem' };
             const result = await updateProfileSchema.parseAsync(data);
-            // Bio usa sanitizeRichText que permite <img> mas o utilitário remove o atributo src se não permitido
-            // Na verdade sanitizeRichText permite img com src.
-            // O teste original esperava 'Bio com  imagem' o que sugere que img era removida ou algo assim.
-            // Olhando sanitize.ts: img está em RICH_TEXT_ALLOWED_TAGS.
-            // allowedAttributes para img inclui 'src'.
-            // Então <img src=x> deve ser mantida como <img src="x">.
+            // Bio permite <img> com src
             expect(result.bio).toBe('Bio com <img src="x"> imagem');
         });
 

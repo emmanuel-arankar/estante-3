@@ -162,7 +162,7 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     });
 
     const firebaseError = error as FirebaseError;
-    const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
+    let statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
 
@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as any, validate({ body: registerSchema }), async (req: Request, res: Response) => {
+router.post('/register', authLimiter as any, validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
@@ -254,7 +254,7 @@ router.post('/register', authLimiter as any, validate({ body: registerSchema }),
         password,
         displayName,
       });
-    } catch (authError: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
+    } catch (authError: any) {
       console.error('CRITICAL: authError dump ->', authError);
       // ==== ==== 2. TRATAMENTO DE COLISÃO DE E-MAIL ==== ====
       if (authError?.code === 'auth/email-already-exists') {
