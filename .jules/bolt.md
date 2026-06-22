@@ -1,0 +1,3 @@
+## 2025-05-15 - Chat Performance Bottlenecks
+**Learning:** Rendering long lists of chat messages (100+) causes significant main-thread lag when parent state updates (e.g., typing indicators, scroll events). Memoization of the bubble component fails if handlers are passed as inline arrow functions or if they close over loop-specific variables.
+**Action:** Always memoize `ChatBubble` and its complex sub-components. Stabilize handlers at the component root using `useCallback` combined with a `useRef` for the message list to keep the handler references constant across all renders. Refactor prop signatures to accept message objects or IDs instead of pre-binding.
