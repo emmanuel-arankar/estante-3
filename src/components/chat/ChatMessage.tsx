@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -40,17 +40,17 @@ import { ChatMessage as ChatMessageType } from '@estante/common-types';
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
-    onReply?: () => void;
-    onDelete?: () => void;
-    onReact?: (emoji: string) => void;
+    onReply?: (message: ChatMessageType) => void;
+    onDelete?: (messageId: string) => void;
+    onReact?: (messageId: string, emoji: string) => void;
     onMarkTemporaryAsPlayed?: (messageId: string) => Promise<void>;
     onMarkAsViewed?: (messageId: string) => Promise<void>;
     currentUserId?: string;
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (messageId: string) => void;
+    onEdit?: (message: ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
@@ -60,7 +60,7 @@ import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
 
-const AudioPlayer = ({
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -102,6 +102,13 @@ const AudioPlayer = ({
     const isPlaying = isAudioPlaying(id);
     const isSending = status === 'sending';
 
+    const displayBars = useMemo(() => {
+        const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+        const MAX_BARS = 35;
+        const step = Math.ceil(bars.length / MAX_BARS);
+        return bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
+    }, [waveform]);
+
     // Update playback rate when it changes
     useEffect(() => {
         const audio = getAudioElement(id);
@@ -133,13 +140,13 @@ const AudioPlayer = ({
         };
     }, [isPlaying, isDragging, id, getAudioElement]);
 
-    const toggleSpeed = (e: React.MouseEvent) => {
+    const toggleSpeed = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         const nextRate = playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1;
         setPlaybackRate(nextRate);
-    };
+    }, [playbackRate, setPlaybackRate]);
 
-    const handlePlayPause = async (e: React.MouseEvent) => {
+    const handlePlayPause = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (isSending || isExpired || hasError) return;
 
@@ -174,29 +181,29 @@ const AudioPlayer = ({
                 setHasError(true);
             }
         }
-    };
+    }, [isSending, isExpired, hasError, isPlaying, pauseAudio, playAudio, id, src, isTemporary, isOwn, onMarkAsPlayed, onPlayNext]);
 
-    const getProgressFromEvent = (clientX: number): number => {
+    const getProgressFromEvent = useCallback((clientX: number): number => {
         if (!progressBarRef.current) return 0;
         const rect = progressBarRef.current.getBoundingClientRect();
         return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    };
+    }, []);
 
-    const handleSeekStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleSeekStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         if (isTemporary || isSending || isExpired || hasError) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         setIsDragging(true);
         setDragProgress(getProgressFromEvent(clientX));
-    };
+    }, [isTemporary, isSending, isExpired, hasError, getProgressFromEvent]);
 
-    const handleSeekMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleSeekMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
         if (!isDragging) return;
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         setDragProgress(getProgressFromEvent(clientX));
-    };
+    }, [isDragging, getProgressFromEvent]);
 
-    const handleSeekEnd = () => {
+    const handleSeekEnd = useCallback(() => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
@@ -205,7 +212,7 @@ const AudioPlayer = ({
         setProgress(dragProgress);
         setCurrentTime((dragProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, getAudioElement, id, duration, dragProgress]);
 
     useEffect(() => {
         if (!isDragging) return;
@@ -224,7 +231,7 @@ const AudioPlayer = ({
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, handleSeekEnd, getProgressFromEvent, handleSeekMove]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -274,13 +281,7 @@ const AudioPlayer = ({
                             isTemporary || isSending || isExpired || hasError ? "cursor-not-allowed" : "cursor-pointer"
                         )}
                     >
-                        {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
-                            const MAX_BARS = 35;
-                            const step = Math.ceil(bars.length / MAX_BARS);
-                            const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
-
-                            return displayBars.map((value, i, arr) => {
+                        {displayBars.map((value, i, arr) => {
                                 const barProgress = (i / arr.length) * 100;
                                 const isActive = barProgress <= displayProgress;
 
@@ -314,8 +315,7 @@ const AudioPlayer = ({
                                         )}
                                     />
                                 );
-                            });
-                        })()}
+                            })}
 
                         <div
                             className={cn(
@@ -357,12 +357,14 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
+
+AudioPlayer.displayName = 'AudioPlayer';
 
 import { requestTranscription } from '@/services/firebase/functions';
 import { Loader2, FileText } from 'lucide-react';
 
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +425,11 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+TranscriptionControl.displayName = 'TranscriptionControl';
+
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +462,11 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
-export const ChatBubble = ({
+MessageHighlighter.displayName = 'MessageHighlighter';
+
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -522,13 +528,25 @@ export const ChatBubble = ({
         </div>
     );
 
-    const handleReply = () => {
-        onReply?.();
-    };
+    const handleReply = useCallback(() => {
+        onReply?.(message);
+    }, [onReply, message]);
 
-    const handleDelete = () => {
-        onDelete?.();
-    };
+    const handleDelete = useCallback(() => {
+        onDelete?.(message.id);
+    }, [onDelete, message.id]);
+
+    const handleEdit = useCallback(() => {
+        onEdit?.(message);
+    }, [onEdit, message]);
+
+    const handleReactInternal = useCallback((emoji: string) => {
+        onReact?.(message.id, emoji);
+    }, [onReact, message.id]);
+
+    const handlePlayNextInternal = useCallback(() => {
+        onPlayNext?.(message.id);
+    }, [onPlayNext, message.id]);
 
     return (
         <motion.div
@@ -572,7 +590,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => handleReactInternal(emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -594,7 +612,7 @@ export const ChatBubble = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={handleEdit}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
@@ -681,8 +699,8 @@ export const ChatBubble = ({
                                 status={message.status}
                                 waveform={message.waveform}
                                 messageDuration={message.duration}
-                                onMarkAsPlayed={() => onMarkTemporaryAsPlayed?.(message.id) || Promise.resolve()}
-                                onPlayNext={onPlayNext}
+                                onMarkAsPlayed={onMarkTemporaryAsPlayed}
+                                onPlayNext={handlePlayNextInternal}
                             />
                             {(message.transcriptions?.[currentUserId || ''] || message.transcription) ? (
                                 <div className={cn(
@@ -912,7 +930,7 @@ export const ChatBubble = ({
                             {Object.entries(message.reactions).map(([emoji, users]) => (
                                 <button
                                     key={emoji}
-                                    onClick={() => onReact?.(emoji)}
+                                    onClick={() => handleReactInternal(emoji)}
                                     className={cn(
                                         "px-1.5 py-0.5 rounded-full text-[10px] flex items-center space-x-1 transition-all",
                                         users.includes(currentUserId || '')
@@ -951,7 +969,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => handleReactInternal(emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -968,4 +986,6 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+
+ChatBubble.displayName = 'ChatBubble';

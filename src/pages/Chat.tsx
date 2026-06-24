@@ -130,6 +130,11 @@ export const Chat = () => {
 
   // Track previous messages
   const prevMessagesRef = useRef<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Effect to handle new messages (sent or received)
   useEffect(() => {
@@ -243,9 +248,9 @@ export const Chat = () => {
     }
   }, [user, receiverId, navigate]);
 
-  const handleSendMessage = async (
+  const handleSendMessage = useCallback(async (
     content: string,
-    type: string = 'text',
+    type: ChatMessage['type'] = 'text',
     isTemporary?: boolean,
     file?: Blob,
     waveform?: number[],
@@ -254,30 +259,49 @@ export const Chat = () => {
     viewOnce?: boolean,
     images?: Blob[]
   ) => {
-    await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
-  };
+    await sendMessage(content, type, isTemporary, file, waveform, duration, caption, viewOnce, images);
+  }, [sendMessage]);
+
+  const handleReply = useCallback((message: ChatMessage) => {
+    setEditingMessage(null);
+    setReplyingTo(message);
+  }, [setEditingMessage, setReplyingTo]);
+
+  const handleDelete = useCallback((messageId: string) => {
+    deleteMessage(messageId);
+  }, [deleteMessage]);
+
+  const handleReact = useCallback((messageId: string, emoji: string) => {
+    reactToMessage(messageId, emoji);
+  }, [reactToMessage]);
+
+  const handleEdit = useCallback((message: ChatMessage) => {
+    setReplyingTo(null);
+    setEditingMessage(message);
+  }, [setReplyingTo, setEditingMessage]);
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
-  const handleMarkTemporaryAsPlayed = async (messageId: string) => {
+  const handleMarkTemporaryAsPlayed = useCallback(async (messageId: string) => {
     if (!user || !receiverId) return;
     await markTemporaryAudioAsPlayed(user.uid, receiverId, messageId);
-  };
+  }, [user, receiverId]);
 
-  const handlePlayNext = (currentMessageId: string) => {
-    const currentIndex = messages.findIndex(m => m.id === currentMessageId);
+  const handlePlayNext = useCallback((currentMessageId: string) => {
+    const currentMessages = messagesRef.current;
+    const currentIndex = currentMessages.findIndex(m => m.id === currentMessageId);
     if (currentIndex !== -1) {
       // Find next audio (sequential playback)
-      for (let i = currentIndex + 1; i < messages.length; i++) {
-        const msg = messages[i];
+      for (let i = currentIndex + 1; i < currentMessages.length; i++) {
+        const msg = currentMessages[i];
         if (msg.type === 'audio' && !msg.isDeleted) {
           setActiveId(msg.id);
           break;
         }
       }
     }
-  };
+  }, [setActiveId]);
 
-  const scrollToMessage = (messageId: string) => {
+  const scrollToMessage = useCallback((messageId: string) => {
     const element = document.getElementById(`msg-${messageId}`);
     if (element) {
       // Pequeno delay para garantir que eventuais menus/popovers fecharam
@@ -288,7 +312,7 @@ export const Chat = () => {
       }, 50);
 
     }
-  };
+  }, []);
 
 
   // Helper para formatar a data do grupo
@@ -298,19 +322,19 @@ export const Chat = () => {
     return format(date, "d 'de' MMMM", { locale: ptBR });
   };
 
-  const handleSearchNext = () => {
+  const handleSearchNext = useCallback(() => {
     if (searchMatches.length === 0) return;
     const nextIndex = (currentSearchIndex + 1) % searchMatches.length;
     setCurrentSearchIndex(nextIndex);
     scrollToMessage(searchMatches[nextIndex]);
-  };
+  }, [searchMatches, currentSearchIndex, scrollToMessage]);
 
-  const handleSearchPrev = () => {
+  const handleSearchPrev = useCallback(() => {
     if (searchMatches.length === 0) return;
     const prevIndex = (currentSearchIndex - 1 + searchMatches.length) % searchMatches.length;
     setCurrentSearchIndex(prevIndex);
     scrollToMessage(searchMatches[prevIndex]);
-  };
+  }, [searchMatches, currentSearchIndex, scrollToMessage]);
 
   // Resetar index quando query mudar (começar do mais recente = último index)
   useEffect(() => {
@@ -609,13 +633,10 @@ export const Chat = () => {
                           <ChatBubble
                             message={message}
                             isOwn={message.senderId === user.uid}
-                            onReply={() => {
-                              setEditingMessage(null);
-                              setReplyingTo(message);
-                            }}
-                            onDelete={() => deleteMessage(message.id)}
+                            onReply={handleReply}
+                            onDelete={handleDelete}
                             onMarkAsViewed={markMessageAsViewed}
-                            onReact={(emoji: string) => reactToMessage(message.id, emoji)}
+                            onReact={handleReact}
                             onMarkTemporaryAsPlayed={handleMarkTemporaryAsPlayed}
                             currentUserId={user.uid}
                             showAvatar={
@@ -624,11 +645,8 @@ export const Chat = () => {
                             }
                             senderName={message.senderId === user.uid ? 'Você' : displayReceiverName}
                             senderPhoto={message.senderId === user.uid ? (user.photoURL || undefined) : (displayReceiverPhoto || undefined)}
-                            onPlayNext={() => handlePlayNext(message.id)}
-                            onEdit={() => {
-                              setReplyingTo(null);
-                              setEditingMessage(message);
-                            }}
+                            onPlayNext={handlePlayNext}
+                            onEdit={handleEdit}
                             onJumpToMessage={scrollToMessage}
                             searchQuery={searchQuery}
                             isCurrentMatch={searchMatches[currentSearchIndex] === message.id}
@@ -708,7 +726,7 @@ export const Chat = () => {
           {/* Input de Mensagem */}
           <div className="border-t border-gray-200 p-4 bg-white shrink-0">
             <ChatInput
-              onSendMessage={handleSendMessage as any}
+              onSendMessage={handleSendMessage}
               onTyping={updateTyping}
               replyingTo={replyingTo}
               onCancelReply={() => setReplyingTo(null)}
