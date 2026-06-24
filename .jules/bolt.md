@@ -1,0 +1,3 @@
+## 2026-06-24 - [Optimized ChatBubble memoization and callback stability]
+**Learning:** In high-frequency update components like a Chat interface, memoizing the main item component (`ChatBubble`) is insufficient if the parent (`Chat`) passes inline arrow functions as props. This causes the memoization to fail on every parent re-render (e.g., when new messages arrive or when typing status updates).
+**Action:** Always wrap interaction handlers in `useCallback` and refactor props to accept the item ID or the item itself, allowing the parent to provide stable references. Use `useRef` to access the latest state (like the messages list) inside `useCallback` without adding it to the dependency array, ensuring the handler reference remains constant.
