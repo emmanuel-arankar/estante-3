@@ -50,6 +50,7 @@ if (admin.apps.length === 0) {
   // Se estamos no Cloud Run / Functions V2, ou Cloud Functions G1, as variáveis de gerência estarão ativas.
   const isManagedCloud = !!process.env.K_SERVICE || !!process.env.FUNCTION_NAME || !!process.env.FIREBASE_CONFIG;
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+
   const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
   const databaseURL = `https://${projectId}-default-rtdb.firebaseio.com`;
 
@@ -73,7 +74,6 @@ if (admin.apps.length === 0) {
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    // Fornecemos explicitamente o databaseURL para evitar falhas em testes CI
     admin.initializeApp({
       projectId,
       databaseURL

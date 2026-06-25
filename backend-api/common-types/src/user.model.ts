@@ -46,7 +46,7 @@ export interface UserAvatar {
     x: number;
     y: number;
     zoom: number;
-    croppedArea: unknown;
+    croppedArea: any;
   };
   uploadedAt: Date;
   isCurrent: boolean;

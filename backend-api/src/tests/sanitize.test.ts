@@ -45,7 +45,6 @@ describe('Sanitização de Inputs (XSS Protection)', () => {
         it('deve sanitizar a bio no updateProfileSchema', async () => {
             const data = { bio: 'Bio com <img src=x> imagem' };
             const result = await updateProfileSchema.parseAsync(data);
-            // sanitizeRichText permite <img>, então ele é preservado e formatado
             expect(result.bio).toBe('Bio com <img src="x"> imagem');
         });
 
