@@ -226,7 +226,7 @@ describe('Ambiente de Teste de Autenticação', () => {
      * @example
      * // Login de usuário existente
      * const response = await request(app).post('/api/login').send({ email, password });
-     * expect(response.body).toHaveProperty('customToken');
+     * expect(response.body.data).toHaveProperty('customToken');
      */
     it('deve fazer login com sucesso e retornar o custom token', async () => {
       mockFetch.mockResolvedValueOnce({

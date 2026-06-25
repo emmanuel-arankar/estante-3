@@ -211,7 +211,7 @@ router.get('/books/works/search', checkAuth, async (req: Request, res: Response,
         const paginatedWorks = finalWorks.slice(startIndex, startIndex + limit);
 
         return res.status(200).json({ data: paginatedWorks, pagination: { page, limit, total } });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -227,7 +227,7 @@ router.get('/books/works/:workId', checkAuth, async (req: Request, res: Response
         if (!doc.exists) return res.status(404).json({ error: 'Obra não encontrada' });
 
         return res.status(200).json({ id: doc.id, ...sanitizeTimestamps(doc.data()) });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -265,7 +265,7 @@ router.post('/books/works', checkAuth, async (req: Request, res: Response, next)
         logger.info(`Obra criada: ${docRef.id} por ${authReq.user.uid}`);
 
         return res.status(201).json({ id: docRef.id, message: 'Obra criada com sucesso' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -289,7 +289,7 @@ router.get('/books/editions/check-isbn/:isbn', checkAuth, async (req: Request, r
             editionId: snapshot.empty ? null : snapshot.docs[0].id,
             edition: snapshot.empty ? null : { id: snapshot.docs[0].id, ...sanitizeTimestamps(snapshot.docs[0].data()) },
         });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -464,7 +464,7 @@ router.get('/books/editions/enrich-isbn/:isbn', checkAuth, async (req: Request, 
         }
 
         return res.status(200).json(enriched);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -561,7 +561,7 @@ router.get('/books/works/:workId/editions', checkAuth, async (req: Request, res:
             data: paginatedData,
             pagination: { page, limit, total, totalPages }
         });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -577,7 +577,7 @@ router.get('/books/editions/:editionId', checkAuth, async (req: Request, res: Re
         if (!doc.exists) return res.status(404).json({ error: 'Edição não encontrada' });
 
         return res.status(200).json({ id: doc.id, ...sanitizeTimestamps(doc.data()) });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -621,7 +621,7 @@ router.post('/books/editions', checkAuth, async (req: Request, res: Response, ne
 
         logger.info(`Edição criada: ${docRef.id} para obra ${data.workId}`);
         return res.status(201).json({ id: docRef.id, message: 'Edição criada com sucesso' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -644,7 +644,7 @@ router.get('/books/persons/search', checkAuth, async (req: Request, res: Respons
 
         const persons = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
         return res.status(200).json(persons);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -660,7 +660,7 @@ router.get('/books/persons/:personId', checkAuth, async (req: Request, res: Resp
         if (!doc.exists) return res.status(404).json({ error: 'Pessoa não encontrada' });
 
         return res.status(200).json({ id: doc.id, ...sanitizeTimestamps(doc.data()) });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -684,7 +684,7 @@ router.get('/books/persons/:personId/editions', checkAuth, async (req: Request, 
             data: editions.slice((page - 1) * limit, page * limit),
             pagination: { page, limit, total: editions.length, totalPages: Math.ceil(editions.length / limit) }
         });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -711,7 +711,7 @@ router.post('/books/persons', checkAuth, async (req: Request, res: Response, nex
         const docRef = await db.collection('persons').add(personData);
         logger.info(`Pessoa criada: ${docRef.id}`);
         return res.status(201).json({ id: docRef.id, message: 'Pessoa criada com sucesso' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -730,7 +730,7 @@ router.get('/books/groups/:groupId', checkAuth, async (req: Request, res: Respon
         if (!doc.exists) return res.status(404).json({ error: 'Grupo não encontrado' });
 
         return res.status(200).json({ id: doc.id, ...sanitizeTimestamps(doc.data()) });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -747,7 +747,7 @@ router.get('/books/groups/:groupId/editions', checkAuth, async (req: Request, re
             .filter((ed: any) => ed.contributors && ed.contributors.some((c: any) => c.groupId === v.data.groupId));
 
         return res.status(200).json({ data: editions });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -778,7 +778,7 @@ router.post('/books/groups', checkAuth, async (req: Request, res: Response, next
 
         const docRef = await db.collection('authorGroups').add(groupData);
         return res.status(201).json({ id: docRef.id, message: 'Grupo criado com sucesso' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -801,7 +801,7 @@ router.get('/books/publishers/search', checkAuth, async (req: Request, res: Resp
 
         const publishers = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
         return res.status(200).json(publishers);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -817,7 +817,7 @@ router.get('/books/publishers/:publisherId', checkAuth, async (req: Request, res
         if (!doc.exists) return res.status(404).json({ error: 'Editora não encontrada' });
 
         return res.status(200).json({ id: doc.id, ...sanitizeTimestamps(doc.data()) });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -848,7 +848,7 @@ router.post('/books/publishers', checkAuth, async (req: Request, res: Response, 
 
         const docRef = await db.collection('publishers').add(pubData);
         return res.status(201).json({ id: docRef.id, message: 'Editora criada com sucesso' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -871,7 +871,7 @@ router.get('/books/series/search', checkAuth, async (req: Request, res: Response
 
         const series = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
         return res.status(200).json(series);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -931,7 +931,7 @@ router.get('/books/series/:seriesId/works', checkAuth, async (req: Request, res:
         });
 
         return res.status(200).json({ data: works });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -947,7 +947,7 @@ router.get('/books/series/:seriesId', checkAuth, async (req: Request, res: Respo
         if (!doc.exists) return res.status(404).json({ error: 'Série não encontrada' });
 
         return res.status(200).json({ id: doc.id, ...sanitizeTimestamps(doc.data()) });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -985,7 +985,7 @@ router.post('/books/series', checkAuth, async (req: Request, res: Response, next
 
         const docRef = await db.collection('series').add(seriesData);
         return res.status(201).json({ id: docRef.id, message: 'Série criada com sucesso' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -1003,7 +1003,7 @@ router.get('/books/genres', checkAuth, async (req: Request, res: Response, next)
 
         const genres = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return res.status(200).json(genres);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 
@@ -1023,15 +1023,15 @@ router.get('/books/shelf', checkAuth, async (req: Request, res: Response, next) 
         if (!v.success) return res.status(400).json({ error: 'Parâmetros inválidos', details: v.error.flatten().fieldErrors });
 
         const { status, page, limit, sortBy, sortDirection } = v.data;
-        let query: any = db.collection('userShelves').where('userId', '==', userId);
+        let query = db.collection('userShelves').where('userId', '==', userId);
         if (status) query = query.where('status', '==', status);
         query = query.orderBy(sortBy, sortDirection).limit(limit).offset((page - 1) * limit);
 
         const snapshot = await query.get();
-        const items = snapshot.docs.map((doc: any) => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
+        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
 
         return res.status(200).json({ data: items, pagination: { page, limit } });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1046,15 +1046,15 @@ router.get('/books/shelf/:userId', checkAuth, async (req: Request, res: Response
         if (!qv.success) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
         const { status, page, limit, sortBy, sortDirection } = qv.data;
-        let query: any = db.collection('userShelves').where('userId', '==', v.data.userId);
+        let query = db.collection('userShelves').where('userId', '==', v.data.userId);
         if (status) query = query.where('status', '==', status);
         query = query.orderBy(sortBy, sortDirection).limit(limit).offset((page - 1) * limit);
 
         const snapshot = await query.get();
-        const items = snapshot.docs.map((doc: any) => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
+        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
 
         return res.status(200).json({ data: items, pagination: { page, limit } });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1132,7 +1132,7 @@ router.post('/books/shelf', checkAuth, async (req: Request, res: Response, next)
 
         logger.info(`Livro adicionado à estante: ${shelfId}`);
         return res.status(201).json({ id: shelfId, message: 'Adicionado à estante' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1155,7 +1155,7 @@ router.patch('/books/shelf/:shelfItemId', checkAuth, async (req: Request, res: R
 
         await docRef.update({ ...v.data, updatedAt: now() });
         return res.status(200).json({ message: 'Estante atualizada' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1174,7 +1174,7 @@ router.delete('/books/shelf/:shelfItemId', checkAuth, async (req: Request, res: 
 
         await docRef.delete();
         return res.status(200).json({ message: 'Removido da estante' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1195,7 +1195,7 @@ router.patch('/books/shelf/reorder', checkAuth, async (req: Request, res: Respon
         await batch.commit();
 
         return res.status(200).json({ message: 'Estante reordenada' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -1240,7 +1240,7 @@ router.post('/books/shelf/:shelfItemId/sessions', checkAuth, async (req: Request
         });
 
         return res.status(201).json({ id: docRef.id, message: 'Releitura iniciada' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1279,7 +1279,7 @@ router.post('/books/sessions/:sessionId/progress', checkAuth, async (req: Reques
         await db.collection('readingSessions').doc(pv.data.sessionId).update(updateData);
 
         return res.status(201).json({ id: docRef.id, message: 'Progresso registrado' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -1301,7 +1301,7 @@ router.get('/books/editions/:editionId/reviews', checkAuth, async (req: Request,
 
         const reviews = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
         return res.status(200).json(reviews);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1363,7 +1363,7 @@ router.post('/books/reviews', checkAuth, async (req: Request, res: Response, nex
         await batch.commit();
 
         return res.status(201).json({ id: docRef.id, message: 'Review criada' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1382,7 +1382,7 @@ router.delete('/books/reviews/:reviewId', checkAuth, async (req: Request, res: R
 
         await docRef.delete();
         return res.status(200).json({ message: 'Review excluída' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -1405,7 +1405,7 @@ router.post('/books/shelves', checkAuth, async (req: Request, res: Response, nex
         });
 
         return res.status(201).json({ id: docRef.id, message: 'Prateleira criada' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1420,7 +1420,7 @@ router.get('/books/shelves', checkAuth, async (req: Request, res: Response, next
 
         const shelves = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
         return res.status(200).json(shelves);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1437,7 +1437,7 @@ router.post('/books/tags', checkAuth, async (req: Request, res: Response, next) 
         });
 
         return res.status(201).json({ id: docRef.id, message: 'Tag criada' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1451,7 +1451,7 @@ router.get('/books/tags', checkAuth, async (req: Request, res: Response, next) =
 
         const tags = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return res.status(200).json(tags);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -1488,7 +1488,7 @@ router.post('/books/recommend', checkAuth, async (req: Request, res: Response, n
         });
 
         return res.status(201).json({ id: docRef.id, message: 'Recomendação enviada' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1504,7 +1504,7 @@ router.get('/books/recommendations', checkAuth, async (req: Request, res: Respon
 
         const recs = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
         return res.status(200).json(recs);
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
@@ -1536,7 +1536,7 @@ router.post('/books/suggestions', checkAuth, async (req: Request, res: Response,
         logger.info(`Sugestão criada: ${docRef.id} por ${authReq.user.uid} (tipo: ${v.data.type})`);
 
         return res.status(201).json({ id: docRef.id, message: 'Sugestão enviada com sucesso e aguarda revisão' });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1556,15 +1556,15 @@ router.get('/books/suggestions', checkAuth, async (req: Request, res: Response, 
         const page = parseInt(req.query.page as string) || 1;
         const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
 
-        let query: any = db.collection('contentSuggestions').where('status', '==', status);
+        let query = db.collection('contentSuggestions').where('status', '==', status);
         if (type) query = query.where('type', '==', type);
         query = query.orderBy('createdAt', 'desc').limit(limit).offset((page - 1) * limit);
 
         const snapshot = await query.get();
-        const suggestions = snapshot.docs.map((doc: any) => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
+        const suggestions = snapshot.docs.map((doc) => ({ id: doc.id, ...sanitizeTimestamps(doc.data()) }));
 
         return res.status(200).json({ data: suggestions, pagination: { page, limit } });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 /**
@@ -1605,7 +1605,7 @@ router.patch('/books/suggestions/:suggestionId', checkAuth, async (req: Request,
                 };
                 const targetColl = collectionMap[suggestion.data?.entityType || ''];
                 if (targetColl) {
-                    const updates: Record<string, any> = { updatedAt: timestamp };
+                    const updates: Record<string, unknown> = { updatedAt: timestamp };
                     for (const correction of suggestion.corrections) {
                         updates[correction.field] = correction.newValue;
                     }
@@ -1642,7 +1642,7 @@ router.patch('/books/suggestions/:suggestionId', checkAuth, async (req: Request,
             message: `Sugestão ${v.data.status === 'approved' ? 'aprovada' : 'rejeitada'}`,
             createdEntityId,
         });
-    } catch (error) { return next(error); }
+    } catch (error) { return res.status(500).json({ error: String(error) }); }
 });
 
 // =============================================================================
