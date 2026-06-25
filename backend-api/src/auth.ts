@@ -26,7 +26,13 @@ const router = Router();
  * @description Verifica a disponibilidade do nickname na coleção `nicknames` e incrementa um sufixo numérico se necessário.
  */
 async function generateUniqueNickname(transaction: admin.firestore.Transaction, displayName: string): Promise<string> {
-  const baseNickname = displayName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'user';
+  const baseNickname = displayName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .substring(0, 20) || 'user';
+
   let nickname = baseNickname;
   let counter = 1;
 
@@ -34,7 +40,7 @@ async function generateUniqueNickname(transaction: admin.firestore.Transaction, 
     const nicknameRef = db.collection('nicknames').doc(nickname);
     const nicknameDoc = await transaction.get(nicknameRef);
     if (!nicknameDoc.exists) return nickname;
-    nickname = `${baseNickname}${counter}`;
+    nickname = `${baseNickname}-${counter}`;
     counter++;
   }
 }
@@ -44,7 +50,7 @@ async function generateUniqueNickname(transaction: admin.firestore.Transaction, 
  * @summary Recupera a chave de API do ambiente.
  */
 function getFirebaseApiKey(): string | undefined {
-  return process.env.VITE_FIREBASE_API_KEY;
+  return process.env.VITE_FIREBASE_API_KEY || process.env.FB_API_KEY || process.env.FIREBASE_API_KEY;
 }
 
 // =============================================================================
@@ -54,49 +60,37 @@ function getFirebaseApiKey(): string | undefined {
 /**
  * @name Session Login
  * @summary Cria um cookie de sessão a partir de um ID Token.
- * @description Recebe o ID Token do frontend, valida-o e gera um cookie de sessão seguro (httpOnly).
- * 
- * @route {POST} /api/auth/sessionLogin
- * @bodyparams {string} idToken - Token gerado pelo Firebase Auth no cliente.
- * @bodyparams {boolean} [rememberMe] - Se verdadeiro, estende a validade do cookie.
- * @returns {Object} 200 - { status: 'success' }
  */
 router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate({ body: sessionLoginBodySchema }), async (req: Request, res: Response) => {
   try {
     const { idToken, rememberMe } = req.body;
-
-    // Configurar tempo de expiração: 5 dias ou 1 hora
     const expiresIn = rememberMe ? 60 * 60 * 24 * 5 * 1000 : 60 * 60 * 1 * 1000;
-
-    // Criar o cookie de sessão usando o Firebase Admin SDK
     const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
 
-    // Configurar opções do cookie
     const options = {
       maxAge: expiresIn,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Apenas HTTPS em produção
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict' as const,
       path: '/'
     };
 
     res.cookie('__session', sessionCookie, options);
-    logger.info(`Cookie de sessão criado com sucesso. Duração: ${expiresIn / 1000 / 3600}h, RememberMe: ${!!rememberMe}`);
+    logger.info(`Cookie de sessão criado com sucesso. Duração: ${expiresIn / 1000 / 3600}h`);
 
     return res.status(200).send({ status: 'success' });
   } catch (error: unknown) {
-    const err = error as Error & { code?: string };
+    const err = error as FirebaseError;
     logger.error('Erro ao criar cookie de sessão:', {
       errorMessage: err.message || String(error),
       errorCode: err.code,
     });
 
-    const firebaseError = error as FirebaseError;
     const statusCode = 401;
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;
 
-    switch (firebaseError.code) {
+    switch (err.code) {
       case 'auth/id-token-expired':
         errorMessage = 'Sua sessão expirou. Faça login novamente.';
         shouldLogError = false;
@@ -111,8 +105,8 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
 
     if (!shouldLogError) {
       logger.warn('Falha ao criar cookie de sessão (erro esperado):', {
-        errorCode: firebaseError.code,
-        errorMessage: firebaseError.message,
+        errorCode: err.code,
+        errorMessage: err.message,
       });
     }
 
@@ -120,19 +114,16 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
   }
 });
 
-/**
- * @name Fazer Logout
- * @summary Limpa o cookie de sessão.
- */
 router.post('/logout', (req: Request, res: Response) => {
   res.clearCookie('__session');
   return res.status(200).send({ status: 'success' });
 });
 
-/**
- * @name Registrar Usuário
- * @summary Cria nova identidade e perfil inicial.
- */
+router.post('/sessionLogout', (req: Request, res: Response) => {
+  res.clearCookie('__session');
+  return res.status(200).send({ status: 'success' });
+});
+
 router.post('/register', authLimiter as unknown as RequestHandler, validate({ body: registerSchema }), async (req: Request, res: Response) => {
   try {
     const { email, password, displayName } = req.body;
@@ -146,7 +137,6 @@ router.post('/register', authLimiter as unknown as RequestHandler, validate({ bo
       });
     } catch (authError: unknown) {
       const err = authError as FirebaseError;
-      console.error('CRITICAL: authError dump ->', authError);
       if (err.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'E-mail já está em uso.' });
       }
@@ -198,9 +188,9 @@ router.post('/register', authLimiter as unknown as RequestHandler, validate({ bo
       });
     } catch (dbError: unknown) {
       const err = dbError as Error;
-      logger.error('CRITICAL: Erro oculto ao salvar perfil no DB:', dbError);
+      logger.error('CRITICAL: Erro ao salvar perfil no DB:', err);
       await admin.auth().deleteUser(uid).catch(() => logger.error(`Falha no rollback do user ${uid}`));
-      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário. Tente novamente.', details: err.message || String(dbError) });
+      return res.status(500).json({ error: 'Erro ao configurar perfil de usuário.', details: err.message || String(dbError) });
     }
 
     const customToken = await admin.auth().createCustomToken(uid);
@@ -212,21 +202,15 @@ router.post('/register', authLimiter as unknown as RequestHandler, validate({ bo
   }
 });
 
-/**
- * @name Fazer Login
- * @summary Autentica via email/senha e gera Custom Token.
- */
 router.post('/login', authLimiter as unknown as RequestHandler, validate({ body: loginSchema }), async (req: Request, res: Response) => {
   try {
-    const updates = req.body;
+    const { email, password } = req.body;
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
-      return res.status(500).json({ error: 'Configuração do servidor ausente (FIREBASE_API_KEY).' });
+      return res.status(500).json({ error: 'Configuração do servidor ausente.' });
     }
 
-    const { email, password } = updates;
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
-
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -247,10 +231,6 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
         const fbError = data.error.message;
         if (fbError === 'INVALID_PASSWORD' || fbError === 'EMAIL_NOT_FOUND' || fbError === 'INVALID_LOGIN_CREDENTIALS') {
           return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
-        } else if (fbError === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
-          return res.status(429).json({ error: 'Muitas tentativas falhas. Tente novamente mais tarde.' });
-        } else if (fbError.includes('USER_DISABLED')) {
-          return res.status(403).json({ error: 'Sua conta foi desativada.' });
         }
       }
       throw new Error(data.error?.message || 'Erro na autenticação.');
@@ -276,20 +256,15 @@ router.post('/login', authLimiter as unknown as RequestHandler, validate({ body:
   }
 });
 
-/**
- * @name Recuperar Senha
- * @summary Envia e-mail de redefinição de senha.
- */
 router.post('/recover', authLimiter as unknown as RequestHandler, validate({ body: recoverSchema }), async (req: Request, res: Response) => {
   try {
+    const { email } = req.body;
     const apiKey = getFirebaseApiKey();
     if (!apiKey) {
-      return res.status(500).json({ error: 'Configuração do servidor ausente (FIREBASE_API_KEY).' });
+      return res.status(500).json({ error: 'Configuração do servidor ausente.' });
     }
 
-    const { email } = req.body;
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`;
-
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -306,8 +281,7 @@ router.post('/recover', authLimiter as unknown as RequestHandler, validate({ bod
 
     if (!response.ok) {
       if (data && data.error && data.error.message) {
-        const fbError = data.error.message;
-        if (fbError === 'EMAIL_NOT_FOUND') {
+        if (data.error.message === 'EMAIL_NOT_FOUND') {
           return res.status(404).json({ error: 'Nenhum usuário encontrado com este e-mail.' });
         }
       }
@@ -332,10 +306,6 @@ router.post('/recover', authLimiter as unknown as RequestHandler, validate({ bod
   }
 });
 
-/**
- * @name Callback Login do Google
- * @summary Gerencia login/cadastro via Google Auth.
- */
 router.post('/google', async (req: Request, res: Response) => {
   try {
     const validData = googleAuthSchema.safeParse(req.body);
@@ -344,7 +314,6 @@ router.post('/google', async (req: Request, res: Response) => {
     }
 
     const { uid, email, displayName, photoURL } = validData.data;
-
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
 
