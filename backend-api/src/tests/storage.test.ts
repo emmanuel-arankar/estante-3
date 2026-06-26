@@ -25,14 +25,14 @@ const { mockBucket } = vi.hoisted(() => {
 // Mocking Firebase Admin
 vi.mock('../firebase', () => ({
     admin: {
-        auth: () => ({}),
+        auth: () => ({}), db: { collection: vi.fn(() => ({ doc: vi.fn(() => ({ set: vi.fn().mockResolvedValue({}) })) })) }
     },
     bucket: mockBucket,
 }));
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
+    checkAuth: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }), checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
         req.user = { uid: 'current-user' };
         next();
     }),
