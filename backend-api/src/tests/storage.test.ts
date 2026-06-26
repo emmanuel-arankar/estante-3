@@ -14,17 +14,8 @@ const { mockBucket } = vi.hoisted(() => ({
     }
 }));
 
-vi.mock('../firebase', () => ({
-    admin: {
-        auth: () => ({}),
-        database: () => ({}),
-        firestore: {
-            Timestamp: {
-                now: () => ({ seconds: 123, nanoseconds: 0 })
-            }
-        }
-    },
-    db: {
+vi.mock('../firebase', () => {
+    const mockDb = {
         collection: vi.fn(() => ({
             add: vi.fn().mockResolvedValue({ id: 'new-audit-id' }),
             doc: vi.fn(() => ({
@@ -32,9 +23,16 @@ vi.mock('../firebase', () => ({
                 get: vi.fn().mockResolvedValue({ exists: true, data: () => ({}) })
             })),
         })),
-    },
-    bucket: mockBucket,
-}));
+    };
+    return {
+        admin: {
+            auth: () => ({}),
+            database: () => ({}),
+        },
+        db: mockDb,
+        bucket: mockBucket,
+    };
+});
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
