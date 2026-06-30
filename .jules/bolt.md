@@ -1,0 +1,3 @@
+## 2025-05-22 - [Optimized Hero component performance and fixed background jitter]
+**Learning:** High-frequency state updates (like typing in a search input) in a component with expensive child nodes (like animated background particles using Math.random()) cause significant performance bottlenecks and visual artifacts. Isolation of state into a child component (`HeroSearchBar`) and memoization of expensive nodes (`HeroBackground`) with stable properties (`useMemo`) effectively resolves this.
+**Action:** Always colocate state in the smallest possible component scope and stabilize random values in render loops for memoized components.
