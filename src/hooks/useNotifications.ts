@@ -1,13 +1,15 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
     listNotifications,
     markNotificationAsRead as markAsReadAPI,
     markAllNotificationsAsRead as markAllAsReadAPI,
     getUnreadCount,
+    NotificationsResponse,
 } from '@/services/firebase/notifications';
 import type { Notification } from '@estante/common-types';
 import {
+    InfiniteData,
     useInfiniteQuery,
     useQuery,
     useQueryClient,
@@ -68,8 +70,10 @@ export const useNotifications = () => {
 
     // ==================== DERIVED DATA ====================
 
-    const notifications: Notification[] =
-        notificationsQuery.data?.pages.flatMap(page => page.data) || [];
+    const notifications: Notification[] = useMemo(
+        () => notificationsQuery.data?.pages.flatMap((page) => page.data) || [],
+        [notificationsQuery.data]
+    );
 
     const unreadCount = unreadQuery.data ?? 0;
     const hasMore = !!notificationsQuery.hasNextPage;
@@ -88,13 +92,13 @@ export const useNotifications = () => {
             await markAsReadAPI(notificationId);
 
             // Optimistic update na lista
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<InfiniteData<NotificationsResponse>>(
                 { queryKey: notificationKeys.list(false) },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page: NotificationsResponse) => ({
                             ...page,
                             data: page.data.map((n: Notification) =>
                                 n.id === notificationId ? { ...n, read: true } : n
@@ -119,13 +123,13 @@ export const useNotifications = () => {
             const result = await markAllAsReadAPI();
 
             // Optimistic update: marcar todas como lidas
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<InfiniteData<NotificationsResponse>>(
                 { queryKey: notificationKeys.list(false) },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page: NotificationsResponse) => ({
                             ...page,
                             data: page.data.map((n: Notification) => ({ ...n, read: true })),
                         })),
