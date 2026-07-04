@@ -351,12 +351,16 @@ vi.mock('firebase-admin', () => {
  * @example
  * checkAuth(req, _res, next);
  */
-vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
+vi.mock('../middleware/auth.middleware', () => {
+  const handler = (req: any, _res: any, next: any) => {
     req.user = { uid: 'current-user' };
     next();
-  }),
-}));
+  };
+  return {
+    checkAuth: vi.fn(handler),
+    checkAuthOptional: vi.fn(handler),
+  };
+});
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
 
