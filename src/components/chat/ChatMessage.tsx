@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -40,17 +40,17 @@ import { ChatMessage as ChatMessageType } from '@estante/common-types';
 interface ChatMessageProps {
     message: ChatMessageType;
     isOwn: boolean;
-    onReply?: () => void;
-    onDelete?: () => void;
-    onReact?: (emoji: string) => void;
+    onReply?: (message: ChatMessageType) => void;
+    onDelete?: (messageId: string) => void;
+    onReact?: (messageId: string, emoji: string) => void;
     onMarkTemporaryAsPlayed?: (messageId: string) => Promise<void>;
     onMarkAsViewed?: (messageId: string) => Promise<void>;
     currentUserId?: string;
     showAvatar?: boolean;
     senderName?: string;
     senderPhoto?: string;
-    onPlayNext?: () => void;
-    onEdit?: () => void;
+    onPlayNext?: (messageId: string) => void;
+    onEdit?: (message : ChatMessageType) => void;
     onJumpToMessage?: (messageId: string) => void;
     searchQuery?: string;
     isCurrentMatch?: boolean;
@@ -60,7 +60,7 @@ import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
 
-const AudioPlayer = ({
+const AudioPlayer = React.memo(({
     src,
     isOwn,
     id,
@@ -80,7 +80,7 @@ const AudioPlayer = ({
     status?: 'sending' | 'sent' | 'error';
     onMarkAsPlayed?: () => Promise<void>;
     waveform?: number[];
-    onPlayNext?: () => void;
+    onPlayNext?: (id: string) => void;
     messageDuration?: number;
 }) => {
     // Use AudioPlayerContext for centralized state management
@@ -95,6 +95,13 @@ const AudioPlayer = ({
     const [isDragging, setIsDragging] = useState(false);
     const [dragProgress, setDragProgress] = useState(0);
     const [hasError, setHasError] = useState(false);
+
+    const displayBars = useMemo(() => {
+        const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+        const MAX_BARS = 35;
+        const step = Math.ceil(bars.length / MAX_BARS);
+        return bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
+    }, [waveform]);
 
     const progressBarRef = useRef<HTMLDivElement | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -166,7 +173,7 @@ const AudioPlayer = ({
 
                     // Play next audio if available
                     if (onPlayNext) {
-                        onPlayNext();
+                        onPlayNext(id);
                     }
                 });
             } catch (err) {
@@ -196,7 +203,7 @@ const AudioPlayer = ({
         setDragProgress(getProgressFromEvent(clientX));
     };
 
-    const handleSeekEnd = () => {
+    const handleSeekEnd = useCallback(() => {
         if (!isDragging) return;
         const audio = getAudioElement(id);
         if (!audio || !duration) return;
@@ -205,13 +212,19 @@ const AudioPlayer = ({
         setProgress(dragProgress);
         setCurrentTime((dragProgress / 100) * duration);
         setIsDragging(false);
-    };
+    }, [isDragging, getAudioElement, id, duration, dragProgress]);
+
+    const getProgressFromEventStable = useCallback((clientX: number): number => {
+        if (!progressBarRef.current) return 0;
+        const rect = progressBarRef.current.getBoundingClientRect();
+        return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+    }, []);
 
     useEffect(() => {
         if (!isDragging) return;
         const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
             const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-            setDragProgress(getProgressFromEvent(clientX));
+            setDragProgress(getProgressFromEventStable(clientX));
         };
         const handleGlobalEnd = () => handleSeekEnd();
         window.addEventListener('mousemove', handleGlobalMove);
@@ -224,7 +237,7 @@ const AudioPlayer = ({
             window.removeEventListener('touchmove', handleGlobalMove);
             window.removeEventListener('touchend', handleGlobalEnd);
         };
-    }, [isDragging, dragProgress, duration]);
+    }, [isDragging, handleSeekEnd, getProgressFromEventStable]);
 
     const displayProgress = isDragging ? dragProgress : progress;
 
@@ -274,13 +287,7 @@ const AudioPlayer = ({
                             isTemporary || isSending || isExpired || hasError ? "cursor-not-allowed" : "cursor-pointer"
                         )}
                     >
-                        {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
-                            const MAX_BARS = 35;
-                            const step = Math.ceil(bars.length / MAX_BARS);
-                            const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
-
-                            return displayBars.map((value, i, arr) => {
+                        {displayBars.map((value, i, arr) => {
                                 const barProgress = (i / arr.length) * 100;
                                 const isActive = barProgress <= displayProgress;
 
@@ -314,8 +321,7 @@ const AudioPlayer = ({
                                         )}
                                     />
                                 );
-                            });
-                        })()}
+                            })}
 
                         <div
                             className={cn(
@@ -357,12 +363,14 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
+
+AudioPlayer.displayName = 'AudioPlayer';
 
 import { requestTranscription } from '@/services/firebase/functions';
 import { Loader2, FileText } from 'lucide-react';
 
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+const TranscriptionControl = React.memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +431,11 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+TranscriptionControl.displayName = 'TranscriptionControl';
+
+const MessageHighlighter = React.memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +468,58 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
 
-export const ChatBubble = ({
+MessageHighlighter.displayName = 'MessageHighlighter';
+
+const StatusTime = React.memo(({
+    createdAt,
+    status,
+    readAt,
+    isOwn,
+    isImageOnly,
+    editedAt,
+    light = false
+}: {
+    createdAt: Date;
+    status?: string;
+    readAt?: Date | null;
+    isOwn: boolean;
+    isImageOnly: boolean;
+    editedAt?: Date | null;
+    light?: boolean;
+}) => (
+    <div className={cn(
+        "flex items-center space-x-1 justify-end shrink-0",
+        light ? "text-white text-[10px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 px-1.5 py-0.5 rounded-full backdrop-blur-sm" :
+            isOwn ? "text-white/60" : "text-gray-400",
+        !light && "mt-1"
+    )}>
+        {editedAt && (
+            <span className="text-[9px] mr-1">
+                (editada)
+            </span>
+        )}
+        <span className="text-[10px]">
+            {format(createdAt, 'HH:mm')}
+        </span>
+        {isOwn && (
+            <div className="flex -space-x-1">
+                {status === 'sending' ? (
+                    <div className="w-3 h-3 border border-white/40 border-t-transparent rounded-full animate-spin" />
+                ) : readAt ? (
+                    <CheckCheck className={cn("h-3.3 w-3.3", (light || !isImageOnly) ? "text-blue-400" : "text-white")} />
+                ) : (
+                    <Check className="h-3.3 w-3.3" />
+                )}
+            </div>
+        )}
+    </div>
+));
+
+StatusTime.displayName = 'StatusTime';
+
+export const ChatBubble = React.memo(({
     message,
     isOwn,
     onReply,
@@ -493,41 +552,12 @@ export const ChatBubble = ({
 
     const isImageOnly = message.type === 'image' && !message.caption && !message.replyTo && !message.isDeleted;
 
-    const StatusTime = ({ light = false }: { light?: boolean }) => (
-        <div className={cn(
-            "flex items-center space-x-1 justify-end shrink-0",
-            light ? "text-white text-[10px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] bg-black/20 px-1.5 py-0.5 rounded-full backdrop-blur-sm" :
-                isOwn ? "text-white/60" : "text-gray-400",
-            !light && "mt-1"
-        )}>
-            {message.editedAt && (
-                <span className="text-[9px] mr-1">
-                    (editada)
-                </span>
-            )}
-            <span className="text-[10px]">
-                {format(message.createdAt, 'HH:mm')}
-            </span>
-            {isOwn && (
-                <div className="flex -space-x-1">
-                    {message.status === 'sending' ? (
-                        <div className="w-3 h-3 border border-white/40 border-t-transparent rounded-full animate-spin" />
-                    ) : message.readAt ? (
-                        <CheckCheck className={cn("h-3.3 w-3.3", (light || !isImageOnly) ? "text-blue-400" : "text-white")} />
-                    ) : (
-                        <Check className="h-3.3 w-3.3" />
-                    )}
-                </div>
-            )}
-        </div>
-    );
-
     const handleReply = () => {
-        onReply?.();
+        onReply?.(message);
     };
 
     const handleDelete = () => {
-        onDelete?.();
+        onDelete?.(message.id);
     };
 
     return (
@@ -572,7 +602,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -594,7 +624,7 @@ export const ChatBubble = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {isOwn && message.type === 'text' && !message.isDeleted && (
-                                <DropdownMenuItem onClick={onEdit}>
+                                <DropdownMenuItem onClick={() => onEdit?.(message)}>
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                 </DropdownMenuItem>
@@ -828,7 +858,15 @@ export const ChatBubble = ({
 
                                             {/* Timestamp Overlay para TODAS as imagens */}
                                             <div className="absolute bottom-2 right-2 z-10">
-                                                <StatusTime light />
+                                                <StatusTime
+                                                    createdAt={message.createdAt}
+                                                    status={message.status}
+                                                    readAt={message.readAt}
+                                                    isOwn={isOwn}
+                                                    isImageOnly={isImageOnly}
+                                                    editedAt={message.editedAt}
+                                                    light
+                                                />
                                             </div>
 
                                         </div>
@@ -860,7 +898,15 @@ export const ChatBubble = ({
 
                                         {/* Timestamp Overlay */}
                                         <div className="absolute bottom-2 right-2 z-10">
-                                            <StatusTime light />
+                                            <StatusTime
+                                                createdAt={message.createdAt}
+                                                status={message.status}
+                                                readAt={message.readAt}
+                                                isOwn={isOwn}
+                                                isImageOnly={isImageOnly}
+                                                editedAt={message.editedAt}
+                                                light
+                                            />
                                         </div>
 
 
@@ -912,7 +958,7 @@ export const ChatBubble = ({
                             {Object.entries(message.reactions).map(([emoji, users]) => (
                                 <button
                                     key={emoji}
-                                    onClick={() => onReact?.(emoji)}
+                                    onClick={() => onReact?.(message.id, emoji)}
                                     className={cn(
                                         "px-1.5 py-0.5 rounded-full text-[10px] flex items-center space-x-1 transition-all",
                                         users.includes(currentUserId || '')
@@ -929,7 +975,14 @@ export const ChatBubble = ({
 
                     {/* Status & Time - mostrado abaixo do conteúdo se não for uma imagem sozinha */}
                     {!isImageOnly && (
-                        <StatusTime />
+                        <StatusTime
+                            createdAt={message.createdAt}
+                            status={message.status}
+                            readAt={message.readAt}
+                            isOwn={isOwn}
+                            isImageOnly={isImageOnly}
+                            editedAt={message.editedAt}
+                        />
                     )}
                 </div>
             </div>
@@ -951,7 +1004,7 @@ export const ChatBubble = ({
                                 {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                     <button
                                         key={emoji}
-                                        onClick={() => onReact?.(emoji)}
+                                        onClick={() => onReact?.(message.id, emoji)}
                                         className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-lg"
                                     >
                                         {emoji}
@@ -968,4 +1021,6 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+
+ChatBubble.displayName = 'ChatBubble';

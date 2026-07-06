@@ -19,7 +19,7 @@ const { mockBucket } = vi.hoisted(() => {
         file: vi.fn((path) => mockFile(path)),
     };
 
-    return { mockBucket };
+    return { checkAuthOptional: vi.fn(), mockBucket };
 });
 
 // Mocking Firebase Admin
@@ -32,7 +32,11 @@ vi.mock('../firebase', () => ({
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
+    checkAuth: vi.fn((req, res, next) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
+    checkAuthOptional: vi.fn((req, res, next) => {
         req.user = { uid: 'current-user' };
         next();
     }),

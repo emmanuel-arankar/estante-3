@@ -220,7 +220,7 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
    */
   const makeCollectionRef = (name: string) => {
     const chain = makeQueryChain(name);
-    return {
+    return { checkAuthOptional: vi.fn(),
       doc: vi.fn((id: string) => makeDocRef(name, id)),
       where: chain.where,
       limit: chain.limit,
@@ -268,7 +268,7 @@ const { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSna
     runTransaction: vi.fn((callback) => callback(transactionMock)),
   };
 
-  return { state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSnapshot };
+  return { checkAuthOptional: vi.fn(), state, mockDb, mockBatch, transactionMock, makeCollectionRef, makeDocSnapshot };
 });
 
 // =============================================================================
@@ -344,7 +344,7 @@ vi.mock('firebase-admin', () => {
     }))
   });
 
-  return {
+  return { checkAuthOptional: vi.fn(),
     default: {
       apps: [{}],
       initializeApp: vi.fn(),
@@ -368,10 +368,14 @@ vi.mock('firebase-admin', () => {
  * @description Garante que todas as requisições API sejam processadas com o UID 'current-user'.
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
+    checkAuth: vi.fn((req, res, next) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
+    checkAuthOptional: vi.fn((req, res, next) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
