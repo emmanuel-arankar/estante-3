@@ -67,7 +67,7 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
         }))
     };
 
-    return { state, mockDb, mockRtdb };
+    return { checkAuthOptional: vi.fn(), state, mockDb, mockRtdb };
 });
 
 // Mocking Firebase Admin
@@ -86,7 +86,11 @@ vi.mock('../firebase', () => ({
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
+    checkAuth: vi.fn((req, res, next) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
+    checkAuthOptional: vi.fn((req, res, next) => {
         req.user = { uid: 'current-user' };
         next();
     }),

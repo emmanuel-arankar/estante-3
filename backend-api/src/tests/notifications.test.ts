@@ -204,7 +204,7 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
    */
   const makeCollectionRef = (name: string) => {
     const chain = makeQueryChain(name);
-    return {
+    return { checkAuthOptional: vi.fn(),
       doc: vi.fn((id: string) => makeDocRef(name, id)),
       where: chain.where,
       limit: chain.limit,
@@ -246,7 +246,7 @@ const { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot } = vi.hois
     batch: vi.fn(() => mockBatch),
   };
 
-  return { state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot };
+  return { checkAuthOptional: vi.fn(), state, mockDb, mockBatch, makeCollectionRef, makeDocSnapshot };
 });
 
 // =============================================================================
@@ -310,7 +310,7 @@ vi.mock('firebase-admin', () => {
     }))
   });
 
-  return {
+  return { checkAuthOptional: vi.fn(),
     default: {
       apps: [{}],
       initializeApp: vi.fn(),
@@ -340,10 +340,14 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
+    checkAuth: vi.fn((req, res, next) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
+    checkAuthOptional: vi.fn((req, res, next) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
