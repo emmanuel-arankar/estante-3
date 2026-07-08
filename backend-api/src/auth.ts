@@ -388,7 +388,7 @@ router.post('/login', authLimiter as any, validate({ body: loginSchema }), async
 
     return res.status(200).json({ customToken });
   } catch (error) {
-    logger.error('Erro no login do backend:', (error as any).message || error);
+    logger.error('Erro no login do backend:', (error instanceof Error ? error.message : String(error)));
     return res.status(500).json({ error: 'Erro interno do servidor ao tentar autenticar.' });
   }
 });
@@ -447,7 +447,7 @@ router.post('/recover', authLimiter as any, validate({ body: recoverSchema }), a
 
     return res.status(200).json({ message: 'E-mail enviado' });
   } catch (error) {
-    logger.error('Erro na recuperação de senha:', (error as any).message || error);
+    logger.error('Erro na recuperação de senha:', (error instanceof Error ? error.message : String(error)));
     return res.status(500).json({ error: 'Erro interno ao processar recuperação.' });
   }
 });
@@ -555,7 +555,7 @@ router.post('/google', async (req: Request, res: Response, next: NextFunction) =
 
     return res.status(200).json({ message: 'Documento já existente', isNewUser: false });
   } catch (error) {
-    logger.error('Erro login google backend:', (error as any).message || error);
+    logger.error('Erro login google backend:', (error instanceof Error ? error.message : String(error)));
     return res.status(500).json({ error: 'Erro interno no callback de login.' });
   }
 });
