@@ -44,7 +44,7 @@ import {
   fetchMutualFriendsDeduped
 } from '@/hooks/useMutualFriendsCache';
 
-// Componente para mostrar amigos em comum com avatar group e tooltip
+// ⚡ Bolt: Memoized to prevent redundant renders when search query changes in parent
 const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count: number }> = React.memo(({ userId, friendId, count }) => {
   const [avatarFriends, setAvatarFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
   const [allFriends, setAllFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
@@ -165,7 +165,7 @@ const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count
 
 MutualFriendsIndicator.displayName = 'MutualFriendsIndicator';
 
-// Componente auxiliar para calcular amigos em comum dinamicamente
+// ⚡ Bolt: Memoized to prevent redundant renders during list filtering
 const DynamicMutualFriendsIndicator: React.FC<{ userId: string; friendId: string }> = React.memo(({ userId, friendId }) => {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
