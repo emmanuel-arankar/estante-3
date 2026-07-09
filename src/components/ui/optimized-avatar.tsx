@@ -13,7 +13,9 @@ interface OptimizedAvatarProps {
   isOnline?: boolean;
 }
 
-export const OptimizedAvatar = ({
+import React from 'react';
+
+export const OptimizedAvatar = React.memo(({
   src,
   alt,
   fallback,
@@ -90,4 +92,6 @@ export const OptimizedAvatar = ({
       )}
     </div>
   );
-};
+});
+
+OptimizedAvatar.displayName = 'OptimizedAvatar';
