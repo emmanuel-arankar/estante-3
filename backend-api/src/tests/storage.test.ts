@@ -36,6 +36,7 @@ vi.mock('../middleware/auth.middleware', () => ({
         req.user = { uid: 'current-user' };
         next();
     }),
+    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
 }));
 
 describe('Storage Operations', () => {
