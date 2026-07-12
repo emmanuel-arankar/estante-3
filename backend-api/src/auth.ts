@@ -162,7 +162,7 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     });
 
     const firebaseError = error as FirebaseError;
-    let statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
+    const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
 
