@@ -1,0 +1,3 @@
+## 2026-07-14 - [React Component Optimization - Hero]
+**Learning:** Performance-critical components with complex animations (like Framer Motion) and internal high-frequency state (like text input) should always have their state isolated into sub-components. This prevents the "expensive" parts of the parent (animations, complex layouts) from re-rendering on every keystroke. Additionally, decorative animated elements should be memoized with stable properties (e.g., using useMemo for random values) to avoid jitter.
+**Action:** Isolate input state into child components and use React.memo + useMemo for decorative animations.
