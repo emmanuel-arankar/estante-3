@@ -1,10 +1,55 @@
-import { CSSProperties, useState } from 'react';
+import React, { CSSProperties, useState, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-export const Hero = () => {
+/**
+ * PERFORMANCE: Memoized background to prevent re-renders when search input changes.
+ * Uses useMemo for stable particle positions to avoid "jumping" on re-render and ensures SSR consistency.
+ */
+const HeroBackground = memo(() => {
+  const particles = useMemo(() =>
+    [...Array(20)].map((_, i) => ({
+      id: i,
+      left: `${(i * 7 + 11) % 100}%`, // Deterministic but "random" looking for SSR
+      top: `${(i * 13 + 17) % 100}%`,
+      duration: 3 + ((i * 3) % 20) / 10,
+      delay: (i * 7) % 20 / 10,
+    })), []);
+
+  return (
+    <div className="absolute inset-0 bg-black/10">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute w-2 h-2 bg-white/20 rounded-full"
+          style={{
+            left: p.left,
+            top: p.top,
+          } as CSSProperties}
+          animate={{
+            y: [0, -100, 0],
+            opacity: [0.2, 0.8, 0.2],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            delay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  );
+});
+
+HeroBackground.displayName = 'HeroBackground';
+
+/**
+ * PERFORMANCE: Isolates search state to prevent parent Hero component re-renders
+ * on every keystroke.
+ */
+const HeroSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
@@ -16,29 +61,34 @@ export const Hero = () => {
   };
 
   return (
-    <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-white/20 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            } as CSSProperties}
-            animate={{
-              y: [0, -100, 0],
-              opacity: [0.2, 0.8, 0.2],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+      className="mb-16 w-full max-w-3xl mx-auto"
+    >
+      <form onSubmit={handleSearch}>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="O que você está procurando? Digite título, autor, ISBN..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-12 pr-4 py-4 w-full bg-white/90 text-gray-900 border-0 rounded-full text-lg shadow-lg focus:bg-white focus:ring-2 focus:ring-yellow-400"
           />
-        ))}
-      </div>
+        </div>
+      </form>
+    </motion.div>
+  );
+};
+
+HeroSearch.displayName = 'HeroSearch';
+
+export const Hero = () => {
+  return (
+    <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
+      <HeroBackground />
 
       <div className="relative container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto w-full">
@@ -58,26 +108,7 @@ export const Hero = () => {
             </p>
           </motion.div>
 
-          {/* Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-16 w-full max-w-3xl mx-auto"
-          >
-            <form onSubmit={handleSearch}>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="O que você está procurando? Digite título, autor, ISBN..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-4 py-4 w-full bg-white/90 text-gray-900 border-0 rounded-full text-lg shadow-lg focus:bg-white focus:ring-2 focus:ring-yellow-400"
-                />
-              </div>
-            </form>
-          </motion.div>
+          <HeroSearch />
 
           {/* Stats */}
           <motion.div
