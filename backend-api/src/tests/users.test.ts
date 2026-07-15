@@ -368,10 +368,8 @@ vi.mock('firebase-admin', () => {
  * @description Garante que todas as requisições API sejam processadas com o UID 'current-user'.
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
+  checkAuth: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
+  checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { next(); }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
@@ -401,7 +399,7 @@ describe('GET /api/users/by-nickname/:nickname', () => {
    * @test Perfil por Nickname
    * @summary Recuperação pública de perfil.
    * @description Verifica se a busca por nickname exato retorna os dados do usuário corretamente no banco simulado.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/by-nickname/alice');
    * expect(res.body.nickname).toBe('alice');
@@ -422,7 +420,7 @@ describe('GET /api/users/by-nickname/:nickname', () => {
    * @test Nickname Não Encontrado
    * @summary Erro 404 para apelido inexistente.
    * @description Verifica se a API retorna o status correto quando busca um nickname que não consta na base.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/by-nickname/nonexistent');
    * expect(res.status).toBe(404);
@@ -444,7 +442,7 @@ describe('GET /api/users/check-nickname', () => {
    * @test Apelido Disponível
    * @summary Verificação de unicidade.
    * @description Garante que o sistema informe positivamente quando um nickname não está em uso.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/check-nickname?nickname=newuser');
    */
@@ -459,7 +457,7 @@ describe('GET /api/users/check-nickname', () => {
    * @test Apelido Ocupado
    * @summary Prevenção de duplicidade.
    * @description Garante que o sistema informe quando um nickname já pertence a outro usuário.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/check-nickname?nickname=taken');
    */
@@ -481,7 +479,7 @@ describe('GET /api/users/search', () => {
    * @test Busca por Prefixo
    * @summary Filtragem em memória.
    * @description Valida se o motor de busca simulado filtra corretamente usuários baseado em um termo parcial ('q').
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/search?q=ali');
    * expect(res.body[0].nickname).toBe('alice');
@@ -509,7 +507,7 @@ describe('GET /api/users/me/stats', () => {
    * @test Estatísticas do Perfil
    * @summary Recuperação de contadores.
    * @description Garante que os dados de contagem de amizade e solicitações sejam retornados corretamente.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/me/stats');
    * expect(res.body.totalFriends).toBe(5);
@@ -537,7 +535,7 @@ describe('GET /api/users/:userId', () => {
    * @test Perfil por UID
    * @summary Busca direta.
    * @description Verifica se os dados básicos de um perfil são retornados corretamente ao consultar por ID único.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/u1');
    * expect(res.body.displayName).toBe('Alice');
@@ -554,10 +552,10 @@ describe('GET /api/users/:userId', () => {
    * @test Acesso Bloqueado
    * @summary Verificação de restrições sociais.
    * @description Garante que a API retorne 403 Forbidden se houver um registro de bloqueio entre os usuários no Firestore.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/u1');
-   * 
+   *
    * @note Lógica de Bloqueio:
    * - O teste simula uma entrada na coleção 'blocks' indicando que o alvo bloqueou o solicitante.
    */
@@ -580,7 +578,7 @@ describe('Avatar Endpoints', () => {
    * @test Listagem de Avatares
    * @summary Galeria do usuário.
    * @description Verifica se todos os registros de avatares vinculados a um UID são retornados.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/users/u1/avatars');
    * expect(res.body).toHaveLength(1);
@@ -599,7 +597,7 @@ describe('Avatar Endpoints', () => {
    * @test Curtir Avatar
    * @summary Interação social com fotos.
    * @description Valida a lógica de 'like' em um recurso de avatar simulado.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/avatars/a1/like');
    */
@@ -614,9 +612,9 @@ describe('Avatar Endpoints', () => {
   /**
    * @test Atualização Completa de Perfil
    * @summary Valida persistência e sincronismo com Auth.
-   * @description Verifica se o PATCH /api/users/me atualiza o Firestore, 
+   * @description Verifica se o PATCH /api/users/me atualiza o Firestore,
    * reserva o nickname e sincroniza os dados com o Firebase Auth.
-   * 
+   *
    * @example
    * const res = await request(app)
    *   .patch('/api/users/me')
@@ -666,7 +664,7 @@ describe('Avatar Endpoints', () => {
    * @test Atualização de Foto Ativa
    * @summary Mudança de avatar principal.
    * @description Garante que o documento do usuário logado seja atualizado com a nova URL de foto.
-   * 
+   *
    * @example
    * const res = await request(app).patch('/api/users/me/photo').send({ photoURL: 'new' });
    * expect(state.docStore['users/current-user'].photoURL).toBe('new');
@@ -683,7 +681,7 @@ describe('Avatar Endpoints', () => {
 /**
  * @name Testes de Concorrência
  * @summary Validação de atomicidade em operações competitivas.
- * @description Testa a robustez do sistema frente a condições de corrida, 
+ * @description Testa a robustez do sistema frente a condições de corrida,
  * focando especialmente na geração de nicknames únicos durante o registro.
  */
 describe('User Concurrency', () => {
@@ -697,7 +695,7 @@ describe('User Concurrency', () => {
    * @test Registro Concorrente (Race Condition)
    * @summary Unicidade de nicknames sob carga.
    * @description Simula múltiplas solicitações de registro simultâneas para o mesmo nome de exibição.
-   * Verifica se o sistema utiliza corretamente as transações do Firestore para evitar duplicatas 
+   * Verifica se o sistema utiliza corretamente as transações do Firestore para evitar duplicatas
    * e gerar sufixos incrementais (joaosilva, joaosilva-1, etc).
    */
   it('deve lidar com múltiplas solicitações de registro concorrentes para o mesmo nome', async () => {

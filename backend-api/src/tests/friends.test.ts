@@ -352,10 +352,8 @@ vi.mock('firebase-admin', () => {
  * checkAuth(req, _res, next);
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
+  checkAuth: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
+  checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { next(); }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
@@ -393,7 +391,7 @@ describe('GET /api/findFriends', () => {
    * @test Termo Ausente
    * @summary Validação de parâmetro obrigatório.
    * @description Verifica se a API rejeita requisições sem o termo de busca searchTerm.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/findFriends');
    * expect(res.status).toBe(400);
@@ -408,7 +406,7 @@ describe('GET /api/findFriends', () => {
    * @test Termo Mínimo
    * @summary Proteção contra buscas genéricas.
    * @description Garante que o sistema exija ao menos 3 caracteres para evitar overhead de busca.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/findFriends?searchTerm=a');
    * expect(res.status).toBe(400);
@@ -423,7 +421,7 @@ describe('GET /api/findFriends', () => {
    * @test Busca com Sucesso
    * @summary Localização de perfis compatíveis.
    * @description Valida se a busca textual no Firestore retorna corretamente os usuários mockados.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/findFriends?searchTerm=João');
    * expect(res.body[0].displayName).toBe('João Silva');
@@ -447,7 +445,7 @@ describe('GET /api/findFriends', () => {
    * @test Exclusão do Usuário Logado
    * @summary Prevenção de auto-inclusão.
    * @description Garante que o usuário autenticado não apareça nos resultados da busca de amigos.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/findFriends?searchTerm=test');
    * expect(res.body.map((u: any) => u.id)).not.toContain('current-user');
@@ -476,7 +474,7 @@ describe('POST /api/friendships/request', () => {
    * @name Helper Dados de Usuário
    * @summary Gera usuário mockado.
    * @description Cria um objeto de usuário mockado com campos padrão.
-   * 
+   *
    * @params {string} name - Nome de exibição
    * @returns {Object} Perfil de usuário para docStore
    * @example
@@ -497,7 +495,7 @@ describe('POST /api/friendships/request', () => {
    * @test Destinatário Ausente
    * @summary Rejeição de requisição sem ID.
    * @description Garante que a API retorne erro 400 caso o corpo da requisição não contenha 'targetUserId'.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/request').send({});
    * expect(res.status).toBe(400);
@@ -512,7 +510,7 @@ describe('POST /api/friendships/request', () => {
    * @test Auto-Solicitação
    * @summary Impedimento de amizade consigo mesmo.
    * @description Verifica se a lógica de negócio impede que um usuário envie uma solicitação para o seu próprio UID.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/request').send({ targetUserId: 'current-user' });
    * expect(res.body.error).toContain('si mesmo');
@@ -527,7 +525,7 @@ describe('POST /api/friendships/request', () => {
    * @test Conflito de Amizade
    * @summary Prevenção de duplicidade.
    * @description Simula uma relação já existente no Firestore e garante o retorno 409 Conflict.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/request').send({ targetUserId: 'target-user' });
    * expect(res.status).toBe(409);
@@ -548,7 +546,7 @@ describe('POST /api/friendships/request', () => {
    * @test Solicitação Bem-sucedida
    * @summary Fluxo de criação de pedido.
    * @description Valida a persistência da solicitação e o disparo de contadores via transação.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/request').send({ targetUserId: 'target-user' });
    * expect(res.status).toBe(201);
@@ -590,7 +588,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
    * @test Permissão de Aceite
    * @summary Segurança de posse da relação.
    * @description Verifica se um usuário tenta aceitar uma amizade que não pertence a ele.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/other-user_friend/accept');
    * expect(res.status).toBe(403);
@@ -606,7 +604,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
    * @test Solicitação Inexistente
    * @summary Validação de ID de relação.
    * @description Garante erro 400 ao tentar aceitar uma amizade que não possui registro no banco.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/invalid_id/accept');
    * expect(res.status).toBe(400);
@@ -621,7 +619,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
    * @test Status Não Pendente
    * @summary Validação de estado atual.
    * @description Impede o aceite de amizades que já foram processadas (status != 'pending').
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/accepted_id/accept');
    * expect(res.status).toBe(400);
@@ -645,7 +643,7 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
    * @test Auto-Aceite Bloqueado
    * @summary Prevenção de manipulação.
    * @description Garante que o usuário que enviou o pedido não consiga aceitá-lo sozinho.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/my_sent_id/accept');
    * expect(res.body.error).toContain('própria');
@@ -669,11 +667,11 @@ describe('POST /api/friendships/:friendshipId/accept', () => {
    * @test Aceite com Sucesso
    * @summary Conversão de pedido em amizade.
    * @description Valida a transição de status para 'accepted' e o incremento dos contadores de ambos os usuários.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/current-user_friend-user/accept');
    * expect(res.status).toBe(200);
-   * 
+   *
    * @note Lógica de contadores (Aceite):
    * - 2 atualizações de documentos de amizade (bidirecional).
    * - 2 atualizações de contadores (remetente e destinatário).
@@ -706,7 +704,7 @@ describe('DELETE /api/friendships/:friendshipId', () => {
    * @test Permissão de Exclusão
    * @summary Segurança de posse.
    * @description Garante erro 403 ao tentar excluir/cancelar amizade de terceiros.
-   * 
+   *
    * @example
    * const res = await request(app).delete('/api/friendships/other-user_friend');
    * expect(res.status).toBe(403);
@@ -720,7 +718,7 @@ describe('DELETE /api/friendships/:friendshipId', () => {
    * @test Amizade Inexistente (Exclusão)
    * @summary Erro de recurso ausente.
    * @description Garante erro 404 ao tentar apagar uma relação que não existe.
-   * 
+   *
    * @example
    * const res = await request(app).delete('/api/friendships/non_existent_id');
    * expect(res.status).toBe(404);
@@ -734,7 +732,7 @@ describe('DELETE /api/friendships/:friendshipId', () => {
    * @test Cancelar Pendente
    * @summary Revogação de pedido enviado.
    * @description Valida o fluxo de cancelamento de uma solicitação que o usuário logado enviou e ainda está pendente.
-   * 
+   *
    * @example
    * const res = await request(app).delete('/api/friendships/sent_id');
    * expect(res.status).toBe(200);
@@ -756,7 +754,7 @@ describe('DELETE /api/friendships/:friendshipId', () => {
    * @test Rejeitar Pendente
    * @summary Recusa de pedido recebido.
    * @description Valida o fluxo de rejeição de uma solicitação recebida de terceiros.
-   * 
+   *
    * @example
    * const res = await request(app).delete('/api/friendships/requester_id');
    * expect(res.status).toBe(200);
@@ -778,7 +776,7 @@ describe('DELETE /api/friendships/:friendshipId', () => {
    * @test Desfazer Amizade
    * @summary Remoção de vínculo aceito.
    * @description Valida o fluxo de desfazer uma amizade que já foi aceita anteriormente.
-   * 
+   *
    * @example
    * const res = await request(app).delete('/api/friendships/friend_id');
    * expect(res.status).toBe(200);
@@ -809,13 +807,13 @@ describe('GET /api/friendships', () => {
   /**
    * @name Helper Amigo Mock
    * @summary Gera amizade aceita completa.
-   * @description Cria um objeto que simula uma relação de amizade com status 'accepted' 
+   * @description Cria um objeto que simula uma relação de amizade com status 'accepted'
    * e dados do amigo embutidos (denormalização), essencial para testes de listagem.
-   * 
+   *
    * @params {string} id - ID do amigo
    * @params {string} name - Nome de exibição do amigo
    * @returns {Object} Documento de amizade denormalizado
-   * 
+   *
    * @example
    * const friend = makeMockFriend('friend-user', 'Friend User');
    */
@@ -842,7 +840,7 @@ describe('GET /api/friendships', () => {
    * @test Lista Vazia
    * @summary Ausência de amigos.
    * @description Garante que a rota retorne uma lista vazia e metadados de paginação corretos quando não há amigos.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships');
    * expect(res.status).toBe(200);
@@ -866,7 +864,7 @@ describe('GET /api/friendships', () => {
    * @test Paginação
    * @summary Controle de limite de resultados.
    * @description Verifica se o parâmetro 'limit' é respeitado pelo motor de query em memória.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships?page=1&limit=2');
    * expect(res.status).toBe(200);
@@ -895,7 +893,7 @@ describe('GET /api/friendships', () => {
    * @test Filtragem por Busca
    * @summary Refinamento de resultados.
    * @description Testa a funcionalidade de busca por nome ou nickname do amigo.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships?search=silva');
    * expect(res.status).toBe(200);
@@ -922,7 +920,7 @@ describe('GET /api/friendships', () => {
    * @test Ordenação
    * @summary Organização dos resultados.
    * @description Verifica se a ordenação por nome ascendente funciona corretamente.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships?sortBy=name&sortDirection=asc');
    * expect(res.status).toBe(200);
@@ -950,7 +948,7 @@ describe('GET /api/friendships', () => {
    * @test Parâmetros Inválidos
    * @summary Validação de entrada.
    * @description Garante que a rota retorne 400 Bad Request para parâmetros de query inválidos.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships?page=0');
    * expect(res.status).toBe(400);
@@ -968,7 +966,7 @@ describe('GET /api/friendships', () => {
    * @test Paginação Extrema por Cursor
    * @summary Estabilidade em grandes volumes.
    * @description Simula 25 amigos e valida a navegação entre páginas usando o cursor base64 do Firestore.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships?limit=10&page=1');
    * expect(res.status).toBe(200);
@@ -1019,11 +1017,11 @@ describe('GET /api/friendships/requests', () => {
    * @test Filtragem de Pedidos Recebidos
    * @summary Exibição correta de solicitações.
    * @description Garante que a rota retorne apenas pedidos de amizade recebidos (não enviados pelo próprio usuário).
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/requests');
    * expect(res.body.data).toHaveLength(2);
-   * 
+   *
    * @note Regra de Negócio (Pedidos Recebidos):
    * - Filtra pedidos que o próprio usuário enviou (enviados != recebidos).
    */
@@ -1049,7 +1047,7 @@ describe('GET /api/friendships/requests', () => {
    * @test Paginação de Pedidos Recebidos
    * @summary Controle de limite de resultados.
    * @description Verifica se o parâmetro 'limit' é respeitado para pedidos recebidos.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/requests?page=1&limit=2');
    * expect(res.status).toBe(200);
@@ -1077,7 +1075,7 @@ describe('GET /api/friendships/requests', () => {
    * @test Busca em Pedidos Recebidos
    * @summary Refinamento de resultados.
    * @description Testa a funcionalidade de busca por nome ou nickname do remetente do pedido.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/requests?search=alice');
    * expect(res.status).toBe(200);
@@ -1103,7 +1101,7 @@ describe('GET /api/friendships/requests', () => {
    * @test Pedidos Recebidos Vazios
    * @summary Ausência de solicitações.
    * @description Garante que a rota retorne uma lista vazia e metadados de paginação corretos quando não há pedidos recebidos.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/requests');
    * expect(res.status).toBe(200);
@@ -1127,7 +1125,7 @@ describe('GET /api/friendships/requests', () => {
  * @name Pedidos de Amizade Enviados
  * @summary Rastreamento de solicitações de saída.
  * @description Testes para a listagem de pedidos de amizade enviados pelo usuário autenticado que ainda estão pendentes.
- * 
+ *
  * @example
  * const res = await request(app).get('/api/friendships/sent');
  * expect(res.status).toBe(200);
@@ -1149,11 +1147,11 @@ describe('GET /api/friendships/sent', () => {
    * @test Filtragem de Pedidos Enviados
    * @summary Exibição correta de solicitações.
    * @description Garante que a rota retorne apenas pedidos de amizade enviados pelo próprio usuário.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/sent');
    * expect(res.body.data).toHaveLength(2);
-   * 
+   *
    * @note Regra de Negócio (Pedidos Enviados):
    * - Garante que pedidos recebidos de terceiros sejam filtrados da listagem 'sent'.
    */
@@ -1184,7 +1182,7 @@ describe('GET /api/friendships/sent', () => {
    * @test Paginação de Pedidos Enviados
    * @summary Controle de limite de resultados.
    * @description Verifica se o parâmetro 'limit' é respeitado para pedidos enviados.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/sent?page=2&limit=2');
    * expect(res.status).toBe(200);
@@ -1212,7 +1210,7 @@ describe('GET /api/friendships/sent', () => {
    * @test Busca em Pedidos Enviados
    * @summary Refinamento de resultados.
    * @description Testa a funcionalidade de busca por nome ou nickname do destinatário do pedido.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/sent?search=bob');
    * expect(res.status).toBe(200);
@@ -1238,7 +1236,7 @@ describe('GET /api/friendships/sent', () => {
    * @test Pedidos Enviados Vazios
    * @summary Ausência de solicitações.
    * @description Garante que a rota retorne uma lista vazia e metadados de paginação corretos quando não há pedidos enviados.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/sent');
    * expect(res.status).toBe(200);
@@ -1272,7 +1270,7 @@ describe('POST /api/friendships/bulk-accept', () => {
    * @test FriendIds Ausente
    * @summary Erro de validação.
    * @description Verifica se a API retorna 400 quando o body não contém o campo 'friendIds'.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-accept').send({});
    * expect(res.status).toBe(400);
@@ -1288,7 +1286,7 @@ describe('POST /api/friendships/bulk-accept', () => {
    * @test FriendIds Vazio
    * @summary Erro de validação.
    * @description Verifica se a API retorna 400 quando 'friendIds' é uma lista vazia.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-accept').send({ friendIds: [] });
    * expect(res.status).toBe(400);
@@ -1304,11 +1302,11 @@ describe('POST /api/friendships/bulk-accept', () => {
    * @test Aceite em Lote Sucesso
    * @summary Aprovação em massa.
    * @description Garante que múltiplas solicitações pendentes sejam aceitas e os contadores atualizados em uma transação.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-accept').send({ friendIds: ['id1'] });
    * expect(res.body.accepted).toContain('id1');
-   * 
+   *
    * @note Lógica de contadores:
    * - 2 atualizações de amizade por amigo (bidirecional).
    * - 2 atualizações de contador dos amigos (amigo.friendsCount++).
@@ -1332,13 +1330,13 @@ describe('POST /api/friendships/bulk-accept', () => {
    * @test Processamento Parcial
    * @summary Tratamento de IDs inválidos ou inexistentes.
    * @description Garante que a API processe os IDs válidos e retorne os inválidos na lista de 'skipped'.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-accept').send({ friendIds: ['user-1', 'user-2', 'user-3'] });
    * expect(res.status).toBe(200);
    * expect(res.body.accepted).toEqual(['user-1']);
    * expect(res.body.skipped).toEqual(['user-2', 'user-3']);
-   * 
+   *
    * @note Configuração de Estado:
    * - user-2: Simulado como inexistente (lista vazia em queryResults).
    * - user-3: Simulado como amizade já aceita (não pendente).
@@ -1362,7 +1360,7 @@ describe('POST /api/friendships/bulk-accept', () => {
    * @test Solicitação Própria
    * @summary Prevenção de auto-aceite.
    * @description Garante que o usuário não consiga aceitar pedidos que ele mesmo enviou via processamento em lote.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-accept').send({ friendIds: ['user-1'] });
    * expect(res.status).toBe(200);
@@ -1391,7 +1389,7 @@ describe('POST /api/friendships/bulk-reject', () => {
    * @test FriendIds Ausente (Rejeição)
    * @summary Erro de validação.
    * @description Verifica se a API retorna 400 na rejeição em lote quando o body é inválido.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-reject').send({});
    * expect(res.status).toBe(400);
@@ -1407,13 +1405,13 @@ describe('POST /api/friendships/bulk-reject', () => {
    * @test Rejeição em Lote Sucesso
    * @summary Recusa em massa.
    * @description Garante que múltiplas solicitações pendentes sejam removidas e os contadores atualizados corretamente.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-reject').send({ friendIds: ['user-1', 'user-2'] });
    * expect(res.status).toBe(200);
    * expect(res.body.accepted).toEqual(['user-1', 'user-2']);
    * expect(res.body.skipped).toEqual([]);
-   * 
+   *
    * @note Lógica de persistência:
    * - Delete: 2 documentos por amizade (bidirecional).
    * - Contadores: 2 atualizações para os remetentes + 1 para o destinatário logado.
@@ -1434,7 +1432,7 @@ describe('POST /api/friendships/bulk-reject', () => {
    * @test Cancelamento Sugerido
    * @summary Validação de intenção.
    * @description Garante que o sistema sugira 'bulk-cancel' se o usuário tentar rejeitar um pedido que ele mesmo enviou.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-reject').send({ friendIds: ['user-1'] });
    * expect(res.status).toBe(200);
@@ -1456,13 +1454,13 @@ describe('POST /api/friendships/bulk-reject', () => {
    * @test Inexistentes em Lote
    * @summary Resiliência no processamento.
    * @description Garante que IDs inexistentes não quebrem a operação em lote e sejam reportados como 'skipped'.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-reject').send({ friendIds: ['user-1', 'user-2'] });
    * expect(res.status).toBe(200);
    * expect(res.body.rejected).toEqual(['user-1']);
    * expect(res.body.skipped).toHaveLength(1);
-   * 
+   *
    * @note Configuração de Estado:
    * - user-2: Não adicionado ao docStore (inexistente).
    */
@@ -1487,7 +1485,7 @@ describe('POST /api/friendships/bulk-cancel', () => {
    * @test FriendIds Ausente (Cancelamento)
    * @summary Erro de validação.
    * @description Verifica se a API retorna 400 no cancelamento em lote quando o body é inválido.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-cancel').send({});
    * expect(res.status).toBe(400);
@@ -1503,13 +1501,13 @@ describe('POST /api/friendships/bulk-cancel', () => {
    * @test Cancelamento em Lote Sucesso
    * @summary Revogação em massa.
    * @description Garante que múltiplas solicitações enviadas pelo usuário sejam canceladas com sucesso.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-cancel').send({ friendIds: ['user-1', 'user-2'] });
    * expect(res.status).toBe(200);
    * expect(res.body.cancelled).toEqual(['user-1', 'user-2']);
    * expect(res.body.skipped).toEqual([]);
-   * 
+   *
    * @note Lógica de persistência:
    * - Delete: 2 documentos por amizade (bidirecional).
    * - Contadores: 1 atualização para o remetente logado + 2 para os destinatários.
@@ -1530,7 +1528,7 @@ describe('POST /api/friendships/bulk-cancel', () => {
    * @test Pedidos Recebidos (Ignorar)
    * @summary Prevenção de cancelamento indevido.
    * @description Garante que o usuário não consiga cancelar solicitações que ele recebeu (deve usar bulk-reject).
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-cancel').send({ friendIds: ['user-1'] });
    * expect(res.status).toBe(200);
@@ -1552,13 +1550,13 @@ describe('POST /api/friendships/bulk-cancel', () => {
    * @test IDs Inexistentes (Cancelamento)
    * @summary Resiliência no processamento.
    * @description Garante que IDs sem relação de amizade pendente sejam reportados no 'skipped'.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/bulk-cancel').send({ friendIds: ['user-1', 'user-2'] });
    * expect(res.status).toBe(200);
    * expect(res.body.cancelled).toEqual(['user-1']);
    * expect(res.body.skipped).toHaveLength(1);
-   * 
+   *
    * @note Configuração de Estado:
    * - user-2: Não adicionado ao docStore (inexistente).
    */
@@ -1587,12 +1585,12 @@ describe('POST /api/friendships/sync-profile', () => {
    * @test Usuário Inexistente (Sync)
    * @summary Tratamento de inconsistência.
    * @description Verifica se a API retorna 404 se o usuário autenticado não possuir documento de perfil.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/sync-profile');
    * expect(res.status).toBe(404);
    * expect(res.body.error).toContain('não encontrado');
-   * 
+   *
    * @note Configuração de Estado:
    * - current-user: Simulado como inexistente (ausente no docStore).
    */
@@ -1606,7 +1604,7 @@ describe('POST /api/friendships/sync-profile', () => {
    * @test Sem Amizades (Sync)
    * @summary Operação vazia.
    * @description Garante que a sincronização retorne sucesso (0 atualizações) se o usuário não possuir amigos.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/sync-profile');
    * expect(res.status).toBe(200);
@@ -1631,7 +1629,7 @@ describe('POST /api/friendships/sync-profile', () => {
    * @test Sincronização Atômica
    * @summary Atualização de múltiplos documentos.
    * @description Verifica se a mudança de dados do usuário logado é propagada corretamente para todos os seus amigos via batch.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/sync-profile');
    * expect(res.body.updated).toBe(3);
@@ -1661,12 +1659,12 @@ describe('POST /api/friendships/sync-profile', () => {
    * @test Sincronização Massiva
    * @summary Divisão em múltiplos batches.
    * @description Valida a lógica de chunking (FIRESTORE_BATCH_LIMIT) quando o usuário possui mais de 500 amigos.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/friendships/sync-profile');
    * expect(res.status).toBe(200);
    * expect(res.body.updated).toBe(502);
-   * 
+   *
    * @note Lógica de Escrita:
    * - O Firestore limita transações em lote a 500 operações. O teste simula 502 amigos para garantir que dois batches sejam commitados.
    */
@@ -1704,7 +1702,7 @@ describe('GET /api/friendships/mutual/:userId', () => {
    * @test Mútuos Próprios
    * @summary Comparação consigo mesmo.
    * @description Garante que a API retorne 0 ao tentar calcular amigos mútuos com o próprio ID logado.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/mutual/current-user');
    * expect(res.status).toBe(200);
@@ -1722,7 +1720,7 @@ describe('GET /api/friendships/mutual/:userId', () => {
    * @test Intersecção de Amizades
    * @summary Identificação de amigos mútuos.
    * @description Executa a lógica de intersecção entre a lista de amigos do usuário logado e a do alvo.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/mutual/target-user');
    * expect(res.body.friends[0].id).toBe('user-3');
@@ -1747,7 +1745,7 @@ describe('GET /api/friendships/mutual/:userId', () => {
    * @test Sem Amigos Mútuos
    * @summary Comparação sem intersecção.
    * @description Garante que a API retorne count 0 quando não há sobreposição entre as listas de amigos.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/mutual/target-user');
    * expect(res.body.count).toBe(0);
@@ -1778,7 +1776,7 @@ describe('GET /api/friendships/status/:userId', () => {
    * @test Status Self
    * @summary Autoconsulta de relação.
    * @description Identifica que o usuário está consultando a si mesmo, retornando status 'self'.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/status/current-user');
    * expect(res.status).toBe(200);
@@ -1794,7 +1792,7 @@ describe('GET /api/friendships/status/:userId', () => {
    * @test Status None
    * @summary Ausência de relação.
    * @description Retorna 'none' quando não existe nenhum documento de amizade (ou pedido) entre os dois usuários.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/status/other-user');
    * expect(res.status).toBe(200);
@@ -1810,7 +1808,7 @@ describe('GET /api/friendships/status/:userId', () => {
    * @test Status Friends
    * @summary Amizade estabelecida.
    * @description Retorna 'friends' quando a relação possui status 'accepted'.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/status/other-user');
    * expect(res.status).toBe(200);
@@ -1831,7 +1829,7 @@ describe('GET /api/friendships/status/:userId', () => {
    * @test Status Request Sent
    * @summary Pedido enviado pelo autor.
    * @description Retorna 'request_sent' quando há um pedido pendente onde o autor foi quem solicitou.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/status/other-user');
    * expect(res.status).toBe(200);
@@ -1852,7 +1850,7 @@ describe('GET /api/friendships/status/:userId', () => {
    * @test Estado de Recebimento
    * @summary Identificação de pedido pendente.
    * @description Garante que o status 'request_received' seja retornado quando há uma solicitação enviada pelo alvo.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/friendships/status/other-user');
    * expect(res.status).toBe(200);

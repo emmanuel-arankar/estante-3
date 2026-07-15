@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as any, validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/register', authLimiter as any, validate({ body: registerSchema }), async (req: Request, res: Response) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;

@@ -340,10 +340,8 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
-  checkAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.user = { uid: 'current-user' };
-    next();
-  }),
+  checkAuth: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
+  checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { next(); }),
 }));
 
 // ==== ==== SETUP E CICLO DE VIDA ==== ====
@@ -367,7 +365,7 @@ beforeEach(async () => {
  * @name Helper Criar Notificação
  * @summary Gera notificação mockada.
  * @description Gera um objeto de notificação padrão para injeção no docStore.
- * 
+ *
  * @params {string} id - ID da notificação
  * @params {string} [type] - Tipo da notificação
  * @params {boolean} [read] - Status de leitura
@@ -396,7 +394,7 @@ describe('GET /api/notifications', () => {
    * @test Lista Vazia
    * @summary Ausência de notificações.
    * @description Garante que a API retorne uma lista vazia e metadados de paginação zerados quando o usuário não possui alertas.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/notifications');
    * expect(res.body.data.data).toEqual([]);
@@ -418,7 +416,7 @@ describe('GET /api/notifications', () => {
    * @test Paginação de Notificações
    * @summary Controle de fluxo de dados.
    * @description Verifica se o sistema respeita os limites de página e retorna os metadados de navegação corretos.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/notifications?page=1&limit=2');
    * expect(res.body.data.data).toHaveLength(2);
@@ -445,7 +443,7 @@ describe('GET /api/notifications', () => {
    * @test Listagem Filtrada
    * @summary Filtro de notificações não lidas.
    * @description Garante que o parâmetro 'unreadOnly' funcione corretamente no motor de query simulado.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/notifications?unreadOnly=true');
    * expect(res.body.data.data[0].read).toBe(false);
@@ -473,7 +471,7 @@ describe('POST /api/notifications/:notificationId/read', () => {
    * @test Marcar como Lido
    * @summary Atualização individual de status.
    * @description Valida se o status 'read' é alterado para true no banco de dados após a requisição.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/notifications/n1/read');
    * expect(state.docStore['notifications/n1'].read).toBe(true);
@@ -491,7 +489,7 @@ describe('POST /api/notifications/:notificationId/read', () => {
    * @test Notificação Inexistente
    * @summary Erro 404 para ID inválido.
    * @description Garante que o sistema informe erro quando tentam marcar como lida uma notificação que não existe no banco.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/notifications/invalid/read');
    * expect(res.status).toBe(404);
@@ -505,7 +503,7 @@ describe('POST /api/notifications/:notificationId/read', () => {
    * @test Permissão de Leitura
    * @summary Bloqueio de acesso indevido.
    * @description Verifica se um usuário é impedido de marcar como lida uma notificação que pertence a outro UID (erro 403).
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/notifications/other_user_notif/read');
    * expect(res.status).toBe(403);
@@ -529,7 +527,7 @@ describe('POST /api/notifications/mark-all-read', () => {
    * @test Marcar Todas como Lidas
    * @summary Atualização massiva de status.
    * @description Simula o processamento em lote para atualizar todas as notificações pendentes do usuário em uma única operação.
-   * 
+   *
    * @example
    * const res = await request(app).post('/api/notifications/mark-all-read');
    * expect(res.body.data.count).toBe(2);
@@ -564,7 +562,7 @@ describe('DELETE /api/notifications/:notificationId', () => {
    * @test Exclusão de Notificação
    * @summary Remoção individual.
    * @description Garante que a notificação seja removida do docStore após a chamada de exclusão.
-   * 
+   *
    * @example
    * const res = await request(app).delete('/api/notifications/n1');
    * expect(state.docStore['notifications/n1']).toBeUndefined();
@@ -589,7 +587,7 @@ describe('GET /api/notifications/unread-count', () => {
    * @test Contagem de Pendentes
    * @summary Totalizador de não lidas.
    * @description Valida se a API retorna o número exato de notificações com status 'read: false'.
-   * 
+   *
    * @example
    * const res = await request(app).get('/api/notifications/unread-count');
    * expect(res.body.data.count).toBe(2);
