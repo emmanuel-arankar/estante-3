@@ -340,3 +340,267 @@ vi.mock('firebase-admin', () => {
  * @params {NextFunction} next - Função next
  */
 vi.mock('../middleware/auth.middleware', () => ({
+  checkAuth: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
+  checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { next(); }),
+}));
+
+// ==== ==== SETUP E CICLO DE VIDA ==== ====
+
+/**
+ * @name Reset de Ambiente
+ * @summary Limpeza entre ciclos de teste.
+ * @description Reinicia o banco de dados simulado e limpa o cache local para garantir isolamento total entre os cenários.
+ */
+beforeEach(async () => {
+  state.docStore = {};
+  state.queryResults = {};
+  state.queryCallCount = {};
+  vi.clearAllMocks();
+  await invalidatePattern('*');
+});
+
+// ==== ==== CASOS DE TESTE (NOTIFICATIONS) ==== ====
+
+/**
+ * @name Helper Criar Notificação
+ * @summary Gera notificação mockada.
+ * @description Gera um objeto de notificação padrão para injeção no docStore.
+ *
+ * @params {string} id - ID da notificação
+ * @params {string} [type] - Tipo da notificação
+ * @params {boolean} [read] - Status de leitura
+ * @returns {Object} Notificação para docStore
+ * @example
+ * state.docStore['notifications/n1'] = makeNotification('n1', 'friend_request');
+ */
+const makeNotification = (id: string, type = 'friend_request', read = false) => ({
+  id,
+  userId: 'current-user',
+  type,
+  actorId: 'other-user',
+  actorName: 'Other User',
+  read,
+  createdAt: { toDate: () => new Date(), toMillis: () => Date.now(), seconds: 123, nanoseconds: 0 },
+});
+
+
+/**
+ * @name Listagem de Notificações
+ * @summary Visualização do feed de alertas.
+ * @description Conjunto de testes para a recuperação paginada de notificações, incluindo filtros de lidas/não lidas.
+ */
+describe('GET /api/notifications', () => {
+  /**
+   * @test Lista Vazia
+   * @summary Ausência de notificações.
+   * @description Garante que a API retorne uma lista vazia e metadados de paginação zerados quando o usuário não possui alertas.
+   *
+   * @example
+   * const res = await request(app).get('/api/notifications');
+   * expect(res.body.data.data).toEqual([]);
+   */
+  it('deve retornar lista vazia quando não há notificações', async () => {
+    // [ARRANGE] Mockar resultado de query vazia
+    state.queryResults['notifications'] = [];
+
+    // [ACT] Chamar endpoint de listagem {@link listNotificationsQuerySchema}
+    const res = await request(app).get('/api/notifications');
+
+    // [ASSERT] Validar resposta padrão para lista vazia
+    expect(res.status).toBe(200);
+    expect(res.body.data.data).toEqual([]);
+    expect(res.body.data.pagination.total).toBe(0);
+  });
+
+  /**
+   * @test Paginação de Notificações
+   * @summary Controle de fluxo de dados.
+   * @description Verifica se o sistema respeita os limites de página e retorna os metadados de navegação corretos.
+   *
+   * @example
+   * const res = await request(app).get('/api/notifications?page=1&limit=2');
+   * expect(res.body.data.data).toHaveLength(2);
+   */
+  it('deve listar notificações com paginação', async () => {
+    // [ARRANGE] Preparar múltiplas notificações no estado
+    state.queryResults['notifications'] = [
+      makeNotification('n1'),
+      makeNotification('n2'),
+      makeNotification('n3'),
+    ];
+
+    // [ACT] Solicitar página 1 com limite de 2 via {@link listNotificationsQuerySchema}
+    const res = await request(app).get('/api/notifications?page=1&limit=2');
+
+    // [ASSERT] Validar dados da página e metadados de paginação
+    expect(res.status).toBe(200);
+    expect(res.body.data.data).toHaveLength(2);
+    expect(res.body.data.pagination.total).toBe(3);
+    expect(res.body.data.pagination.hasMore).toBe(true);
+  });
+
+  /**
+   * @test Listagem Filtrada
+   * @summary Filtro de notificações não lidas.
+   * @description Garante que o parâmetro 'unreadOnly' funcione corretamente no motor de query simulado.
+   *
+   * @example
+   * const res = await request(app).get('/api/notifications?unreadOnly=true');
+   * expect(res.body.data.data[0].read).toBe(false);
+   */
+  it('deve filtrar apenas notificações não lidas', async () => {
+    state.queryResults['notifications'] = [
+      makeNotification('n1', 'type1', true),
+      makeNotification('n2', 'type2', false),
+    ];
+
+    const res = await request(app).get('/api/notifications?unreadOnly=true');
+    expect(res.status).toBe(200);
+    expect(res.body.data.data).toHaveLength(1);
+    expect(res.body.data.data[0].id).toBe('n2');
+  });
+});
+
+/**
+ * @name Marcação de Leitura
+ * @summary Gestão de status individual.
+ * @description Valida a alteração do estado de notificação para 'lida' e as respectivas permissões de segurança.
+ */
+describe('POST /api/notifications/:notificationId/read', () => {
+  /**
+   * @test Marcar como Lido
+   * @summary Atualização individual de status.
+   * @description Valida se o status 'read' é alterado para true no banco de dados após a requisição.
+   *
+   * @example
+   * const res = await request(app).post('/api/notifications/n1/read');
+   * expect(state.docStore['notifications/n1'].read).toBe(true);
+   */
+  it('deve marcar notificação como lida', async () => {
+    state.docStore['notifications/n1'] = { userId: 'current-user', read: false };
+
+    const res = await request(app).post('/api/notifications/n1/read');
+    expect(res.status).toBe(200);
+    expect(res.body.data.message).toContain('lida');
+    expect(state.docStore['notifications/n1'].read).toBe(true);
+  });
+
+  /**
+   * @test Notificação Inexistente
+   * @summary Erro 404 para ID inválido.
+   * @description Garante que o sistema informe erro quando tentam marcar como lida uma notificação que não existe no banco.
+   *
+   * @example
+   * const res = await request(app).post('/api/notifications/invalid/read');
+   * expect(res.status).toBe(404);
+   */
+  it('deve retornar 404 para notificação inexistente', async () => {
+    const res = await request(app).post('/api/notifications/invalid/read');
+    expect(res.status).toBe(404);
+  });
+
+  /**
+   * @test Permissão de Leitura
+   * @summary Bloqueio de acesso indevido.
+   * @description Verifica se um usuário é impedido de marcar como lida uma notificação que pertence a outro UID (erro 403).
+   *
+   * @example
+   * const res = await request(app).post('/api/notifications/other_user_notif/read');
+   * expect(res.status).toBe(403);
+   */
+  it('deve retornar 403 se a notificação não pertencer ao usuário', async () => {
+    state.docStore['notifications/n1'] = { userId: 'other-user', read: false };
+
+    const res = await request(app).post('/api/notifications/n1/read');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain('permissão');
+  });
+});
+
+/**
+ * @name Leitura em Massa
+ * @summary Processamento atômico de alertas.
+ * @description Conjunto de testes para a funcionalidade de marcar todas as notificações do usuário como lidas simultaneamente.
+ */
+describe('POST /api/notifications/mark-all-read', () => {
+  /**
+   * @test Marcar Todas como Lidas
+   * @summary Atualização massiva de status.
+   * @description Simula o processamento em lote para atualizar todas as notificações pendentes do usuário em uma única operação.
+   *
+   * @example
+   * const res = await request(app).post('/api/notifications/mark-all-read');
+   * expect(res.body.data.count).toBe(2);
+   */
+  it('deve marcar todas as notificações como lidas', async () => {
+    state.queryResults['notifications'] = [
+      { id: 'n1', data: () => ({ userId: 'current-user', read: false }), ref: { __path: 'notifications/n1' } },
+      { id: 'n2', data: () => ({ userId: 'current-user', read: false }), ref: { __path: 'notifications/n2' } },
+    ];
+    // Força resultado específico para a consulta interna de mark-all-read
+    state.queryResults['notifications:0'] = state.queryResults['notifications'];
+
+    // We also need docStore to reflect the changes if we want to verify them there
+    state.docStore['notifications/n1'] = { userId: 'current-user', read: false };
+    state.docStore['notifications/n2'] = { userId: 'current-user', read: false };
+
+    const res = await request(app).post('/api/notifications/mark-all-read');
+    expect(res.status).toBe(200);
+    expect(res.body.data.count).toBe(2);
+    expect(state.docStore['notifications/n1'].read).toBe(true);
+    expect(state.docStore['notifications/n2'].read).toBe(true);
+  });
+});
+
+/**
+ * @name Exclusão de Notificações
+ * @summary Limpeza de histórico.
+ * @description Garante que usuários possam remover notificações de seu feed de forma segura.
+ */
+describe('DELETE /api/notifications/:notificationId', () => {
+  /**
+   * @test Exclusão de Notificação
+   * @summary Remoção individual.
+   * @description Garante que a notificação seja removida do docStore após a chamada de exclusão.
+   *
+   * @example
+   * const res = await request(app).delete('/api/notifications/n1');
+   * expect(state.docStore['notifications/n1']).toBeUndefined();
+   */
+  it('deve excluir notificação com sucesso', async () => {
+    state.docStore['notifications/n1'] = { userId: 'current-user' };
+
+    const res = await request(app).delete('/api/notifications/n1');
+    expect(res.status).toBe(200);
+    expect(res.body.data.message).toContain('sucesso');
+    expect(state.docStore['notifications/n1']).toBeUndefined();
+  });
+});
+
+/**
+ * @name Contagem de Notificações
+ * @summary Indicador de pendências.
+ * @description Testa a precisão do contador de notificações não lidas para exibição em badges de UI.
+ */
+describe('GET /api/notifications/unread-count', () => {
+  /**
+   * @test Contagem de Pendentes
+   * @summary Totalizador de não lidas.
+   * @description Valida se a API retorna o número exato de notificações com status 'read: false'.
+   *
+   * @example
+   * const res = await request(app).get('/api/notifications/unread-count');
+   * expect(res.body.data.count).toBe(2);
+   */
+  it('deve retornar a contagem correta de notificações não lidas', async () => {
+    state.queryResults['notifications'] = [
+      makeNotification('n1', 'type1', false),
+      makeNotification('n2', 'type2', false),
+      makeNotification('n3', 'type3', true),
+    ];
+
+    const res = await request(app).get('/api/notifications/unread-count');
+    expect(res.status).toBe(200);
+    expect(res.body.data.count).toBe(2);
+  });
+});
