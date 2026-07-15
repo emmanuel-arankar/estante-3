@@ -154,7 +154,7 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     // Audit Log: O UID deve ser recuperado do token se necessário, mas aqui vamos focar no login via email/pwd ou google primeiro.
 
     return res.status(200).send({ status: 'success' });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Erro ao criar cookie de sessão:', {
       errorMessage: error.message,
       errorCode: error.code,
@@ -162,7 +162,7 @@ router.post('/sessionLogin', authLimiter as unknown as RequestHandler, validate(
     });
 
     const firebaseError = error as FirebaseError;
-    let statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
+    const statusCode = 401;       // Assume 401 para erros Firebase Auth por padrão
     let errorMessage = 'Falha na autenticação. Faça login novamente.';
     let shouldLogError = true;  // Flag que controla se logamos como erro ou apenas aviso
 
@@ -241,7 +241,7 @@ router.post('/sessionLogout', (req, res) => {
  * - O processo utiliza `db.runTransaction` para garantir consistência entre Auth, Nicknames e Users.
  * - Em caso de falha na criação do perfil no Firestore, um rollback manual é executado no Firebase Auth.
  */
-router.post('/register', authLimiter as any, validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/register', authLimiter, validate({ body: registerSchema }), async (req: Request, res: Response, next: NextFunction) => {
   try {
     // A validação agora é feita pelo middleware 'validate'
     const { email, password, displayName } = req.body;
