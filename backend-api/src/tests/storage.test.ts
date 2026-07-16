@@ -29,6 +29,7 @@ vi.mock('../firebase', () => ({
     },
     bucket: mockBucket,
     db: { collection: vi.fn(() => ({ add: vi.fn().mockResolvedValue({}) })) },
+    db: { collection: vi.fn(() => ({ add: vi.fn().mockResolvedValue({}) })) },
 }));
 
 // Mocking Auth Middleware
