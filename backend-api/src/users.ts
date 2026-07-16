@@ -7,6 +7,7 @@ import { db } from './firebase';
 import { checkAuth, AuthenticatedRequest } from './middleware/auth.middleware';
 import { validate } from './middleware/validate.middleware';
 import { searchLimiter } from './middleware/security.middleware';
+import { RequestHandler } from 'express';
 import {
   userIdParamSchema,
   updateProfileSchema,
@@ -125,7 +126,7 @@ router.get('/users/check-nickname', asyncHandler(async (req: Request, res: Respo
  * @example
  * GET /api/users/search?q=joao&limit=5
  */
-router.get('/users/search', checkAuth, searchLimiter as any, asyncHandler(async (req: Request, res: Response) => {
+router.get('/users/search', checkAuth, searchLimiter as unknown as RequestHandler, asyncHandler(async (req: Request, res: Response) => {
   const { q, limit: limitStr } = req.query;
   const searchLimit = Math.min(parseInt(limitStr as string) || 10, 20);
 
