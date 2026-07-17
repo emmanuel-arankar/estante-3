@@ -1,0 +1,3 @@
+## 2026-07-17 - [HTML Sanitization Space Collapse & Vitest Mocking]
+**Learning:** The backend HTML sanitizer in `backend-api/src/lib/sanitize.ts` actively collapses multiple spaces and tabs into a single space via `output.replace(/[ \t]{2,}/g, ' ')`. This causes some unit tests (e.g. `sanitize.test.ts`) that expect double spaces from removed tags to fail. Additionally, mocking `auth.middleware` in backend tests requires a mock export for `checkAuthOptional` because some routes are protected optionally and check for it.
+**Action:** Always verify that sanitizer test assertions expect single-spaced outputs. Ensure any new tests mocking `auth.middleware` export both `checkAuth` and `checkAuthOptional` mocks.
