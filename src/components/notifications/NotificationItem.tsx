@@ -6,12 +6,15 @@ import type { Notification } from '@estante/common-types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
+import React, { memo } from 'react';
+
 interface NotificationItemProps {
     notification: Notification;
     onMarkAsRead?: (notificationId: string) => void;
 }
 
-export const NotificationItem = ({ notification, onMarkAsRead }: NotificationItemProps) => {
+// PERFORMANCE: Memoized with React.memo to prevent unnecessary re-renders when parent states change but the notification remains the same.
+export const NotificationItem = memo(({ notification, onMarkAsRead }: NotificationItemProps) => {
     const getNotificationIcon = () => {
         switch (notification.type) {
             case 'friend_request':
@@ -42,7 +45,7 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                         {' '}enviou uma solicitação de amizade
                     </>
                 );
-            case 'friend_accepted':
+            case 'friend_accepted': {
                 // isRequester = true: você enviou, alguém aceitou
                 // isRequester = false: alguém enviou, você aceitou
                 const isRequester = notification.metadata?.isRequester;
@@ -64,6 +67,7 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                         </>
                     );
                 }
+            }
             case 'friend_rejected':
                 return (
                     <>
@@ -180,4 +184,6 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
             )}
         </Link>
     );
-};
+});
+
+NotificationItem.displayName = 'NotificationItem';
