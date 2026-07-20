@@ -1,0 +1,3 @@
+## 2026-07-20 - [Memoizing Paginated Array Derivations]
+**Learning:** Wrapping `.flatMap()` or similar mapping functions over paginated Query data (like TanStack Query `useInfiniteQuery`) inside a custom React hook without memoization breaks referential equality on every single component render. Even if the query data remains identical, a new array reference is returned, prompting child list components (like list items or dropdowns) to perform expensive re-render cycles.
+**Action:** Always wrap array mapping/transformations derived from TanStack query data inside `useMemo` with the raw query data (e.g. `query.data`) as a dependency.
