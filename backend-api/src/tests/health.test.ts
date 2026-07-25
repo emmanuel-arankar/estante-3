@@ -28,6 +28,36 @@ vi.mock('firebase-functions/logger', () => ({
   debug: vi.fn(),
 }));
 
+/**
+ * @name Mock Firebase Admin
+ * @summary SDK Administrativo simulado.
+ * @description Evita inicialização real do Realtime Database e Firestore no carregamento do index.ts.
+ */
+vi.mock('firebase-admin', () => {
+  const databaseMock = () => ({
+    ref: vi.fn(),
+  });
+  const storageMock = () => ({
+    bucket: vi.fn(() => ({})),
+  });
+  return {
+    default: {
+      apps: [{}],
+      initializeApp: vi.fn(),
+      firestore: () => ({}),
+      auth: () => ({}),
+      database: databaseMock,
+      storage: storageMock,
+    },
+    apps: [{}],
+    initializeApp: vi.fn(),
+    firestore: () => ({}),
+    auth: () => ({}),
+    database: databaseMock,
+    storage: storageMock,
+  };
+});
+
 // =============================================================================
 // SETUP DE TESTES (TEST SETUP)
 // =============================================================================
