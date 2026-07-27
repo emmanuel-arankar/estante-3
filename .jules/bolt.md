@@ -1,0 +1,3 @@
+## 2026-07-27 - [Stable Animation Coordinates with useMemo]
+**Learning:** Calling `Math.random()` in the render path for Framer Motion animation values (such as positions, delays, or durations) leads to visual jitter during re-renders, triggers unnecessary re-calculations, and causes server/client hydration mismatch errors in SSR contexts.
+**Action:** Use a `useMemo` hook with deterministic math (such as modulo arithmetic) to pre-generate stable coordinates, durations, and delays. This ensures rendering stability, enhances re-render performance, and guarantees full compatibility with SSR environments.
