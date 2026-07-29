@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react';
+import { CSSProperties, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
@@ -15,26 +15,41 @@ export const Hero = () => {
     }
   };
 
+  /**
+   * PERFORMANCE OPTIMIZATION: Memoize the random coordinates, durations, and delays
+   * of the background bubbles. Generating these on each render causes visual jitter,
+   * animation resets on typing (keystrokes re-render), and unnecessary re-calculations.
+   */
+  const backgroundBubbles = useMemo(() => {
+    return Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+    }));
+  }, []);
+
   return (
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
+        {backgroundBubbles.map((bubble) => (
           <motion.div
-            key={i}
+            key={bubble.id}
             className="absolute w-2 h-2 bg-white/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: bubble.left,
+              top: bubble.top,
             } as CSSProperties}
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.8, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: bubble.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: bubble.delay,
             }} 
           />
         ))}
