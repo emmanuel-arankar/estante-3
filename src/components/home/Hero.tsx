@@ -4,6 +4,16 @@ import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
+import { useMemo } from 'react';
+
+interface BackgroundBubble {
+  id: number;
+  left: string;
+  top: string;
+  duration: number;
+  delay: number;
+}
+
 export const Hero = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
@@ -15,26 +25,39 @@ export const Hero = () => {
     }
   };
 
+  // ⚡ PERFORMANCE: Memoize background bubble positions and animations.
+  // Using Math.random() inside the render path causes bubbles to jump and recalculate style/animations
+  // on every keystroke in the search input, creating visual jitter and unnecessary CPU usage.
+  const bubbles = useMemo<BackgroundBubble[]>(() => {
+    return Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+    }));
+  }, []);
+
   return (
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
+        {bubbles.map((bubble) => (
           <motion.div
-            key={i}
+            key={bubble.id}
             className="absolute w-2 h-2 bg-white/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: bubble.left,
+              top: bubble.top,
             } as CSSProperties}
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.8, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: bubble.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: bubble.delay,
             }} 
           />
         ))}
