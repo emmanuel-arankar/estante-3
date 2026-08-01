@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -14,6 +15,11 @@ import { PATHS } from '@/router/paths';
 
 export const NotificationDropdown = () => {
     const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
+
+    // PERFORMANCE: Memoize notifications limit slice to keep array reference stable
+    const notificationsLimit = useMemo(() => {
+        return notifications.slice(0, 10);
+    }, [notifications]);
 
     return (
         <DropdownMenu>
@@ -61,7 +67,7 @@ export const NotificationDropdown = () => {
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {notifications.slice(0, 10).map((notification) => (
+                            {notificationsLimit.map((notification) => (
                                 <NotificationItem
                                     key={notification.id}
                                     notification={notification}
