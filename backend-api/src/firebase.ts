@@ -55,7 +55,7 @@ if (admin.apps.length === 0) {
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
       const credential = admin.credential.cert(require(saPath));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
 
       admin.initializeApp({
         projectId,
@@ -65,11 +65,19 @@ if (admin.apps.length === 0) {
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
       logger.error('Falha ao carregar credenciais locais. Usando ADC.', e);
-      admin.initializeApp();
+      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
+      admin.initializeApp({
+        projectId,
+        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+      });
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef';
+    admin.initializeApp({
+      projectId,
+      databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
@@ -90,7 +98,7 @@ export const rtdb = admin.database();
  * @name Instância do Storage
  * @summary Acesso ao bucket padrão do Firebase Storage.
  */
-export const bucket = admin.storage().bucket(`${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}.firebasestorage.app`);
+export const bucket = admin.storage().bucket(`${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-virtual-805ef'}.firebasestorage.app`);
 
 /**
  * @name Instância do Auth
