@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Bell, UserPlus, UserCheck, UserX, Heart, MessageSquare } from 'lucide-react';
@@ -11,7 +12,11 @@ interface NotificationItemProps {
     onMarkAsRead?: (notificationId: string) => void;
 }
 
-export const NotificationItem = ({ notification, onMarkAsRead }: NotificationItemProps) => {
+/**
+ * PERFORMANCE: Memoized using React.memo to prevent redundant re-renders
+ * of individual notification items when other parts of the list or parent component update.
+ */
+export const NotificationItem = memo(({ notification, onMarkAsRead }: NotificationItemProps) => {
     const getNotificationIcon = () => {
         switch (notification.type) {
             case 'friend_request':
@@ -42,7 +47,7 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                         {' '}enviou uma solicitação de amizade
                     </>
                 );
-            case 'friend_accepted':
+            case 'friend_accepted': {
                 // isRequester = true: você enviou, alguém aceitou
                 // isRequester = false: alguém enviou, você aceitou
                 const isRequester = notification.metadata?.isRequester;
@@ -64,6 +69,7 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
                         </>
                     );
                 }
+            }
             case 'friend_rejected':
                 return (
                     <>
@@ -180,4 +186,6 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
             )}
         </Link>
     );
-};
+});
+
+NotificationItem.displayName = 'NotificationItem';
