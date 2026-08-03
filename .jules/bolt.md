@@ -1,0 +1,3 @@
+## 2026-08-03 - Deterministic Pseudo-Random Generation for Animated Elements
+**Learning:** Using `Math.random()` in React render paths for CSS positioning or animation properties causes visual jitter and layout shifting on re-renders, and breaks SSR hydration due to mismatched random values between the server and the client.
+**Action:** Memoize position/animation configurations using `useMemo` with a deterministic, index-based pseudo-random generator (using modulo arithmetic). This completely stabilizes layout rendering, avoids rendering performance bottlenecks during parent re-renders, and ensures solid SSR-client compatibility.

@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react';
+import { CSSProperties, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
@@ -15,26 +15,41 @@ export const Hero = () => {
     }
   };
 
+  // PERFORMANCE: Memoize background bubble coordinates, durations, and delays
+  // using deterministic pseudo-random mathematical values based on the bubble index.
+  // This avoids Math.random() in the render loop, preventing visual jitter,
+  // reducing re-render performance costs on keystrokes, and avoiding SSR hydration mismatches.
+  const bubbles = useMemo(() => {
+    return Array.from({ length: 20 }, (_, i) => {
+      // Deterministic pseudo-random generation based on index to ensure stable SSR and no layout shifting
+      const left = ((i * 37) % 100);
+      const top = ((i * 53) % 100);
+      const duration = 3 + ((i * 7) % 3); // between 3 and 5s
+      const delay = (i * 13) % 4 / 2; // between 0 and 1.5s
+      return { id: i, left, top, duration, delay };
+    });
+  }, []);
+
   return (
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
+        {bubbles.map((bubble) => (
           <motion.div
-            key={i}
+            key={bubble.id}
             className="absolute w-2 h-2 bg-white/20 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${bubble.left}%`,
+              top: `${bubble.top}%`,
             } as CSSProperties}
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.8, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: bubble.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: bubble.delay,
             }} 
           />
         ))}
