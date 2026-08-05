@@ -1,0 +1,3 @@
+## 2026-08-05 - Stable Background Animation Positions
+**Learning:** Using `Math.random()` inside inline style properties or render loops for components like animated background bubbles causes the coordinates, durations, and delays to be completely recalculated on every single state change of the component (e.g. keystrokes in a text input field). This leads to noticeable visual jitter (elements resetting / jumping around) and excessive rendering workload.
+**Action:** Always extract randomized animation arrays into a stable `useMemo` hook with empty dependencies (`[]`) to persist their coordinates, delays, and durations across keystroke-induced re-renders.
