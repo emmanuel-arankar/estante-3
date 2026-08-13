@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationItem } from './NotificationItem';
 import { Button } from '@/components/ui/button';
+import { useMemo } from 'react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,6 +15,12 @@ import { PATHS } from '@/router/paths';
 
 export const NotificationDropdown = () => {
     const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
+
+    // PERFORMANCE: Memoize slicing the notifications array to prevent
+    // creating a new array reference on every render of the dropdown.
+    const slicedNotifications = useMemo(() => {
+        return notifications.slice(0, 10);
+    }, [notifications]);
 
     return (
         <DropdownMenu>
@@ -61,7 +68,7 @@ export const NotificationDropdown = () => {
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {notifications.slice(0, 10).map((notification) => (
+                            {slicedNotifications.map((notification) => (
                                 <NotificationItem
                                     key={notification.id}
                                     notification={notification}
