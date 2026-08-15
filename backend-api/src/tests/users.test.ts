@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
-import { admin, db } from '../firebase';
+import { admin } from '../firebase';
 import { invalidatePattern } from '../lib/cache';
 
 // =============================================================================
@@ -369,6 +369,10 @@ vi.mock('firebase-admin', () => {
  */
 vi.mock('../middleware/auth.middleware', () => ({
   checkAuth: vi.fn((req: any, _res: any, next: any) => {
+    req.user = { uid: 'current-user' };
+    next();
+  }),
+  checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
     req.user = { uid: 'current-user' };
     next();
   }),

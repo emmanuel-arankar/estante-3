@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
-import { bucket } from '../firebase';
 
 /**
  * @name Mock Factory Storage
@@ -33,6 +32,10 @@ vi.mock('../firebase', () => ({
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
     checkAuth: vi.fn((req: any, _res: any, next: any) => {
+        req.user = { uid: 'current-user' };
+        next();
+    }),
+    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => {
         req.user = { uid: 'current-user' };
         next();
     }),
