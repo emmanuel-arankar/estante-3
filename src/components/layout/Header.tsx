@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,7 +9,6 @@ import {
   BookPlus,
   Menu,
   LogOut,
-  Settings,
   UserCircle,
   Users,
   Ban,
@@ -62,7 +61,11 @@ interface HeaderProps {
   isAuthLoading?: boolean;
 }
 
-export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = false, isAuthLoading = false }: HeaderProps) => {
+/**
+ * @summary PERFORMANCE: Header component is wrapped in React.memo to prevent unnecessary re-renders
+ * during page scrolling and parent Layout updates (e.g., scroll-to-top button visibility changes).
+ */
+export const Header = memo(({ userProfile, initialFriendRequests, isAuthenticated = false, isAuthLoading = false }: HeaderProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -622,4 +625,6 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
       />
     </>
   );
-};
+});
+
+Header.displayName = 'Header';
