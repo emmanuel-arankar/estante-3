@@ -123,18 +123,15 @@ export const Layout = () => {
   // Construir perfil efetivo com estratégia de fallback (Optimistic UI)
   // CRITICAL: Se não há authUser, o perfil DEVE ser nulo para evitar dados fantasmas no Header
   // PRIORITY: storedUserProfile (Zustand) > headerData.userProfile (loader) para reflexão em tempo real
-  let effectiveProfile = authUser ? (storedUserProfile || headerData.userProfile) : null;
+  // PERFORMANCE: Wrapped in useMemo to maintain object reference stability and prevent redundant Header re-renders.
+  const effectiveProfile = useMemo(() => {
+    if (!authUser) return null;
 
-  //console.log('🟢 [Layout] Render with:', {
-  //  hasAuthUser: !!authUser,
-  //  storedPhotoURL: storedUserProfile?.photoURL,
-  //  headerPhotoURL: headerData.userProfile?.photoURL,
-  //  effectivePhotoURL: effectiveProfile?.photoURL
-  //});
+    const baseProfile = storedUserProfile || headerData.userProfile;
+    if (baseProfile) return baseProfile;
 
-  if (authUser && !effectiveProfile) {
     // Perfil temporário para exibição imediata (apenas se estiver logado)
-    effectiveProfile = {
+    return {
       id: authUser.uid,
       displayName: authUser.displayName || 'Usuário',
       email: authUser.email || '',
@@ -157,7 +154,7 @@ export const Layout = () => {
         sentRequestsCount: 0,
       },
     } as User;
-  }
+  }, [authUser, storedUserProfile, headerData.userProfile]);
 
   const effectiveFriendRequests = authUser ? headerData.initialFriendRequests : 0;
 
