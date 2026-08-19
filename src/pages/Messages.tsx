@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -34,13 +34,44 @@ import { deleteChat } from '@/services/firebase/realtime';
 import { useQuery } from '@tanstack/react-query';
 import { userProfileQuery } from '@/features/users/userProfile.queries';
 
+type MessageTime = Date | number | string | { toMillis?: () => number; seconds?: number } | null | undefined;
+
+const getTimeInMillis = (time: MessageTime): number => {
+  if (!time) return 0;
+  if (typeof time === 'object' && 'toMillis' in time && typeof time.toMillis === 'function') {
+    return time.toMillis();
+  }
+  if (time instanceof Date) return time.getTime();
+  if (typeof time === 'number') return time;
+  if (typeof time === 'object' && 'seconds' in time && typeof time.seconds === 'number') {
+    return time.seconds * 1000;
+  }
+  if (typeof time === 'string') return new Date(time).getTime();
+  return 0;
+};
+
+interface ChatItemSummary {
+  id: string;
+  otherUserId: string;
+  displayName?: string;
+  lastMessage?: string;
+  lastMessageTime?: MessageTime;
+  lastSenderId?: string;
+  lastMessageRead?: boolean;
+  unreadCount: number;
+}
+
 interface ConversationItemProps {
-  chat: any;
-  user: any;
+  chat: ChatItemSummary;
+  user: { uid: string };
   onDelete: (otherUserId: string) => Promise<void>;
 }
 
-const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
+/**
+ * PERFORMANCE: Memoized ConversationItem prevents re-rendering every conversation item
+ * when typing in search query or when parent state updates.
+ */
+const ConversationItem = memo(({ chat, user, onDelete }: ConversationItemProps) => {
   const { getAnonymizedUser } = useBlockedUsers();
 
   // Usar endpoint protegido que verifica bloqueio ANTES de retornar dados
@@ -94,7 +125,7 @@ const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
             <div className="flex items-center space-x-2">
               {chat.lastMessageTime && (
                 <span className="text-xs text-gray-500">
-                  {formatDistanceToNow(chat.lastMessageTime, {
+                  {formatDistanceToNow(getTimeInMillis(chat.lastMessageTime), {
                     addSuffix: true,
                     locale: ptBR
                   })}
@@ -150,7 +181,9 @@ const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
       </div>
     </Link>
   );
-};
+});
+
+ConversationItem.displayName = 'ConversationItem';
 
 export const Messages = () => {
   const { user } = useAuth();
@@ -160,14 +193,14 @@ export const Messages = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
 
-  const handleDeleteChat = async (otherUserId: string) => {
+  const handleDeleteChat = useCallback(async (otherUserId: string) => {
     if (!user) return;
     try {
       await deleteChat(user.uid, otherUserId);
     } catch (error) {
       console.error("Erro ao deletar chat:", error);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -175,27 +208,18 @@ export const Messages = () => {
     }
   }, [user, navigate]);
 
-  const filteredChats = chats
-    .filter(chat => {
-      const name = chat.displayName || `Usuário ${chat.otherUserId?.slice(0, 8) || '...'}`;
-      return name.toLowerCase().includes(searchQuery.toLowerCase());
-    })
-    .sort((a, b) => {
-      // Helper to safely get milliseconds
-      const getTimeInMillis = (time: any): number => {
-        if (!time) return 0;
-        if (typeof time.toMillis === 'function') return time.toMillis();
-        if (time instanceof Date) return time.getTime();
-        if (typeof time === 'number') return time;
-        if (time.seconds) return time.seconds * 1000; // Serialized timestamp
-        if (typeof time === 'string') return new Date(time).getTime();
-        return 0;
-      };
-
-      const timeA = getTimeInMillis(a.lastMessageTime);
-      const timeB = getTimeInMillis(b.lastMessageTime);
-      return timeB - timeA;
-    });
+  const filteredChats = useMemo(() => {
+    return chats
+      .filter((chat: ChatItemSummary) => {
+        const name = chat.displayName || `Usuário ${chat.otherUserId?.slice(0, 8) || '...'}`;
+        return name.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+      .sort((a: ChatItemSummary, b: ChatItemSummary) => {
+        const timeA = getTimeInMillis(a.lastMessageTime);
+        const timeB = getTimeInMillis(b.lastMessageTime);
+        return timeB - timeA;
+      });
+  }, [chats, searchQuery]);
 
   if (!user) {
     return (
@@ -291,7 +315,7 @@ export const Messages = () => {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {filteredChats.map((chat, index) => (
+                {filteredChats.map((chat: ChatItemSummary, index: number) => (
                   <motion.div
                     key={chat.id}
                     initial={{ opacity: 0, x: -20 }}
