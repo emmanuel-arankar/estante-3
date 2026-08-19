@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../index';
-import { admin, db, rtdb } from '../firebase';
 
 /**
  * @name Mock Factory Chat
  * @summary Gerador de ambiente de chat para testes.
  */
-const { state, mockDb, mockRtdb } = vi.hoisted(() => {
+const { state } = vi.hoisted(() => {
     const state = {
         docStore: {} as Record<string, any>,
         rtdbStore: {} as Record<string, any>,
@@ -71,25 +70,26 @@ const { state, mockDb, mockRtdb } = vi.hoisted(() => {
 });
 
 // Mocking Firebase Admin
-vi.mock('../firebase', () => ({
-    admin: {
-        database: {
-            ServerValue: {
-                TIMESTAMP: 'mock-timestamp',
-                increment: (val: number) => ({ __attr: 'increment', val }),
+vi.mock('../firebase', async (importOriginal) => {
+    const actual: any = await importOriginal();
+    return {
+        ...actual,
+        admin: {
+            ...actual.admin,
+            database: {
+                ServerValue: {
+                    TIMESTAMP: 'mock-timestamp',
+                    increment: (val: number) => ({ __attr: 'increment', val }),
+                }
             }
         }
-    },
-    db: mockDb,
-    rtdb: mockRtdb
-}));
+    };
+});
 
 // Mocking Auth Middleware
 vi.mock('../middleware/auth.middleware', () => ({
-    checkAuth: vi.fn((req: any, _res: any, next: any) => {
-        req.user = { uid: 'current-user' };
-        next();
-    }),
+    checkAuth: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
+    checkAuthOptional: vi.fn((req: any, _res: any, next: any) => { req.user = { uid: 'current-user' }; next(); }),
 }));
 
 describe('Chat Operations', () => {
