@@ -50,26 +50,33 @@ if (admin.apps.length === 0) {
   // Se estamos no Cloud Run / Functions V2, ou Cloud Functions G1, as variáveis de gerência estarão ativas.
   const isManagedCloud = !!process.env.K_SERVICE || !!process.env.FUNCTION_NAME || !!process.env.FIREBASE_CONFIG;
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
+  const databaseURL = process.env.FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.firebaseio.com`;
 
   // Usar JSON apenas localmente ou explícito pelo emulador (ignora se estiver fisicamente na nuvem para usar ADC nativo do Compute Engine)
   if (fs.existsSync(saPath) && (!isManagedCloud || isEmulator)) {
     try {
       const credential = admin.credential.cert(require(saPath));
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463';
 
       admin.initializeApp({
         projectId,
         credential,
-        databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+        databaseURL
       });
       logger.info('Firebase Admin inicializado com Service Account EXPLÍCITA (Permissões Totais).');
     } catch (e) {
       logger.error('Falha ao carregar credenciais locais. Usando ADC.', e);
-      admin.initializeApp();
+      admin.initializeApp({
+        projectId,
+        databaseURL
+      });
     }
   } else {
     // Recurso ao Application Default Credentials (ADC) em ambientes cloud
-    admin.initializeApp();
+    admin.initializeApp({
+      projectId,
+      databaseURL
+    });
     logger.info('Firebase Admin inicializado em modo GERENCIADO (ADC).');
   }
 }
