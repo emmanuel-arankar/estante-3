@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -13,7 +13,11 @@ interface OptimizedAvatarProps {
   isOnline?: boolean;
 }
 
-export const OptimizedAvatar = ({
+/**
+ * PERFORMANCE: Memoized to prevent redundant avatar re-renders in heavy list renders
+ * (e.g. friends list, reviews list, comment feeds) during parent state updates.
+ */
+export const OptimizedAvatar = memo(({
   src,
   alt,
   fallback,
@@ -90,4 +94,6 @@ export const OptimizedAvatar = ({
       )}
     </div>
   );
-};
+});
+
+OptimizedAvatar.displayName = 'OptimizedAvatar';
