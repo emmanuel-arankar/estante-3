@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -60,7 +60,10 @@ import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
 
-const AudioPlayer = ({
+/**
+ * PERFORMANCE: Memoized AudioPlayer component to eliminate redundant array calculations and re-renders during 60/120fps playback.
+ */
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -228,6 +231,13 @@ const AudioPlayer = ({
 
     const displayProgress = isDragging ? dragProgress : progress;
 
+    const displayBars = useMemo(() => {
+        const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
+        const MAX_BARS = 35;
+        const step = Math.ceil(bars.length / MAX_BARS);
+        return bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
+    }, [waveform]);
+
     return (
         <div className={cn(
             "flex flex-col space-y-1 py-1.5 min-w-[170px] transition-opacity",
@@ -274,48 +284,41 @@ const AudioPlayer = ({
                             isTemporary || isSending || isExpired || hasError ? "cursor-not-allowed" : "cursor-pointer"
                         )}
                     >
-                        {(() => {
-                            const bars = waveform && waveform.length > 0 ? waveform : Array.from({ length: 30 });
-                            const MAX_BARS = 35;
-                            const step = Math.ceil(bars.length / MAX_BARS);
-                            const displayBars = bars.filter((_, i) => i % step === 0).slice(0, MAX_BARS);
+                        {displayBars.map((value, i, arr) => {
+                            const barProgress = (i / arr.length) * 100;
+                            const isActive = barProgress <= displayProgress;
 
-                            return displayBars.map((value, i, arr) => {
-                                const barProgress = (i / arr.length) * 100;
-                                const isActive = barProgress <= displayProgress;
+                            let baseHeight: number;
+                            if (waveform && waveform.length > 0) {
+                                const val = typeof value === 'number' ? value : 0;
+                                baseHeight = 6 + (val * 18);
+                            } else {
+                                baseHeight = 10 + (Math.sin(i * 0.8 + id.charCodeAt(0)) * 6) + (Math.cos(i * 0.4) * 4);
+                            }
 
-                                let baseHeight: number;
-                                if (waveform && waveform.length > 0) {
-                                    const val = typeof value === 'number' ? value : 0;
-                                    baseHeight = 6 + (val * 18);
-                                } else {
-                                    baseHeight = 10 + (Math.sin(i * 0.8 + id.charCodeAt(0)) * 6) + (Math.cos(i * 0.4) * 4);
-                                }
+                            const tick = performance.now() / 150;
+                            const pulseAmount = isPlaying && isActive ? Math.sin(tick + i * 0.5) * 4 + 2 : 0;
+                            const height = baseHeight + pulseAmount;
 
-                                const tick = performance.now() / 150;
-                                const pulseAmount = isPlaying && isActive ? Math.sin(tick + i * 0.5) * 4 + 2 : 0;
-                                const height = baseHeight + pulseAmount;
-
-                                return (
-                                    <motion.div
-                                        key={i}
-                                        initial={false}
-                                        animate={{
-                                            height: Math.max(4, height),
-                                            opacity: isActive ? 1 : 0.35,
-                                            scale: isDragging && Math.abs(barProgress - displayProgress) < 4 ? 1.2 : 1
-                                        }}
-                                        transition={{ duration: 0.1 }}
-                                        className={cn(
-                                            "w-1 rounded-full transition-colors shrink-0",
-                                            isOwn
-                                                ? isActive ? "bg-white" : "bg-white/40"
-                                                : isActive ? "bg-emerald-500" : "bg-emerald-200"
-                                        )}
-                                    />
-                                );
-                            });
-                        })()}
+                            return (
+                                <motion.div
+                                    key={i}
+                                    initial={false}
+                                    animate={{
+                                        height: Math.max(4, height),
+                                        opacity: isActive ? 1 : 0.35,
+                                        scale: isDragging && Math.abs(barProgress - displayProgress) < 4 ? 1.2 : 1
+                                    }}
+                                    transition={{ duration: 0.1 }}
+                                    className={cn(
+                                        "w-1 rounded-full transition-colors shrink-0",
+                                        isOwn
+                                            ? isActive ? "bg-white" : "bg-white/40"
+                                            : isActive ? "bg-emerald-500" : "bg-emerald-200"
+                                    )}
+                                />
+                            );
+                        })}
 
                         <div
                             className={cn(
@@ -357,12 +360,16 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
+AudioPlayer.displayName = 'AudioPlayer';
 
 import { requestTranscription } from '@/services/firebase/functions';
 import { Loader2, FileText } from 'lucide-react';
 
-const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
+/**
+ * PERFORMANCE: Memoized TranscriptionControl component to prevent re-rendering during parent state updates.
+ */
+const TranscriptionControl = memo(({ message, isOwn, currentUserId }: { message: ChatMessageType; isOwn: boolean; currentUserId?: string }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -423,9 +430,13 @@ const TranscriptionControl = ({ message, isOwn, currentUserId }: { message: Chat
             </button>
         </div>
     );
-};
+});
+TranscriptionControl.displayName = 'TranscriptionControl';
 
-const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
+/**
+ * PERFORMANCE: Memoized MessageHighlighter component.
+ */
+const MessageHighlighter = memo(({ text, query, isCurrent }: { text: string; query: string; isCurrent?: boolean }) => {
     if (!query.trim()) return <>{text}</>;
 
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -458,9 +469,13 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     parts.push(text.substring(lastIndex));
 
     return <>{parts}</>;
-};
+});
+MessageHighlighter.displayName = 'MessageHighlighter';
 
-export const ChatBubble = ({
+/**
+ * PERFORMANCE: Memoized ChatBubble component to eliminate redundant re-renders in chat message lists.
+ */
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -968,4 +983,5 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+ChatBubble.displayName = 'ChatBubble';
