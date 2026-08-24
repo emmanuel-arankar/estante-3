@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reviewsByEditionQuery } from '@/features/books/reviews.queries';
 import { ReviewCard } from './ReviewCard';
@@ -23,11 +23,17 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({ editionId, workId, myRev
 
   const { data, isLoading, isError } = useQuery(reviewsByEditionQuery(editionId, page, limit, user?.uid));
 
-  const visibleReviews = data?.data?.filter(r => {
-    const textContent = r.content?.replace(/<[^>]*>?/gm, '').trim() || '';
-    const hasMedia = /<img/i.test(r.content || '');
-    return r.title || textContent.length >= 10 || hasMedia;
-  }) || [];
+  /**
+   * PERFORMANCE OPTIMIZATION: Memoize filtered reviews array to prevent running
+   * HTML string strip regex operations on every render during state updates.
+   */
+  const visibleReviews = useMemo(() => {
+    return data?.data?.filter(r => {
+      const textContent = r.content?.replace(/<[^>]*>?/gm, '').trim() || '';
+      const hasMedia = /<img/i.test(r.content || '');
+      return r.title || textContent.length >= 10 || hasMedia;
+    }) || [];
+  }, [data?.data]);
 
   const userHasReviewed = user && data?.data ? data.data.some(r => r.userId === user.uid && r.content) : false;
 

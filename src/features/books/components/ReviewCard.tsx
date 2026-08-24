@@ -45,7 +45,11 @@ interface LikesAvatarGroupProps {
   authenticated: boolean;
 }
 
-const LikesAvatarGroup: React.FC<LikesAvatarGroupProps> = ({
+/**
+ * PERFORMANCE OPTIMIZATION: Memoized avatar group component to prevent re-renders
+ * when other cards or parent review lists update.
+ */
+const LikesAvatarGroup: React.FC<LikesAvatarGroupProps> = React.memo(({
   reviewId, likesCount, liked, onLike, isPending, authenticated
 }) => {
   const [likers, setLikers] = useState<LikerInfo[]>([]);
@@ -99,7 +103,9 @@ const LikesAvatarGroup: React.FC<LikesAvatarGroupProps> = ({
       )}
     </div>
   );
-};
+});
+
+LikesAvatarGroup.displayName = 'LikesAvatarGroup';
 
 // ==== ==== REVIEW CARD ==== ====
 
@@ -107,7 +113,11 @@ interface ReviewCardProps {
   review: Review;
 }
 
-export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
+/**
+ * PERFORMANCE OPTIMIZATION: Memoize ReviewCard to prevent unnecessary re-renders
+ * when sibling reviews or parent tab controls update.
+ */
+export const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
@@ -294,4 +304,6 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
       )}
     </div>
   );
-};
+});
+
+ReviewCard.displayName = 'ReviewCard';
