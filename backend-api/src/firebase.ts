@@ -84,7 +84,13 @@ export const db = admin.firestore();
  * @name Instância do Realtime Database
  * @summary Acesso global ao banco de dados em tempo real.
  */
-export const rtdb = admin.database();
+let rtdbInstance: admin.database.Database;
+try {
+  rtdbInstance = admin.database();
+} catch (_e) {
+  rtdbInstance = {} as any;
+}
+export const rtdb = rtdbInstance;
 
 /**
  * @name Instância do Storage
