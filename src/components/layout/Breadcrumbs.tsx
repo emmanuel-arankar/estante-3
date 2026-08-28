@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useMatches, Link, UIMatch } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRightIcon, Home } from 'lucide-react';
@@ -7,33 +7,38 @@ import {
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { itemVariants, SMOOTH_TRANSITION } from '@/lib/animations'; 
 import { PATHS } from '@/router/paths';
 
 interface BreadcrumbHandle {
-  breadcrumb: (data?: any) => { label: string; icon?: React.ReactNode };
+  breadcrumb: (data?: unknown) => { label: string; icon?: React.ReactNode };
 }
 
-type MatchWithBreadcrumb = UIMatch & {
-  handle: BreadcrumbHandle;
-};
+type MatchWithBreadcrumb = UIMatch<unknown, BreadcrumbHandle>;
 
-export const Breadcrumbs = () => {
+/**
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped in React.memo and memoized `crumbs` calculation with `useMemo`.
+ * Prevents unnecessary re-renders during parent component updates.
+ */
+export const Breadcrumbs = React.memo(() => {
   const matches = useMatches();
-  const crumbs = matches
-    .filter((match): match is MatchWithBreadcrumb =>
-      Boolean(match.handle && typeof (match.handle as any).breadcrumb === 'function')
-    )
-    .map((match) => {
-      const breadcrumbData = match.handle.breadcrumb(match.data);
-      return {
-        label: breadcrumbData.label,
-        icon: breadcrumbData.icon,
-        pathname: match.pathname,
-      };
-    });
+
+  const crumbs = useMemo(() => {
+    return matches
+      .filter((match): match is MatchWithBreadcrumb =>
+        Boolean(match.handle && typeof (match.handle as BreadcrumbHandle).breadcrumb === 'function')
+      )
+      .map((match) => {
+        const breadcrumbData = match.handle.breadcrumb(match.data);
+        return {
+          label: breadcrumbData.label,
+          icon: breadcrumbData.icon,
+          pathname: match.pathname,
+        };
+      });
+  }, [matches]);
 
   if (crumbs.length < 1) {
     return null;
@@ -95,4 +100,6 @@ export const Breadcrumbs = () => {
       </BreadcrumbList>
     </Breadcrumb>
   );
-};
+});
+
+Breadcrumbs.displayName = 'Breadcrumbs';
