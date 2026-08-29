@@ -31,6 +31,7 @@ import {
 type SortMode = 'recent' | 'oldest' | 'top';
 
 interface CommentNode extends ReviewComment {
+  isLiked?: boolean;
   replies: CommentNode[];
 }
 
@@ -74,26 +75,29 @@ interface CommentLikesButtonProps {
   authenticated: boolean;
 }
 
-const CommentLikesButton: React.FC<CommentLikesButtonProps> = ({
+/**
+ * PERFORMANCE: Memoized to avoid re-rendering liker button during parent re-renders.
+ */
+const CommentLikesButton: React.FC<CommentLikesButtonProps> = React.memo(({
   reviewId, commentId, liked, likesCount, onLike, isPending, authenticated
 }) => {
   const [likers, setLikers] = useState<LikerInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  const loadLikers = async () => {
+  const loadLikers = React.useCallback(async () => {
     if (loaded || likesCount === 0) return;
     try {
       const res = await getCommentLikersAPI(reviewId, commentId);
       setLikers((res.data || []).slice(0, 3));
       setLoaded(true);
     } catch { /* silencioso */ }
-  };
+  }, [loaded, likesCount, reviewId, commentId]);
 
   React.useEffect(() => {
     if (likesCount > 0 && !loaded) {
       loadLikers();
     }
-  }, [likesCount, commentId]);
+  }, [likesCount, commentId, loaded, loadLikers]);
 
   return (
     <div className="flex items-center gap-1.5">
@@ -128,7 +132,8 @@ const CommentLikesButton: React.FC<CommentLikesButtonProps> = ({
       )}
     </div>
   );
-};
+});
+CommentLikesButton.displayName = 'CommentLikesButton';
 
 // ==== ==== REPLY INPUT INLINE ==== ====
 
@@ -206,7 +211,11 @@ interface CommentItemProps {
   depth?: number;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({ comment, reviewId, depth = 0 }) => {
+/**
+ * PERFORMANCE: Memoized to prevent cascading re-renders across the comment tree
+ * when sibling comments or unrelated parent state updates.
+ */
+const CommentItem: React.FC<CommentItemProps> = React.memo(({ comment, reviewId, depth = 0 }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { activeReplyId, setActiveReplyId, activeEditId, setActiveEditId } = React.useContext(EditorStateContext);
@@ -217,14 +226,17 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, reviewId, depth = 0 
   const [editText, setEditText] = useState(comment.content);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [optimisticLiked, setOptimisticLiked] = useState(!!(comment as any).isLiked);
+  const [optimisticLiked, setOptimisticLiked] = useState(!!comment.isLiked);
   const [optimisticLikesCount, setOptimisticLikesCount] = useState(comment.likesCount || 0);
+
+  const serverIsLiked = comment.isLiked;
+  const serverLikesCount = comment.likesCount;
 
   // Sincronizar com dados do servidor quando mudarem
   React.useEffect(() => {
-    setOptimisticLiked(!!(comment as any).isLiked);
-    setOptimisticLikesCount(comment.likesCount || 0);
-  }, [(comment as any).isLiked, comment.likesCount]);
+    setOptimisticLiked(!!serverIsLiked);
+    setOptimisticLikesCount(serverLikesCount || 0);
+  }, [serverIsLiked, serverLikesCount]);
 
   const isOwner = user?.uid === comment.userId;
   const isIndented = depth > 0;
@@ -432,7 +444,8 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, reviewId, depth = 0 
       </AlertDialog>
     </div>
   );
-};
+});
+CommentItem.displayName = 'CommentItem';
 
 // ==== ==== COMPONENTE PRINCIPAL ==== ====
 
@@ -468,8 +481,11 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({ reviewId }) => {
     mutation.mutate(newComment);
   };
 
-  const rawTree = commentsData?.data ? buildCommentTree(commentsData.data) : [];
-  const commentTree = sortRoots(rawTree, sortMode);
+  const commentTree = React.useMemo(() => {
+    if (!commentsData?.data) return [];
+    const rawTree = buildCommentTree(commentsData.data);
+    return sortRoots(rawTree, sortMode);
+  }, [commentsData?.data, sortMode]);
   const totalCount = commentsData?.data.length ?? 0;
 
   const sortLabels: Record<SortMode, string> = {
