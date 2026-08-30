@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Star } from 'lucide-react';
 
@@ -28,7 +28,11 @@ const getStarColorClass = (rating: number) => {
   return 'text-red-500';
 };
 
-export const StarRating: React.FC<StarRatingProps> = ({
+/**
+ * PERFORMANCE: Memoized to prevent unnecessary star rating re-renders
+ * when parent components (e.g. ReviewCard, BookPage, EditionsPage) update.
+ */
+export const StarRating: React.FC<StarRatingProps> = memo(({
   rating = 0,
   maxStars = 5,
   interactive = false,
@@ -106,4 +110,6 @@ export const StarRating: React.FC<StarRatingProps> = ({
       )}
     </div>
   );
-};
+});
+
+StarRating.displayName = 'StarRating';
