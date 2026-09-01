@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -12,8 +13,16 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PATHS } from '@/router/paths';
 
-export const NotificationDropdown = () => {
+/**
+ * NotificationDropdown header component displaying recent notifications.
+ *
+ * PERFORMANCE: Wrapped in React.memo and uses useMemo for sliced notifications
+ * to avoid array re-creation and unnecessary re-renders during parent layout updates.
+ */
+export const NotificationDropdown = memo(() => {
     const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
+
+    const recentNotifications = useMemo(() => notifications.slice(0, 10), [notifications]);
 
     return (
         <DropdownMenu>
@@ -61,7 +70,7 @@ export const NotificationDropdown = () => {
                         </div>
                     ) : (
                         <div className="divide-y">
-                            {notifications.slice(0, 10).map((notification) => (
+                            {recentNotifications.map((notification) => (
                                 <NotificationItem
                                     key={notification.id}
                                     notification={notification}
@@ -84,4 +93,6 @@ export const NotificationDropdown = () => {
             </DropdownMenuContent>
         </DropdownMenu>
     );
-};
+});
+
+NotificationDropdown.displayName = 'NotificationDropdown';
