@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { formatDistanceToNow, isAfter, subMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -38,7 +38,7 @@ import { userByNicknameQuery } from '@/features/users/user.queries';
 import { useDenormalizedFriends } from '@/hooks/useDenormalizedFriends';
 import { useAuth } from '@/hooks/useAuth';
 import { PATHS } from '@/router/paths';
-import { DenormalizedFriendship } from '@estante/common-types';
+import { DenormalizedFriendship, SortOption, SortDirection } from '@estante/common-types';
 import { getMutualFriendsAPI } from '@/services/api/friendshipsApi';
 import {
   getMutualFriendsFromCache,
@@ -549,6 +549,11 @@ export const DenormalizedFriendsList: React.FC = () => {
     return pathSegments[2] || 'friends';
   }, [location.pathname]);
 
+  const handleSortChange = useCallback((field: SortOption, direction: SortDirection) => {
+    setSortField(field);
+    setSortDirection(direction);
+  }, [setSortField, setSortDirection]);
+
   const handleDeleteAllSentRequests = async () => {
     setShowDeleteConfirm(false); setIsDeletingAll(true);
     try { await cancelAllSentRequests(); }
@@ -616,7 +621,7 @@ export const DenormalizedFriendsList: React.FC = () => {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle className="text-lg">{searchQuery ? 'Amigos encontrados' : 'Todos os amigos'}<span className="text-sm font-normal text-gray-500 ml-2">({searchQuery ? friends.length : stats.totalFriends})</span></CardTitle>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={(field, direction) => { setSortField(field); setSortDirection(direction); }} />
+                  <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={handleSortChange} />
                   <Button onClick={refreshData} variant="outline" size="icon" className="h-8 w-8" title="Recarregar amigos"><RefreshCw className="h-4 w-4" /></Button>
                 </div>
               </CardHeader>
