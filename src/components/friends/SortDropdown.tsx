@@ -15,16 +15,22 @@ interface SortDropdownProps {
   onSortChange: (sortBy: SortOption, sortDirection: SortDirection) => void;
 }
 
-export const SortDropdown: React.FC<SortDropdownProps> = ({
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'name', label: 'Nome' },
+  { value: 'nickname', label: 'Alcunha' },
+  { value: 'friendshipDate', label: 'Data de amizade' },
+];
+
+/**
+ * PERFORMANCE: React.memo prevents unnecessary re-renders of the sort dropdown when parent
+ * components (like DenormalizedFriendsList) re-render during live typing or filter state updates.
+ */
+export const SortDropdown: React.FC<SortDropdownProps> = React.memo(({
   sortBy,
   sortDirection,
   onSortChange,
 }) => {
-  const options = [
-    { value: 'name', label: 'Nome' },
-    { value: 'nickname', label: 'Alcunha' },
-    { value: 'friendshipDate', label: 'Data de amizade' },
-  ];
+  const options = SORT_OPTIONS;
 
   // Função para obter o texto do botão baseado na ordenação atual
   const getButtonText = () => {
@@ -100,4 +106,6 @@ export const SortDropdown: React.FC<SortDropdownProps> = ({
       </DropdownMenu>
     </div>
   );
-};
+});
+
+SortDropdown.displayName = 'SortDropdown';
