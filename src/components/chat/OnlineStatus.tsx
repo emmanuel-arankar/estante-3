@@ -1,5 +1,4 @@
-// src/components/chat/OnlineStatus.tsx (Versão para Teste)
-import { cn } from '@/lib/utils';
+import React from 'react';
 import { useUserPresence } from "@/hooks/useUserPresence";
 
 interface OnlineStatusProps {
@@ -8,26 +7,33 @@ interface OnlineStatusProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export const OnlineStatus = ({ userId, className, size = 'sm' }: OnlineStatusProps) => {
-  const { online } = useUserPresence(userId);
-  console.log(`[OnlineStatus] Re-rendering for userId: ${userId}, online: ${online}`); // Manter log
+const SIZE_PIXELS = {
+  sm: '12px',
+  md: '16px',
+  lg: '20px',
+} as const;
 
-  const sizePixels = { sm: '12px', md: '16px', lg: '20px' };
+/**
+ * OnlineStatus renders an online/offline status indicator dot for a user.
+ * Wrapped in React.memo for PERFORMANCE optimization to avoid unnecessary re-renders
+ * when parent lists or chat headers re-render with identical props.
+ */
+export const OnlineStatus = React.memo(({ userId, className, size = 'sm' }: OnlineStatusProps) => {
+  const { online } = useUserPresence(userId);
 
   return (
     <div
       style={{
-        height: sizePixels[size],
-        width: sizePixels[size],
+        height: SIZE_PIXELS[size],
+        width: SIZE_PIXELS[size],
         borderRadius: '50%',
         border: '2px solid white',
-        // Usar cores explícitas aqui
-        backgroundColor: online ? '#22c55e' : '#9ca3af', // Verde vs Cinza
-        // Adicionar !important pode ajudar a identificar conflitos, mas não é solução final
-        // backgroundColor: online ? '#22c55e !important' : '#9ca3af !important',
+        backgroundColor: online ? '#22c55e' : '#9ca3af',
       }}
-      className={className} // Manter className para posicionamento
+      className={className}
       title={online ? "Online" : "Offline"}
     />
   );
-};
+});
+
+OnlineStatus.displayName = 'OnlineStatus';
