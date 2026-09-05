@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getWorkEditionsFilteredAPI } from '@/services/api/booksApi';
@@ -13,10 +13,17 @@ interface EditionsCarouselProps {
   currentEditionId: string;
 }
 
-export function EditionsCarousel({ workId, currentEditionId }: EditionsCarouselProps) {
+/**
+ * PERFORMANCE OPTIMIZATION:
+ * - Memoized component with React.memo to prevent unnecessary re-renders when parent page updates.
+ * - Memoized `editions` filtering with `useMemo` to preserve array reference identity across re-renders.
+ * - Memoized `checkScroll` and `handleScroll` with `useCallback` to prevent continuous listener re-registration.
+ */
+export const EditionsCarousel = React.memo(function EditionsCarousel({ workId, currentEditionId }: EditionsCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
 
   const { data, isLoading } = useQuery({
     queryKey: ['editions-carousel', workId],
@@ -25,13 +32,20 @@ export function EditionsCarousel({ workId, currentEditionId }: EditionsCarouselP
     staleTime: 1000 * 60 * 5,
   });
 
-  const allEditions = data?.data ?? [];
+  const allEditions = data?.data;
   const total = data?.pagination?.total ?? 0;
-  const editions = allEditions.filter(e => e.id !== currentEditionId);
 
-  const [currentPage, setCurrentPage] = useState(0);
+  // PERF: Memoize filtered editions to prevent new array references on every render
+  const editions = useMemo(() => {
+    if (!allEditions) return [];
+    return allEditions.filter(e => e.id !== currentEditionId);
+  }, [allEditions, currentEditionId]);
 
-  const checkScroll = () => {
+  // Calcular número de indicadores (páginas)
+  const itemsPerPage = 3;
+  const totalPages = Math.ceil(editions.length / itemsPerPage);
+
+  const checkScroll = useCallback(() => {
     if (scrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
       setCanScrollLeft(scrollLeft > 0);
@@ -41,23 +55,21 @@ export function EditionsCarousel({ workId, currentEditionId }: EditionsCarouselP
       const totalScrollable = scrollWidth - clientWidth;
       if (totalScrollable > 0) {
         const progress = scrollLeft / totalScrollable;
-        const page = Math.round(progress * (totalPages - 1));
-        if (page !== currentPage) {
-          setCurrentPage(page);
-        }
+        const page = Math.round(progress * Math.max(0, totalPages - 1));
+        setCurrentPage(prev => (page !== prev ? page : prev));
       } else {
         setCurrentPage(0);
       }
     }
-  };
+  }, [totalPages]);
 
   useEffect(() => {
     checkScroll();
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
-  }, [editions]);
+  }, [checkScroll, editions]);
 
-  const handleScroll = (direction: 'left' | 'right') => {
+  const handleScroll = useCallback((direction: 'left' | 'right') => {
     if (scrollRef.current) {
       const container = scrollRef.current;
       const scrollAmount = container.clientWidth;
@@ -66,13 +78,9 @@ export function EditionsCarousel({ workId, currentEditionId }: EditionsCarouselP
         behavior: 'smooth'
       });
     }
-  };
+  }, []);
 
   if (isLoading || editions.length === 0) return null;
-
-  // Calcular número de indicadores (páginas)
-  const itemsPerPage = 3;
-  const totalPages = Math.ceil(editions.length / itemsPerPage);
 
   return (
     <div className="mt-10 pt-10 border-t-2 border-gray-100">
@@ -199,4 +207,6 @@ export function EditionsCarousel({ workId, currentEditionId }: EditionsCarouselP
       </div>
     </div>
   );
-}
+});
+
+EditionsCarousel.displayName = 'EditionsCarousel';
