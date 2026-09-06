@@ -11,7 +11,11 @@ interface AuthorBioSectionProps {
   contributors: EditionContributor[];
 }
 
-export const AuthorBioSection: React.FC<AuthorBioSectionProps> = ({ contributors }) => {
+/**
+ * PERFORMANCE: AuthorBioSection is memoized using React.memo to prevent unnecessary
+ * re-renders when parent book page layout or sibling component states update.
+ */
+export const AuthorBioSection: React.FC<AuthorBioSectionProps> = React.memo(({ contributors }) => {
   // Pegar o autor principal (primeiro com role 'author' ou 'co-author')
   const mainAuthor = contributors?.find(c => c.role === 'author' || c.role === 'co-author');
 
@@ -93,4 +97,6 @@ export const AuthorBioSection: React.FC<AuthorBioSectionProps> = ({ contributors
       </div>
     </div>
   );
-};
+});
+
+AuthorBioSection.displayName = 'AuthorBioSection';

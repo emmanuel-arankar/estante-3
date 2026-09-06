@@ -9,25 +9,28 @@ interface ContributorsListProps {
   className?: string;
 }
 
-const formatRole = (role: string) => {
-  const roles: Record<string, string> = {
-    'author': 'Autor',
-    'co-author': 'Co-autor',
-    'translator': 'Tradutor',
-    'illustrator': 'Ilustrador',
-    'cover-artist': 'Capa',
-    'editor': 'Editor',
-    'proofreader': 'Revisor de Provas',
-    'preface': 'Prefácio',
-    'postface': 'Posfácio',
-    'epilogue': 'Epílogo',
-    'narrator': 'Narrador',
-    'revisor': 'Revisor'
-  };
-  return roles[role] || role;
+const ROLES_MAP: Record<string, string> = {
+  'author': 'Autor',
+  'co-author': 'Co-autor',
+  'translator': 'Tradutor',
+  'illustrator': 'Ilustrador',
+  'cover-artist': 'Capa',
+  'editor': 'Editor',
+  'proofreader': 'Revisor de Provas',
+  'preface': 'Prefácio',
+  'postface': 'Posfácio',
+  'epilogue': 'Epílogo',
+  'narrator': 'Narrador',
+  'revisor': 'Revisor'
 };
 
-export const ContributorsList: React.FC<ContributorsListProps> = ({ contributors, className }) => {
+const formatRole = (role: string) => ROLES_MAP[role] || role;
+
+/**
+ * PERFORMANCE: ContributorsList is memoized using React.memo to prevent unnecessary
+ * re-renders when parent book page components or sibling tabs re-render.
+ */
+export const ContributorsList: React.FC<ContributorsListProps> = React.memo(({ contributors, className }) => {
   if (!contributors || contributors.length === 0) return null;
 
   // Separar autores principais dos outros
@@ -85,4 +88,6 @@ export const ContributorsList: React.FC<ContributorsListProps> = ({ contributors
       ))}
     </div>
   );
-};
+});
+
+ContributorsList.displayName = 'ContributorsList';
