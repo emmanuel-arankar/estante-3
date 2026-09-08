@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Eye, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -9,7 +10,14 @@ interface ProfilePhotoMenuProps {
   trigger: React.ReactNode;
 }
 
-export const ProfilePhotoMenu = ({
+/**
+ * ProfilePhotoMenu dropdown menu for profile photo actions.
+ *
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped with `memo` to prevent re-renders on parent state updates (such as tab switches
+ * or friendship status updates) when props have not changed.
+ */
+export const ProfilePhotoMenu = memo(({
   currentPhotoURL,
   onView,
   onEdit,
@@ -54,4 +62,6 @@ export const ProfilePhotoMenu = ({
       </DropdownMenu.Content>
     </DropdownMenu.Root>
   );
-};
+});
+
+ProfilePhotoMenu.displayName = 'ProfilePhotoMenu';
