@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -34,7 +34,14 @@ interface PhotoViewerProps {
   avatarId?: string;
 }
 
-export const PhotoViewer = ({
+/**
+ * PhotoViewer modal component for viewing profile pictures and comments.
+ *
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped with `memo` to prevent redundant re-renders when parent layout or route
+ * state updates while the photo viewer modal is mounted.
+ */
+export const PhotoViewer = memo(({
   imageUrl,
   onClose,
   userAvatar,
@@ -312,4 +319,6 @@ export const PhotoViewer = ({
       </DialogContent>
     </Dialog>
   );
-};
+});
+
+PhotoViewer.displayName = 'PhotoViewer';

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useLoaderData, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -82,7 +82,8 @@ const convertFirestoreDate = (date: any): Date | null => {
 };
 
 // Componente para exibir amigos em comum no perfil com avatar group
-const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count: number }> = ({ userId, friendId, count }) => {
+// PERFORMANCE OPTIMIZATION: Memoized to eliminate unnecessary re-renders during ProfileContent state changes.
+const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count: number }> = memo(({ userId, friendId, count }) => {
   const [avatarFriends, setAvatarFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
   const [allFriends, setAllFriends] = useState<{ displayName: string; nickname: string; photoURL: string | null }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -197,7 +198,9 @@ const MutualFriendsIndicator: React.FC<{ userId: string; friendId: string; count
       </Tooltip>
     </TooltipProvider>
   );
-};
+});
+
+MutualFriendsIndicator.displayName = 'MutualFriendsIndicator';
 
 // # atualizado: Componente interno para renderizar o perfil real
 const ProfileContent = ({ initialProfileUser }: { initialProfileUser: UserModel }) => {
