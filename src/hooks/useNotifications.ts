@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
     listNotifications,
@@ -68,8 +68,11 @@ export const useNotifications = () => {
 
     // ==================== DERIVED DATA ====================
 
-    const notifications: Notification[] =
-        notificationsQuery.data?.pages.flatMap(page => page.data) || [];
+    // PERFORMANCE: Memoize array flattening to preserve reference stability across renders
+    // and prevent unnecessary downstream re-renders in notification consumer components.
+    const notifications: Notification[] = useMemo(() => {
+        return notificationsQuery.data?.pages.flatMap(page => page.data) || [];
+    }, [notificationsQuery.data?.pages]);
 
     const unreadCount = unreadQuery.data ?? 0;
     const hasMore = !!notificationsQuery.hasNextPage;
@@ -90,11 +93,12 @@ export const useNotifications = () => {
             // Optimistic update na lista
             queryClient.setQueriesData(
                 { queryKey: notificationKeys.list(false) },
-                (old: any) => {
-                    if (!old?.pages) return old;
+                (old: unknown) => {
+                    const data = old as { pages?: Array<{ data: Notification[] }> } | undefined;
+                    if (!data?.pages) return old;
                     return {
-                        ...old,
-                        pages: old.pages.map((page: any) => ({
+                        ...data,
+                        pages: data.pages.map((page) => ({
                             ...page,
                             data: page.data.map((n: Notification) =>
                                 n.id === notificationId ? { ...n, read: true } : n
@@ -121,11 +125,12 @@ export const useNotifications = () => {
             // Optimistic update: marcar todas como lidas
             queryClient.setQueriesData(
                 { queryKey: notificationKeys.list(false) },
-                (old: any) => {
-                    if (!old?.pages) return old;
+                (old: unknown) => {
+                    const data = old as { pages?: Array<{ data: Notification[] }> } | undefined;
+                    if (!data?.pages) return old;
                     return {
-                        ...old,
-                        pages: old.pages.map((page: any) => ({
+                        ...data,
+                        pages: data.pages.map((page) => ({
                             ...page,
                             data: page.data.map((n: Notification) => ({ ...n, read: true })),
                         })),
