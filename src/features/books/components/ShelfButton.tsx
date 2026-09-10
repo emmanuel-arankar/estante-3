@@ -20,7 +20,11 @@ const statusOptions: { value: string; label: string; icon: React.ReactNode; colo
   { value: 'abandoned', label: 'Abandonei', icon: <XCircle className="w-5 h-5" />, color: 'bg-red-600 hover:bg-red-700' }
 ];
 
-export const ShelfButton: React.FC<ShelfButtonProps> = ({ editionId: _editionId, workId: _workId, initialStatus, size = 'md', className }) => {
+/**
+ * PERFORMANCE OPTIMIZATION: Memoized to prevent unnecessary re-renders when parent
+ * pages or lists (e.g. BookPage, EditionsPage) re-render due to unrelated state updates.
+ */
+export const ShelfButton: React.FC<ShelfButtonProps> = React.memo(({ editionId: _editionId, workId: _workId, initialStatus, size = 'md', className }) => {
   const [currentStatus, setCurrentStatus] = useState<string | undefined>(initialStatus);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -130,4 +134,6 @@ export const ShelfButton: React.FC<ShelfButtonProps> = ({ editionId: _editionId,
       )}
     </div>
   );
-};
+});
+
+ShelfButton.displayName = 'ShelfButton';
