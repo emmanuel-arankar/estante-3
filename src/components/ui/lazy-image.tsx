@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -10,9 +10,11 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 }
 
 /**
- * Componente de imagem com lazy loading, skeleton loader e fallback
+ * Componente de imagem com lazy loading, skeleton loader e fallback.
+ * Memoizado com React.memo para evitar re-renderizações desnecessárias quando o
+ * componente pai atualiza o estado sem alterar as props da imagem.
  */
-export function LazyImage({
+export const LazyImage = memo(function LazyImage({
     src,
     alt,
     fallbackSrc,
@@ -76,4 +78,6 @@ export function LazyImage({
             {...props}
         />
     );
-}
+});
+
+LazyImage.displayName = 'LazyImage';
