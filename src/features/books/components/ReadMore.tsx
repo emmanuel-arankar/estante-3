@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -7,7 +7,12 @@ interface ReadMoreProps {
   lines?: number;
 }
 
-export const ReadMore = ({ html, lines = 6 }: ReadMoreProps) => {
+/**
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped in React.memo to prevent unnecessary layout measurements and re-renders
+ * when parent components (e.g. BookPage, AuthorBioSection) trigger state updates.
+ */
+export const ReadMore = memo(({ html, lines = 6 }: ReadMoreProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [needsExpansion, setNeedsExpansion] = useState(false);
@@ -89,4 +94,6 @@ export const ReadMore = ({ html, lines = 6 }: ReadMoreProps) => {
       )}
     </div>
   );
-};
+});
+
+ReadMore.displayName = 'ReadMore';
