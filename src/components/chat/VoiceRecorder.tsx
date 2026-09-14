@@ -219,6 +219,6 @@ export const VoiceRecorder = memo(forwardRef<VoiceRecorderHandle, VoiceRecorderP
             </div>
         );
     }
-);
+));
 
 VoiceRecorder.displayName = 'VoiceRecorder';
