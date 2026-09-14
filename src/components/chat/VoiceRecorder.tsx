@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useRef, forwardRef, memo, useImperativeHandle } from 'react';
 import { SendHorizontal, Trash2, Lock, Play, Pause, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RecordingWaveform } from './RecordingWaveform';
@@ -15,7 +15,17 @@ interface VoiceRecorderProps {
     onSend: (blob: Blob, duration: number, waveform: number[], viewOnce: boolean) => void;
 }
 
-export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>(
+/**
+ * VoiceRecorder component handles recording audio streams, displaying waveform visualization,
+ * and managing lock/pause states.
+ *
+ * PERFORMANCE:
+ * - Uses refs for latest state and callbacks (duration, viewOnce, onSend) so MediaRecorder lifecycle
+ *   is tied strictly to stream changes. This prevents recreating MediaRecorder every second when duration updates.
+ * - Separates timer interval into an isolated useEffect.
+ * - Wrapped in React.memo to prevent unnecessary re-renders when parent state updates.
+ */
+export const VoiceRecorder = memo(forwardRef<VoiceRecorderHandle, VoiceRecorderProps>(
     ({ stream, isLocked: initialLocked, onCancel, onSend }, ref) => {
         const [isPaused, setIsPaused] = useState(false);
         const [duration, setDuration] = useState(0);
@@ -24,12 +34,39 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>
         const mediaRecorderRef = useRef<MediaRecorder | null>(null);
         const chunksRef = useRef<Blob[]>([]);
         const levelsRef = useRef<number[]>([]);
-        const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+        const durationRef = useRef(duration);
+        const viewOnceRef = useRef(viewOnce);
+        const onSendRef = useRef(onSend);
+
+        useEffect(() => {
+            durationRef.current = duration;
+        }, [duration]);
+
+        useEffect(() => {
+            viewOnceRef.current = viewOnce;
+        }, [viewOnce]);
+
+        useEffect(() => {
+            onSendRef.current = onSend;
+        }, [onSend]);
 
         useEffect(() => {
             setIsLocked(initialLocked);
         }, [initialLocked]);
 
+        // Separate timer interval effect
+        useEffect(() => {
+            if (!stream || isPaused) return;
+
+            const timer = setInterval(() => {
+                setDuration((d) => d + 1);
+            }, 1000);
+
+            return () => clearInterval(timer);
+        }, [stream, isPaused]);
+
+        // MediaRecorder setup effect - runs strictly when `stream` changes
         useEffect(() => {
             if (!stream) return;
 
@@ -45,11 +82,12 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>
 
             mediaRecorder.onstop = () => {
                 const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const finalDuration = durationRef.current;
 
                 // Validate minimum duration (1 second) and non-empty blob
-                if (chunksRef.current.length > 0 && duration >= 1 && blob.size > 0) {
-                    onSend(blob, duration, [...levelsRef.current], viewOnce);
-                } else if (duration < 1) {
+                if (chunksRef.current.length > 0 && finalDuration >= 1 && blob.size > 0) {
+                    onSendRef.current(blob, finalDuration, [...levelsRef.current], viewOnceRef.current);
+                } else if (finalDuration < 1) {
                     console.warn('Recording too short (< 1s), discarding');
                 } else if (blob.size === 0) {
                     console.warn('Empty audio blob, discarding');
@@ -58,19 +96,12 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, VoiceRecorderProps>
 
             mediaRecorder.start();
 
-            timerRef.current = setInterval(() => {
-                if (!isPaused) {
-                    setDuration((d) => d + 1);
-                }
-            }, 1000);
-
             return () => {
-                if (timerRef.current) clearInterval(timerRef.current);
                 if (mediaRecorder.state !== 'inactive') {
                     mediaRecorder.stop();
                 }
             };
-        }, [stream, isPaused, duration, viewOnce, onSend]);
+        }, [stream]);
 
         useImperativeHandle(ref, () => ({
             stopAndSend: () => {
