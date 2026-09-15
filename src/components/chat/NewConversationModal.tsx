@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, MessageCircle } from 'lucide-react';
@@ -37,7 +37,96 @@ interface NewConversationModalProps {
   onClose: () => void;
 }
 
-export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalProps) => {
+interface UserSearchResultItemProps {
+  user: User;
+  index: number;
+  onStartConversation: (user: User) => void;
+}
+
+/**
+ * PERFORMANCE: Memoized UserSearchResultItem prevents unnecessary item re-renders
+ * during search input typing or parent component state updates.
+ */
+const UserSearchResultItem = React.memo(({
+  user,
+  index,
+  onStartConversation,
+}: UserSearchResultItemProps) => {
+  const handleClick = useCallback(() => {
+    onStartConversation(user);
+  }, [user, onStartConversation]);
+
+  const handleButtonClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStartConversation(user);
+  }, [user, onStartConversation]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Card className="hover:shadow-md transition-shadow cursor-pointer">
+        <CardContent
+          className="p-3"
+          onClick={handleClick}
+        >
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={user.photoURL} alt={user.displayName} />
+                <AvatarFallback className="bg-emerald-100 text-emerald-700">
+                  {user.displayName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <OnlineStatus
+                userId={user.id}
+                className="absolute -bottom-1 -right-1"
+              />
+            </div>
+
+            <div className="flex-1 min-w-0 max-w-full overflow-hidden">
+              <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                <h3 className="font-semibold text-gray-900 truncate max-w-[150px]">
+                  {user.displayName}
+                </h3>
+                {user.nickname && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 h-4 font-medium shrink-0">
+                    @{user.nickname}
+                  </Badge>
+                )}
+              </div>
+              {user.bio && (
+                <p className="text-xs text-gray-600 line-clamp-1 break-words">
+                  {user.bio.replace(/<[^>]*>/g, '')}
+                </p>
+              )}
+              <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                <span>{user.stats?.booksRead || 0} livros lidos</span>
+                <span>{user.stats?.followers || 0} seguidores</span>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 rounded-full"
+              onClick={handleButtonClick}
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+});
+UserSearchResultItem.displayName = 'UserSearchResultItem';
+
+/**
+ * PERFORMANCE: Memoized NewConversationModal prevents redundant re-renders when parent page updates.
+ */
+export const NewConversationModal = React.memo(({ isOpen, onClose }: NewConversationModalProps) => {
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -47,7 +136,7 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
   const searchCacheRef = useRef<Map<string, User[]>>(new Map());
 
   // Buscar usuários
-  const searchUsers = async (searchTerm: string) => { // atualizado
+  const searchUsers = useCallback(async (searchTerm: string) => {
     if (!searchTerm.trim() || searchTerm.length < 2) {
       setUsers([]);
       return;
@@ -64,7 +153,6 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
       const foundUsers = await searchUsersAPI(searchTerm);
       let finalUsers = foundUsers;
 
-      // Sugestão 1: Filtrar o usuário logado dos resultados
       if (currentUser) {
         finalUsers = foundUsers.filter(user => user.id !== currentUser.uid);
       }
@@ -76,10 +164,8 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
 
-      // Sugestão 2: Mostrar um erro mais específico
       let errorMessage = 'Erro ao buscar usuários';
       if (error instanceof Error) {
-        // Mostra a mensagem de erro real da API, se disponível
         errorMessage = error.message || errorMessage;
       }
       toastErrorClickable(errorMessage);
@@ -87,7 +173,7 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]);
 
   // Debounce da busca
   useEffect(() => {
@@ -96,21 +182,21 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, searchUsers]);
 
   // Iniciar conversa
-  const handleStartConversation = (user: User) => {
+  const handleStartConversation = useCallback((user: User) => {
     onClose();
     navigate(PATHS.CHAT({ receiverId: user.id }));
     toastSuccessClickable(`Conversa iniciada com ${user.displayName}`);
-  };
+  }, [onClose, navigate]);
 
   // Limpar ao fechar
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setSearchQuery('');
     setUsers([]);
     onClose();
-  };
+  }, [onClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -162,67 +248,12 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
             ) : (
               <div className="space-y-2">
                 {users.map((user, index) => (
-                  <motion.div
+                  <UserSearchResultItem
                     key={user.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                      <CardContent
-                        className="p-3"
-                        onClick={() => handleStartConversation(user)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="relative">
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={user.photoURL} alt={user.displayName} />
-                              <AvatarFallback className="bg-emerald-100 text-emerald-700">
-                                {user.displayName.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <OnlineStatus
-                              userId={user.id}
-                              className="absolute -bottom-1 -right-1"
-                            />
-                          </div>
-
-                          <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-                            <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                              <h3 className="font-semibold text-gray-900 truncate max-w-[150px]">
-                                {user.displayName}
-                              </h3>
-                              {user.nickname && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 h-4 font-medium shrink-0">
-                                  @{user.nickname}
-                                </Badge>
-                              )}
-                            </div>
-                            {user.bio && (
-                              <p className="text-xs text-gray-600 line-clamp-1 break-words">
-                                {user.bio.replace(/<[^>]*>/g, '')}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                              <span>{user.stats?.booksRead || 0} livros lidos</span>
-                              <span>{user.stats?.followers || 0} seguidores</span>
-                            </div>
-                          </div>
-
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartConversation(user);
-                            }}
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
+                    user={user}
+                    index={index}
+                    onStartConversation={handleStartConversation}
+                  />
                 ))}
               </div>
             )}
@@ -238,4 +269,5 @@ export const NewConversationModal = ({ isOpen, onClose }: NewConversationModalPr
       </DialogContent>
     </Dialog>
   );
-};
+});
+NewConversationModal.displayName = 'NewConversationModal';
