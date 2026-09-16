@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
     listNotifications,
@@ -68,8 +68,12 @@ export const useNotifications = () => {
 
     // ==================== DERIVED DATA ====================
 
-    const notifications: Notification[] =
-        notificationsQuery.data?.pages.flatMap(page => page.data) || [];
+    // PERFORMANCE: Memoize flattened notifications array to maintain stable array reference equality.
+    // Prevents redundant re-renders and unnecessary re-evaluations of downstream memoized hooks/components (e.g. NotificationsPage, NotificationDropdown).
+    const notifications: Notification[] = useMemo(
+        () => notificationsQuery.data?.pages.flatMap(page => page.data) || [],
+        [notificationsQuery.data?.pages]
+    );
 
     const unreadCount = unreadQuery.data ?? 0;
     const hasMore = !!notificationsQuery.hasNextPage;
