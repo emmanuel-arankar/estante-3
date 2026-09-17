@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -60,7 +60,12 @@ import { useAudioStore } from '@/hooks/useAudioStore';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { formatAudioTime } from '@/utils/audioUtils';
 
-const AudioPlayer = ({
+/**
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped in React.memo to prevent unnecessary re-renders of the audio player
+ * when parent ChatBubble or message list updates state (e.g. typing indicators or search query changes).
+ */
+const AudioPlayer = memo(({
     src,
     isOwn,
     id,
@@ -357,7 +362,9 @@ const AudioPlayer = ({
             </div>
         </div>
     );
-};
+});
+
+AudioPlayer.displayName = 'AudioPlayer';
 
 import { requestTranscription } from '@/services/firebase/functions';
 import { Loader2, FileText } from 'lucide-react';
@@ -460,7 +467,12 @@ const MessageHighlighter = ({ text, query, isCurrent }: { text: string; query: s
     return <>{parts}</>;
 };
 
-export const ChatBubble = ({
+/**
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped in React.memo to prevent redundant re-renders of individual chat bubbles
+ * when parent Chat view updates state (such as typing indicators, scroll positioning, or search query typing).
+ */
+export const ChatBubble = memo(({
     message,
     isOwn,
     onReply,
@@ -968,4 +980,6 @@ export const ChatBubble = ({
             )}
         </motion.div>
     );
-};
+});
+
+ChatBubble.displayName = 'ChatBubble';
