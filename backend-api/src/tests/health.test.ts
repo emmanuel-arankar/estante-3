@@ -28,6 +28,32 @@ vi.mock('firebase-functions/logger', () => ({
   debug: vi.fn(),
 }));
 
+vi.mock('firebase-admin', () => {
+  const mockApp = {
+    firestore: vi.fn(() => ({})),
+    auth: vi.fn(() => ({})),
+    database: vi.fn(() => ({ ref: vi.fn(() => ({ update: vi.fn(), push: vi.fn(), set: vi.fn() })) })),
+    storage: vi.fn(() => ({ bucket: vi.fn(() => ({ file: vi.fn(() => ({ getSignedUrl: vi.fn() })) })) })),
+  };
+  return {
+    default: {
+      apps: [{}],
+      initializeApp: vi.fn(() => mockApp),
+      credential: { cert: vi.fn(), applicationDefault: vi.fn() },
+      firestore: vi.fn(() => ({})),
+      auth: vi.fn(() => ({})),
+      database: vi.fn(() => ({ ref: vi.fn(() => ({ update: vi.fn(), push: vi.fn(), set: vi.fn() })) })),
+      storage: vi.fn(() => ({ bucket: vi.fn(() => ({ file: vi.fn(() => ({ getSignedUrl: vi.fn() })) })) })),
+    },
+    apps: [{}],
+    initializeApp: vi.fn(() => mockApp),
+    firestore: vi.fn(() => ({})),
+    auth: vi.fn(() => ({})),
+    database: vi.fn(() => ({ ref: vi.fn(() => ({ update: vi.fn(), push: vi.fn(), set: vi.fn() })) })),
+    storage: vi.fn(() => ({ bucket: vi.fn(() => ({ file: vi.fn(() => ({ getSignedUrl: vi.fn() })) })) })),
+  };
+});
+
 // =============================================================================
 // SETUP DE TESTES (TEST SETUP)
 // =============================================================================
