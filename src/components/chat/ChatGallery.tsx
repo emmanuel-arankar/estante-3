@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { X, Image as ImageIcon, ExternalLink } from 'lucide-react';
@@ -11,17 +12,24 @@ interface ChatGalleryProps {
     onClose: () => void;
 }
 
-export const ChatGallery = ({ messages, isOpen, onClose }: ChatGalleryProps) => {
-    if (!isOpen) return null;
+/**
+ * ChatGallery Component
+ * Memoized to prevent redundant renders and costly media filtering during frequent parent updates (e.g. typing or message streaming).
+ */
+export const ChatGallery = memo(({ messages, isOpen, onClose }: ChatGalleryProps) => {
+    // Memoize media filtering to avoid regex re-evaluation on unrelated parent re-renders
+    const images = useMemo(() => {
+        if (!isOpen) return [];
+        return messages.filter(msg =>
+            msg.type === 'image' ||
+            (msg.content && (msg.content.startsWith('http') && (
+                msg.content.match(/\.(jpeg|jpg|gif|png|webp)/i) ||
+                msg.content.includes('firebasestorage.googleapis.com')
+            )))
+        );
+    }, [messages, isOpen]);
 
-    // Filtra apenas mensagens que são imagens ou possuem conteúdo de imagem
-    const images = messages.filter(msg =>
-        msg.type === 'image' ||
-        (msg.content && (msg.content.startsWith('http') && (
-            msg.content.match(/\.(jpeg|jpg|gif|png|webp)/i) ||
-            msg.content.includes('firebasestorage.googleapis.com')
-        )))
-    );
+    if (!isOpen) return null;
 
     return createPortal(
         <AnimatePresence>
@@ -106,4 +114,6 @@ export const ChatGallery = ({ messages, isOpen, onClose }: ChatGalleryProps) => 
         </AnimatePresence>,
         document.body
     );
-};
+});
+
+ChatGallery.displayName = 'ChatGallery';
