@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
@@ -22,7 +22,11 @@ interface MediaViewerProps {
     messageId?: string;
 }
 
-export const MediaViewer = ({
+/**
+ * MediaViewer Component
+ * Memoized to avoid unnecessary re-renders when parent chat state updates.
+ */
+export const MediaViewer = memo(({
     isOpen,
     onClose,
     images,
@@ -397,4 +401,6 @@ export const MediaViewer = ({
         </AnimatePresence>,
         document.body
     );
-};
+});
+
+MediaViewer.displayName = 'MediaViewer';
