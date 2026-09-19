@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface RecordingWaveformProps {
     stream: MediaStream | null;
@@ -9,7 +9,13 @@ interface RecordingWaveformProps {
     dataRef?: React.MutableRefObject<number[]>; // New prop to expose data
 }
 
-export const RecordingWaveform = ({
+/**
+ * PERFORMANCE OPTIMIZATION:
+ * Wrapped in React.memo to prevent unnecessary re-renders when parent state updates
+ * (such as timer increments or UI toggle changes in VoiceRecorder), isolating canvas
+ * scaling/animation setup to actual prop changes.
+ */
+export const RecordingWaveform = React.memo(({
     stream,
     isPaused,
     barColor = '#10b981', // emerald-500
@@ -37,7 +43,8 @@ export const RecordingWaveform = ({
         if (!stream) return;
 
         try {
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+            const audioContext = new AudioContextClass();
             const analyser = audioContext.createAnalyser();
             const source = audioContext.createMediaStreamSource(stream);
 
@@ -169,4 +176,6 @@ export const RecordingWaveform = ({
             className="w-full h-full"
         />
     );
-};
+});
+
+RecordingWaveform.displayName = 'RecordingWaveform';
