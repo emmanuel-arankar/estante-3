@@ -1,0 +1,3 @@
+## 2026-09-20 - Memoize ImagePreviewOverlay & Hoist Color Constants
+**Learning:** `ImagePreviewOverlay` rendered unconditionally in `ChatInput` whenever `selectedImages` contained items, re-rendering on every keystroke or typing status change in the parent input component. Wrapping `ImagePreviewOverlay` in `React.memo` and hoisting static brush color constants prevents unnecessary DOM and React Konva reconciliation cycles during active chat typing.
+**Action:** Always wrap overlay/modal components rendered conditionally or conditionally styled inside input forms in `React.memo` and move static style/color arrays outside the render function.

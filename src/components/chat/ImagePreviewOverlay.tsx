@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, SendHorizontal, Crop, Pencil, Type, Eye, Smile, Undo2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,7 +27,15 @@ interface ImagePreviewOverlayProps {
     isSending?: boolean;
 }
 
-export const ImagePreviewOverlay = ({
+const BRUSH_COLORS = ['#ffffff', '#000000', '#ef4444', '#10b981', '#3b82f6', '#eab308'];
+
+/**
+ * ImagePreviewOverlay component.
+ *
+ * Wrapped in React.memo to avoid redundant re-renders when parent components
+ * (such as ChatInput) update state during typing or status updates.
+ */
+export const ImagePreviewOverlay = memo(({
     images: initialImages,
     onClose,
     onSend,
@@ -381,7 +389,7 @@ export const ImagePreviewOverlay = ({
                             </Button>
 
                             <div className="flex items-center space-x-1 bg-black/20 rounded-lg p-1 mx-2">
-                                {['#ffffff', '#000000', '#ef4444', '#10b981', '#3b82f6', '#eab308'].map(color => (
+                                {BRUSH_COLORS.map(color => (
                                     <button
                                         key={color}
                                         onClick={() => setBrushColor(color)}
@@ -692,4 +700,6 @@ export const ImagePreviewOverlay = ({
         </motion.div>,
         document.body
     );
-};
+});
+
+ImagePreviewOverlay.displayName = 'ImagePreviewOverlay';
