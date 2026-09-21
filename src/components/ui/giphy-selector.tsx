@@ -1,12 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { Loader2 } from 'lucide-react';
 
 const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY;
 
-export function GiphySelector({ onSelect }: { onSelect: (url: string) => void }) {
+/**
+ * PERFORMANCE OPTIMIZATION:
+ * - Wrapped with React.memo to prevent unnecessary re-renders when parent components (e.g. RichTextEditor) update.
+ * - Uses isInitialMount ref to prevent duplicate Giphy API calls on mount (skips debounced search effect on initial render).
+ */
+export const GiphySelector = memo(function GiphySelector({ onSelect }: { onSelect: (url: string) => void }) {
     const [query, setQuery] = useState('');
     const [gifs, setGifs] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const isInitialMount = useRef(true);
 
     const fetchGifs = async (searchQuery: string) => {
         setLoading(true);
@@ -16,7 +22,7 @@ export function GiphySelector({ onSelect }: { onSelect: (url: string) => void })
                 : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=12&rating=g`;
             const res = await fetch(url);
             const data = await res.json();
-            setGifs(data.data);
+            setGifs(data.data || []);
         } catch (e) {
             console.error(e);
         } finally {
@@ -24,13 +30,18 @@ export function GiphySelector({ onSelect }: { onSelect: (url: string) => void })
         }
     };
 
-    // Auto-fetch on mount (Trending)
+    // Auto-fetch on mount (Trending) - immediate execution
     useEffect(() => {
         fetchGifs('');
     }, []);
 
-    // Debounced Search on Change
+    // Debounced Search on Change - skips initial render to avoid duplicate API call on mount
     useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
         const timer = setTimeout(() => {
             if (query.trim()) {
                 fetchGifs(query);
@@ -76,4 +87,6 @@ export function GiphySelector({ onSelect }: { onSelect: (url: string) => void })
             )}
         </div>
     );
-}
+});
+
+GiphySelector.displayName = 'GiphySelector';
