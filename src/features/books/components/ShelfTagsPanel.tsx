@@ -15,8 +15,21 @@ interface ShelfTagsPanelProps {
   };
 }
 
-export const ShelfTagsPanel: React.FC<ShelfTagsPanelProps> = ({
-  editionId,
+const BUTTONS = [
+  { key: 'favorite', label: 'Favorito', Icon: Star },
+  { key: 'yearlyGoal', label: 'Meta', Icon: Target },
+  { key: 'owned', label: 'Tenho', Icon: Archive },
+  { key: 'wishlist', label: 'Desejo', Icon: Heart },
+  { key: 'forTrade', label: 'Troco', Icon: RefreshCw },
+  { key: 'forSale', label: 'Vendo', Icon: Tag },
+] as const;
+
+/**
+ * PERFORMANCE: Wrapped in React.memo and hoisted static BUTTONS array outside render
+ * body to avoid redundant object/JSX allocations and eliminate React.cloneElement overhead
+ * during parent component re-renders.
+ */
+export const ShelfTagsPanel: React.FC<ShelfTagsPanelProps> = React.memo(({
   className,
   initialTags = { owned: false, wishlist: false, forTrade: false, forSale: false, favorite: false, yearlyGoal: false }
 }) => {
@@ -32,18 +45,9 @@ export const ShelfTagsPanel: React.FC<ShelfTagsPanelProps> = ({
     setIsUpdating(null);
   };
 
-  const buttons = [
-    { key: 'favorite', label: 'Favorito', icon: <Star className="w-4 h-4" /> },
-    { key: 'yearlyGoal', label: 'Meta', icon: <Target className="w-4 h-4" /> },
-    { key: 'owned', label: 'Tenho', icon: <Archive className="w-4 h-4" /> },
-    { key: 'wishlist', label: 'Desejo', icon: <Heart className="w-4 h-4" /> },
-    { key: 'forTrade', label: 'Troco', icon: <RefreshCw className="w-4 h-4" /> },
-    { key: 'forSale', label: 'Vendo', icon: <Tag className="w-4 h-4" /> },
-  ] as const;
-
   return (
     <div className={cn("mt-4 grid grid-cols-2 gap-2", className)}>
-      {buttons.map(({ key, label, icon }) => (
+      {BUTTONS.map(({ key, label, Icon }) => (
         <button
           key={key}
           disabled={isUpdating !== null}
@@ -56,12 +60,12 @@ export const ShelfTagsPanel: React.FC<ShelfTagsPanelProps> = ({
             isUpdating === key && "opacity-50 animate-pulse"
           )}
         >
-          {React.cloneElement(icon as React.ReactElement, {
-            className: cn("w-4 h-4", tags[key] && "fill-current text-indigo-600")
-          })}
+          <Icon className={cn("w-4 h-4", tags[key] && "fill-current text-indigo-600")} />
           {label}
         </button>
       ))}
     </div>
   );
-};
+});
+
+ShelfTagsPanel.displayName = 'ShelfTagsPanel';
