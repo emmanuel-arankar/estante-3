@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -256,6 +256,9 @@ export const Chat = () => {
   ) => {
     await sendMessage(content, type as any, isTemporary, file, waveform, duration, caption, viewOnce, images);
   };
+
+  const handleCancelReply = useCallback(() => setReplyingTo(null), [setReplyingTo]);
+  const handleCancelEdit = useCallback(() => setEditingMessage(null), [setEditingMessage]);
 
   // Handler para marcar áudio temporário como reproduzido (persiste no Firebase)
   const handleMarkTemporaryAsPlayed = async (messageId: string) => {
@@ -711,9 +714,9 @@ export const Chat = () => {
               onSendMessage={handleSendMessage as any}
               onTyping={updateTyping}
               replyingTo={replyingTo}
-              onCancelReply={() => setReplyingTo(null)}
+              onCancelReply={handleCancelReply}
               editingMessage={editingMessage}
-              onCancelEdit={() => setEditingMessage(null)}
+              onCancelEdit={handleCancelEdit}
               onEditMessage={editMessage}
               recipientName={displayReceiverName}
               disabled={isBlocked}
