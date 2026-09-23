@@ -1,10 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SendHorizontal, Image as ImageIcon, Smile, Paperclip, Mic, X } from 'lucide-react';
 import { ChatMessage } from '@estante/common-types';
-import EmojiPicker from '@emoji-mart/react';
-import data from '@emoji-mart/data';
-import i18n_pt from '@emoji-mart/data/i18n/pt.json';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -50,7 +48,41 @@ interface ChatInputProps {
   disabled?: boolean;
 }
 
-export const ChatInput = ({
+/**
+ * Lazy loads EmojiPicker and full @emoji-mart dataset (~500KB JSON)
+ * on demand when popover opens, keeping initial bundle execution light.
+ */
+const LazyEmojiPicker = lazy(async () => {
+  const [pickerModule, dataModule, i18nModule] = await Promise.all([
+    import('@emoji-mart/react'),
+    import('@emoji-mart/data'),
+    import('@emoji-mart/data/i18n/pt.json')
+  ]);
+  const Picker = pickerModule.default;
+  const data = dataModule.default;
+  const i18n = i18nModule.default;
+
+  return {
+    default: (props: { onEmojiSelect: (emoji: any) => void }) => (
+      <Picker
+        data={data}
+        onEmojiSelect={props.onEmojiSelect}
+        theme="light"
+        i18n={i18n}
+        locale="pt"
+        previewPosition="none"
+        skinTonePosition="none"
+      />
+    )
+  };
+});
+
+/**
+ * ChatInput handles text, image, and audio message entry.
+ * Memoized with React.memo to prevent unnecessary re-renders when parent
+ * Chat page updates due to incoming messages, scroll events, or online status changes.
+ */
+export const ChatInput = memo(({
   onSendMessage,
   onTyping,
   replyingTo,
@@ -599,15 +631,11 @@ export const ChatInput = ({
               </Button>
             </PopoverTriggerUI>
             <PopoverContentUI className="w-auto p-0 border-0 shadow-lg" align="end" side="top" sideOffset={10}>
-              <EmojiPicker
-                data={data}
-                onEmojiSelect={handleEmojiSelect}
-                theme="light"
-                i18n={i18n_pt}
-                locale="pt"
-                previewPosition="none"
-                skinTonePosition="none"
-              />
+              {showEmojiPicker && (
+                <Suspense fallback={<div className="p-4 flex items-center justify-center"><LoadingSpinner size="sm" /></div>}>
+                  <LazyEmojiPicker onEmojiSelect={handleEmojiSelect} />
+                </Suspense>
+              )}
             </PopoverContentUI>
           </PopoverUI>
         </div>
@@ -642,4 +670,6 @@ export const ChatInput = ({
       </div>
     </div>
   );
-};
+});
+
+ChatInput.displayName = 'ChatInput';
