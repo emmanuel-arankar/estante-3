@@ -3,7 +3,7 @@
  * As cidades são filtradas automaticamente baseado no estado selecionado
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin } from 'lucide-react';
 import {
   Select,
@@ -13,6 +13,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getStates, getCitiesByState } from '@/data/locations';
+
+// PERFORMANCE: Hoisted outside component render body to maintain stable array reference
+const BRAZIL_STATES = getStates();
 
 interface LocationSelectorProps {
   defaultState?: string;
@@ -24,7 +27,11 @@ interface LocationSelectorProps {
   className?: string;
 }
 
-export const LocationSelector = ({
+/**
+ * PERFORMANCE: Wrapped in React.memo to prevent unnecessary component re-renders
+ * when parent form state updates or re-renders.
+ */
+export const LocationSelector = React.memo(({
   defaultState,
   defaultCity,
   onLocationChange,
@@ -33,11 +40,9 @@ export const LocationSelector = ({
   cityFieldName = 'city',
   className = '',
 }: LocationSelectorProps) => {
-  const states = getStates();
-
   // Encontrar código do estado padrão se fornecido
   const initialStateCode = defaultState
-    ? states.find(s => s.name === defaultState || s.code === defaultState)?.code
+    ? BRAZIL_STATES.find(s => s.name === defaultState || s.code === defaultState)?.code
     : undefined;
 
   const [selectedStateCode, setSelectedStateCode] = useState<string | undefined>(initialStateCode);
@@ -63,21 +68,21 @@ export const LocationSelector = ({
   // Notificar mudanças para o componente pai
   useEffect(() => {
     if (onLocationChange && selectedStateCode && selectedCity) {
-      const state = states.find(s => s.code === selectedStateCode);
+      const state = BRAZIL_STATES.find(s => s.code === selectedStateCode);
       if (state) {
         onLocationChange(state.name, state.code, selectedCity);
       }
     }
   }, [selectedStateCode, selectedCity, onLocationChange]);
 
-  const handleStateChange = (stateCode: string) => {
+  const handleStateChange = useCallback((stateCode: string) => {
     setSelectedStateCode(stateCode);
     setSelectedCity(undefined); // Limpar cidade ao trocar estado
-  };
+  }, []);
 
-  const handleCityChange = (city: string) => {
+  const handleCityChange = useCallback((city: string) => {
     setSelectedCity(city);
-  };
+  }, []);
 
   return (
     <div className={`flex flex-col sm:flex-row gap-4 w-full ${className}`}>
@@ -97,7 +102,7 @@ export const LocationSelector = ({
               <SelectValue placeholder="Selecione o estado" />
             </SelectTrigger>
             <SelectContent>
-              {states.map((state) => (
+              {BRAZIL_STATES.map((state) => (
                 <SelectItem key={state.code} value={state.code}>
                   {state.name} ({state.code})
                 </SelectItem>
@@ -107,7 +112,7 @@ export const LocationSelector = ({
         </div>
         {/* Hidden input para enviar nome do estado */}
         <input type="hidden" name={stateFieldName} value={
-          selectedStateCode ? states.find(s => s.code === selectedStateCode)?.name || '' : ''
+          selectedStateCode ? BRAZIL_STATES.find(s => s.code === selectedStateCode)?.name || '' : ''
         } />
       </div>
 
@@ -147,4 +152,6 @@ export const LocationSelector = ({
       </div>
     </div>
   );
-};
+});
+
+LocationSelector.displayName = 'LocationSelector';
