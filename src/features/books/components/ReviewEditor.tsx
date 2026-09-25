@@ -15,7 +15,11 @@ interface ReviewEditorProps {
   onCancel?: () => void;
 }
 
-export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, myReview, onSuccess, onCancel }) => {
+/**
+ * ReviewEditor component wrapped in React.memo to prevent unnecessary re-renders
+ * when parent components (e.g. ReviewsTab, BookPage) re-render.
+ */
+export const ReviewEditor: React.FC<ReviewEditorProps> = React.memo(({ editionId, workId, myReview, onSuccess, onCancel }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -24,7 +28,7 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, m
   const [error, setError] = useState('');
 
   const mutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: { title: string | null; content: string; containsSpoiler: boolean }) => {
       if (myReview) {
         return updateReviewAPI(myReview.id, payload);
       }
@@ -40,7 +44,7 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, m
       setContent('');
       if (onSuccess) onSuccess();
     },
-    onError: (err: any) => {
+    onError: (err: { response?: { data?: { error?: string } } }) => {
       setError(err.response?.data?.error || 'Erro ao publicar a resenha. Verifique os dados e tente novamente.');
     }
   });
@@ -159,4 +163,6 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = ({ editionId, workId, m
       </div>
     </form>
   );
-};
+});
+
+ReviewEditor.displayName = 'ReviewEditor';
