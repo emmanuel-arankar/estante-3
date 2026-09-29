@@ -8,6 +8,9 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/test/setup.ts',
+        env: {
+            FIREBASE_DATABASE_URL: `https://${process.env.VITE_FIREBASE_PROJECT_ID || 'estante-75463'}-default-rtdb.firebaseio.com`,
+        },
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html', 'json-summary'],
