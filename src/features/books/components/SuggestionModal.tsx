@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,7 +84,7 @@ interface LinkedPublisher {
 const STEPS = ['Busca', 'Obra & Autores', 'Detalhes da Edição', 'Revisão'] as const;
 
 // ─── Componente do Stepper ────────────────────────────────────────────────────
-const StepIndicator = ({ current }: { current: number }) => (
+const StepIndicator = React.memo(({ current }: { current: number }) => (
   <div className="flex items-center justify-between mb-8 px-4">
     {STEPS.map((label, i) => (
       <div key={label} className="flex items-center gap-1 flex-1 last:flex-none">
@@ -106,7 +106,8 @@ const StepIndicator = ({ current }: { current: number }) => (
       </div>
     ))}
   </div>
-);
+));
+StepIndicator.displayName = 'StepIndicator';
 
 
 // ─── Etapa 1: ISBN ────────────────────────────────────────────────────────────
@@ -120,7 +121,7 @@ const formatPublicationDate = (raw: string): string => {
   return `${parts[2]} ${months[parseInt(parts[1], 10) - 1] ?? ''} ${parts[0]}`.trim();
 };
 
-const StepISBN = ({
+const StepISBN = React.memo(({
   isbn, setIsbn, enriched, loading, error, onCheck,
 }: {
   isbn: string; setIsbn: (v: string) => void;
@@ -197,11 +198,12 @@ const StepISBN = ({
 
     </div>
   );
-};
+});
+StepISBN.displayName = 'StepISBN';
 
 // ─── Sub-componente: Linha de Autor ──────────────────────────────────────────
 
-const AuthorRow = ({
+const AuthorRow = React.memo(({
   author, linked, onLink, onUnlink, onNameChange, onRoleChange, onRemove
 }: {
   author: LinkedAuthor;
@@ -330,13 +332,14 @@ const AuthorRow = ({
       </div>
     </div>
   );
-};
+});
+AuthorRow.displayName = 'AuthorRow';
 
 
 
 // ─── Etapa 2: Obra & Autores ──────────────────────────────────────────────────
 
-const StepWorkAndAuthors = ({
+const StepWorkAndAuthors = React.memo(({
   enriched, linkedWork, setLinkedWork, noWork, setNoWork,
   authors, setAuthors,
 }: {
@@ -375,31 +378,37 @@ const StepWorkAndAuthors = ({
     }
   }, []);
 
-  const linkAuthor = (i: number, person: Person) => {
-    const next = [...authors];
-    next[i] = { ...next[i], person };
-    setAuthors(next);
-  };
+  const linkAuthor = useCallback((i: number, person: Person) => {
+    setAuthors(prev => {
+      const next = [...prev];
+      next[i] = { ...next[i], person };
+      return next;
+    });
+  }, [setAuthors]);
 
-  const unlinkAuthor = (i: number) => {
-    const next = [...authors];
-    next[i] = { ...next[i], person: undefined };
-    setAuthors(next);
-  };
+  const unlinkAuthor = useCallback((i: number) => {
+    setAuthors(prev => {
+      const next = [...prev];
+      next[i] = { ...next[i], person: undefined };
+      return next;
+    });
+  }, [setAuthors]);
 
-  const updateAuthor = (i: number, updates: Partial<LinkedAuthor>) => {
-    const next = [...authors];
-    next[i] = { ...next[i], ...updates };
-    setAuthors(next);
-  };
+  const updateAuthor = useCallback((i: number, updates: Partial<LinkedAuthor>) => {
+    setAuthors(prev => {
+      const next = [...prev];
+      next[i] = { ...next[i], ...updates };
+      return next;
+    });
+  }, [setAuthors]);
 
-  const removeAuthor = (i: number) => {
-    setAuthors(authors.filter((_, idx) => idx !== i));
-  };
+  const removeAuthor = useCallback((i: number) => {
+    setAuthors(prev => prev.filter((_, idx) => idx !== i));
+  }, [setAuthors]);
 
-  const addAuthor = () => {
-    setAuthors([...authors, { name: '', role: 'author' }]);
-  };
+  const addAuthor = useCallback(() => {
+    setAuthors(prev => [...prev, { name: '', role: 'author' }]);
+  }, [setAuthors]);
 
   return (
     <div className="space-y-8">
@@ -546,11 +555,12 @@ const StepWorkAndAuthors = ({
 
     </div>
   );
-};
+});
+StepWorkAndAuthors.displayName = 'StepWorkAndAuthors';
 
 // ─── Etapa 3: Detalhes da Edição ──────────────────────────────────────────────
 
-const StepEditionDetails = ({
+const StepEditionDetails = React.memo(({
   enriched, publisher, setPublisher, imprint, setImprint,
   alternateNames, setAlternateNames,
   seriesEntries, setSeriesEntries,
@@ -962,12 +972,13 @@ const StepEditionDetails = ({
 
     </div>
   );
-};
+});
+StepEditionDetails.displayName = 'StepEditionDetails';
 
 
 // ─── Etapa 7: Revisão e Envio ─────────────────────────────────────────────────
 
-const StepReview = ({
+const StepReview = React.memo(({
   enriched, linkedWork, noWork, authors, publisher, imprint, alternateNames, seriesEntries,
 }: {
   enriched: EnrichedData; linkedWork: Work | null; noWork: boolean;
@@ -1056,7 +1067,8 @@ const StepReview = ({
     </dl>
 
   </div>
-);
+));
+StepReview.displayName = 'StepReview';
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
@@ -1066,7 +1078,13 @@ interface SuggestionModalProps {
   initialIsbn?: string;
 }
 
-export function SuggestionModal({ open, onClose, initialIsbn = '' }: SuggestionModalProps) {
+/**
+ * SuggestionModal component for submitting book edition suggestions.
+ * Memoized along with sub-components (`StepIndicator`, `StepISBN`, `AuthorRow`,
+ * `StepWorkAndAuthors`, `StepEditionDetails`, `StepReview`) to avoid redundant re-renders
+ * during typing and multi-step form transitions.
+ */
+export const SuggestionModal = React.memo(function SuggestionModal({ open, onClose, initialIsbn = '' }: SuggestionModalProps) {
   const [step, setStep] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1096,7 +1114,7 @@ export function SuggestionModal({ open, onClose, initialIsbn = '' }: SuggestionM
   const [seriesEntries, setSeriesEntries] = useState<SeriesEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleCheckIsbn = async () => {
+  const handleCheckIsbn = useCallback(async () => {
     if (isbn.length < 10) return;
     setEnrichLoading(true);
     setEnrichError(null);
@@ -1168,7 +1186,7 @@ export function SuggestionModal({ open, onClose, initialIsbn = '' }: SuggestionM
     } finally {
       setEnrichLoading(false);
     }
-  };
+  }, [isbn]);
 
   const handleSubmit = async () => {
     if (!enriched) return;
@@ -1348,4 +1366,6 @@ export function SuggestionModal({ open, onClose, initialIsbn = '' }: SuggestionM
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+SuggestionModal.displayName = 'SuggestionModal';
