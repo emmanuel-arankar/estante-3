@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -13,7 +13,31 @@ interface OptimizedAvatarProps {
   isOnline?: boolean;
 }
 
-export const OptimizedAvatar = ({
+// Hoisted static class maps to prevent re-creation on every render
+const SIZE_CLASSES = {
+  xs: 'h-6 w-6',
+  sm: 'h-8 w-8',
+  md: 'h-12 w-12',
+  lg: 'h-16 w-16',
+  xl: 'h-32 w-32'
+} as const;
+
+const TEXT_CLASSES = {
+  xs: 'text-[10px]',
+  sm: 'text-xs',
+  md: 'text-sm',
+  lg: 'text-2xl',
+  xl: 'text-5xl'
+} as const;
+
+/**
+ * OptimizedAvatar
+ *
+ * Performance Optimization:
+ * - Wrapped in `React.memo` to eliminate unnecessary re-renders in heavy list views (e.g. comments, chat, member lists).
+ * - Static size and text class lookup maps hoisted outside component render scope.
+ */
+export const OptimizedAvatar = React.memo(({
   src,
   alt,
   fallback,
@@ -23,22 +47,6 @@ export const OptimizedAvatar = ({
 }: OptimizedAvatarProps) => {
   const { isLoaded, hasError } = useImageCache(src);
   const [showImage, setShowImage] = useState(false);
-
-  const sizeClasses = {
-    xs: 'h-6 w-6',
-    sm: 'h-8 w-8',
-    md: 'h-12 w-12',
-    lg: 'h-16 w-16',
-    xl: 'h-32 w-32'
-  };
-
-  const textClasses = {
-    xs: 'text-[10px]',
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-2xl',
-    xl: 'text-5xl'
-  };
 
   // ✅ Gerenciar o estado de exibição de forma robusta
   useEffect(() => {
@@ -53,7 +61,7 @@ export const OptimizedAvatar = ({
   }, [isLoaded, src]); // Adicionado 'src' como dependência para forçar o ciclo ao mudar a imagem
 
   return (
-    <div className={`relative rounded-full ${sizeClasses[size]} ${className}`}>
+    <div className={`relative rounded-full ${SIZE_CLASSES[size]} ${className}`}>
       {/* Skeleton durante o carregamento */}
       <AnimatePresence>
         {!isLoaded && (
@@ -79,7 +87,7 @@ export const OptimizedAvatar = ({
             className="object-cover"
           />
         ) : null}
-        <AvatarFallback className={`bg-emerald-100 text-emerald-700 font-medium ${textClasses[size]}`}>
+        <AvatarFallback className={`bg-emerald-100 text-emerald-700 font-medium ${TEXT_CLASSES[size]}`}>
           {(fallback || '?').charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
@@ -90,4 +98,6 @@ export const OptimizedAvatar = ({
       )}
     </div>
   );
-};
+});
+
+OptimizedAvatar.displayName = 'OptimizedAvatar';
