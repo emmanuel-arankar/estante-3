@@ -1,12 +1,31 @@
-import { CSSProperties, useState } from 'react';
+import { memo, CSSProperties, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-export const Hero = () => {
+/**
+ * Hero section component for landing page with animated background particles and search form.
+ * Optimized with React.memo and useMemo for particle positions to prevent animation jitter
+ * and re-render overhead during search input keystrokes.
+ */
+export const Hero = memo(() => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+
+  // Memoize background particle coordinates and animation timings to prevent
+  // recalculating random numbers and recreating animation configs on every keystroke
+  const backgroundBubbles = useMemo(() => {
+    return Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      style: {
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+      } as CSSProperties,
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+    }));
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,22 +38,19 @@ export const Hero = () => {
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
+        {backgroundBubbles.map((bubble) => (
           <motion.div
-            key={i}
+            key={bubble.id}
             className="absolute w-2 h-2 bg-white/20 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            } as CSSProperties}
+            style={bubble.style}
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.8, 0.2],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: bubble.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: bubble.delay,
             }} 
           />
         ))}
@@ -119,4 +135,6 @@ export const Hero = () => {
       </div>
     </section>
   );
-};
+});
+
+Hero.displayName = 'Hero';
