@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Download } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { Button } from '@/components/ui/button';
 
-export function PWAInstallBanner() {
+/**
+ * PWAInstallBanner Component
+ * Memoized to prevent unnecessary re-renders when parent layout or state updates.
+ */
+export const PWAInstallBanner = React.memo(() => {
     const { isInstallable, isInstalled, install } = usePWAInstall();
     const [dismissed, setDismissed] = useState(false);
 
@@ -61,4 +65,6 @@ export function PWAInstallBanner() {
             </div>
         </div>
     );
-}
+});
+
+PWAInstallBanner.displayName = 'PWAInstallBanner';
