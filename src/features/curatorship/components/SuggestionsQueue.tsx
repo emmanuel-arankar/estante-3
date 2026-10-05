@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listSuggestionsAdminAPI,
@@ -28,13 +28,100 @@ const STATUS_CONFIG = {
   rejected: { label: 'Rejeitado', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle },
 };
 
-const TYPE_ICON_MAP: Record<string, any> = {
+const TYPE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   work: BookOpen, edition: BookOpen, person: User,
   group: User, publisher: Library, series: BookOpen,
   default: AlertCircle,
 };
 
-export function SuggestionsQueue() {
+interface SuggestionCardProps {
+  suggestion: ContentSuggestion;
+  onSelect: (suggestion: ContentSuggestion) => void;
+}
+
+/**
+ * Individual suggestion card component wrapped in React.memo to prevent unnecessary re-renders
+ * when parent state (such as other modal toggles or background fetches) updates.
+ */
+const SuggestionCard = memo(({ suggestion, onSelect }: SuggestionCardProps) => {
+  const status = STATUS_CONFIG[suggestion.status] ?? STATUS_CONFIG.pending;
+  const StatusIcon = status.icon;
+  const Icon = TYPE_ICON_MAP[suggestion.type] ?? TYPE_ICON_MAP.default;
+
+  const handleClick = useCallback(() => {
+    onSelect(suggestion);
+  }, [onSelect, suggestion]);
+
+  const rawSuggestion = suggestion as unknown as Record<string, unknown>;
+  const displayTitle = suggestion.data?.title ?? suggestion.data?.name ?? (typeof rawSuggestion.title === 'string' ? rawSuggestion.title : undefined) ?? (typeof rawSuggestion.name === 'string' ? rawSuggestion.name : undefined) ?? suggestion.targetEntityId ?? 'Sem título';
+
+  return (
+    <button
+      onClick={handleClick}
+      className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.08)] hover:border-emerald-200 transition-all duration-300 p-5 group relative overflow-hidden active:scale-[0.99]"
+    >
+      <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+      <div className="flex items-center gap-5">
+        <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 text-gray-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-all duration-300">
+          <Icon className="w-6 h-6" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-2 py-0.5 rounded-md group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors">
+              {TYPE_LABELS[suggestion.type] ?? suggestion.type}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${status.color}`}>
+              <StatusIcon className="w-3 h-3" />
+              {status.label.toUpperCase()}
+            </span>
+          </div>
+
+          <h3 className="text-base font-bold text-gray-900 truncate leading-tight group-hover:text-emerald-700 transition-colors">
+            {displayTitle}
+          </h3>
+
+          <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+              <User className="w-3.5 h-3.5" />
+              <span>Envio da Comunidade</span>
+            </div>
+            <span className="text-gray-200">•</span>
+            {suggestion.type === 'correction' && suggestion.corrections && (
+              <p className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                {suggestion.corrections.length} campos alterados
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex items-center gap-1 text-[11px] font-bold text-gray-300 uppercase letter-spacing-wider group-hover:text-gray-400 transition-colors">
+            <Clock className="w-3 h-3" />
+            {suggestion.createdAt
+              ? new Date(suggestion.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+              : '—'
+            }
+          </div>
+          <div className="opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+            <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+              <CheckCircle className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+});
+
+SuggestionCard.displayName = 'SuggestionCard';
+
+/**
+ * SuggestionsQueue manages curatorship suggestions display and filtering.
+ * Wrapped in React.memo to prevent unnecessary parent layout re-renders.
+ */
+export const SuggestionsQueue = memo(function SuggestionsQueue() {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<ListSuggestionsParams>({ status: 'pending', page: 1, limit: 20 });
   const [selected, setSelected] = useState<ContentSuggestion | null>(null);
@@ -48,11 +135,35 @@ export function SuggestionsQueue() {
   const suggestions = data?.data ?? [];
   const pagination = data?.pagination;
 
-  const handleReviewed = () => {
+  const handleReviewed = useCallback(() => {
     setSelected(null);
     queryClient.invalidateQueries({ queryKey: ['admin-suggestions'] });
-  };
+  }, [queryClient]);
 
+  const handleCloseModal = useCallback(() => {
+    setSelected(null);
+  }, []);
+
+  const handleSelectCard = useCallback((suggestion: ContentSuggestion) => {
+    setSelected(suggestion);
+  }, []);
+
+  const handleStatusFilterChange = useCallback((status: 'pending' | 'approved' | 'rejected' | 'all') => {
+    setFilters(f => ({ ...f, status, page: 1 }));
+  }, []);
+
+  const handleTypeFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value as ContentSuggestion['type'] | '';
+    setFilters(f => ({ ...f, type: val || undefined, page: 1 }));
+  }, []);
+
+  const handlePrevPage = useCallback(() => {
+    setFilters(f => ({ ...f, page: (f.page ?? 1) - 1 }));
+  }, []);
+
+  const handleNextPage = useCallback(() => {
+    setFilters(f => ({ ...f, page: (f.page ?? 1) + 1 }));
+  }, []);
 
   return (
     <>
@@ -64,7 +175,7 @@ export function SuggestionsQueue() {
           {(['pending', 'approved', 'rejected', 'all'] as const).map(s => (
             <button
               key={s}
-              onClick={() => setFilters(f => ({ ...f, status: s, page: 1 }))}
+              onClick={() => handleStatusFilterChange(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                 filters.status === s
                   ? 'bg-emerald-600 text-white border-emerald-600'
@@ -78,7 +189,7 @@ export function SuggestionsQueue() {
 
         <select
           value={filters.type ?? ''}
-          onChange={e => setFilters(f => ({ ...f, type: (e.target.value as any) || undefined, page: 1 }))}
+          onChange={handleTypeFilterChange}
           className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         >
           <option value="">Todos os tipos</option>
@@ -110,7 +221,7 @@ export function SuggestionsQueue() {
             <AlertCircle className="w-8 h-8 text-red-600" />
           </div>
           <p className="text-red-900 font-bold text-lg">Ops! Algo deu errado</p>
-          <p className="text-red-600/70 text-sm mt-1 max-w-xs mx-auto">{(error as any)?.message ?? 'Tente novamente clicando em atualizar.'}</p>
+          <p className="text-red-600/70 text-sm mt-1 max-w-xs mx-auto">{(error as Error)?.message ?? 'Tente novamente clicando em atualizar.'}</p>
           <button 
             onClick={() => refetch()} 
             className="mt-6 px-6 py-2 bg-red-600 text-white rounded-full text-sm font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
@@ -133,72 +244,13 @@ export function SuggestionsQueue() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {suggestions.map(s => {
-            const status = STATUS_CONFIG[s.status] ?? STATUS_CONFIG.pending;
-            const StatusIcon = status.icon;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setSelected(s)}
-                className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.08)] hover:border-emerald-200 transition-all duration-300 p-5 group relative overflow-hidden active:scale-[0.99]"
-              >
-                <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 text-gray-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-all duration-300">
-                    {(() => {
-                      const Icon = TYPE_ICON_MAP[s.type] ?? TYPE_ICON_MAP.default;
-                      return <Icon className="w-6 h-6" />;
-                    })()}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-2 py-0.5 rounded-md group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors">
-                        {TYPE_LABELS[s.type] ?? s.type}
-                      </span>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${status.color}`}>
-                        <StatusIcon className="w-3 h-3" />
-                        {status.label.toUpperCase()}
-                      </span>
-                    </div>
-                    
-                    <h3 className="text-base font-bold text-gray-900 truncate leading-tight group-hover:text-emerald-700 transition-colors">
-                      {s.data?.title ?? s.data?.name ?? (s as any).title ?? (s as any).name ?? s.targetEntityId ?? 'Sem título'}
-                    </h3>
-                    
-                    <div className="flex items-center gap-3 mt-2">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
-                        <User className="w-3.5 h-3.5" />
-                        <span>Envio da Comunidade</span>
-                      </div>
-                      <span className="text-gray-200">•</span>
-                      {s.type === 'correction' && s.corrections && (
-                        <p className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
-                          {s.corrections.length} campos alterados
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className="flex items-center gap-1 text-[11px] font-bold text-gray-300 uppercase letter-spacing-wider group-hover:text-gray-400 transition-colors">
-                      <Clock className="w-3 h-3" />
-                      {s.createdAt
-                        ? new Date(s.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-                        : '—'
-                      }
-                    </div>
-                    <div className="opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                      <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-                        <CheckCircle className="w-5 h-5" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+          {suggestions.map(s => (
+            <SuggestionCard
+              key={s.id}
+              suggestion={s}
+              onSelect={handleSelectCard}
+            />
+          ))}
         </div>
       ) }
 
@@ -207,7 +259,7 @@ export function SuggestionsQueue() {
         <div className="flex items-center justify-center gap-3 pt-2">
           <Button variant="outline" size="sm"
             disabled={filters.page === 1}
-            onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) - 1 }))}>
+            onClick={handlePrevPage}>
             ← Anterior
           </Button>
           <span className="text-sm text-gray-500">
@@ -215,7 +267,7 @@ export function SuggestionsQueue() {
           </span>
           <Button variant="outline" size="sm"
             disabled={filters.page === pagination.totalPages}
-            onClick={() => setFilters(f => ({ ...f, page: (f.page ?? 1) + 1 }))}>
+            onClick={handleNextPage}>
             Próxima →
           </Button>
         </div>
@@ -227,10 +279,12 @@ export function SuggestionsQueue() {
     {selected && (
       <SuggestionReviewModal
         suggestion={selected}
-        onClose={() => setSelected(null)}
+        onClose={handleCloseModal}
         onReviewed={handleReviewed}
       />
     )}
   </>
 );
-}
+});
+
+SuggestionsQueue.displayName = 'SuggestionsQueue';
