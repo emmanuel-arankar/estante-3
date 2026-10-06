@@ -324,7 +324,11 @@ const hslToHex = (h: number, s: number, l: number) => {
   return `#${f(0)}${f(8)}${f(4)}`;
 };
 
-const ColorPalette = ({
+/**
+ * ColorPalette component rendered inside color picker popovers.
+ * Wrapped in React.memo to prevent unnecessary re-renders when parent states update.
+ */
+const ColorPalette = React.memo(({
   onSelectColor,
   title
 }: {
@@ -459,7 +463,8 @@ const ColorPalette = ({
       </button>
     </div>
   );
-};
+});
+ColorPalette.displayName = 'ColorPalette';
 
 // Helper component for toolbar buttons - Moved outside to prevent re-renders
 const ToolbarButton = forwardRef<HTMLButtonElement, {
@@ -489,7 +494,11 @@ const ToolbarButton = forwardRef<HTMLButtonElement, {
   </button>
 ));
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({
+/**
+ * RichTextEditor component providing a TipTap-based rich text editing experience.
+ * Wrapped in React.memo and utilizing useMemo for extensions to eliminate redundant extension allocations and re-renders.
+ */
+export const RichTextEditor: React.FC<RichTextEditorProps> = React.memo(({
   value,
   onChange,
   placeholder = 'Digite aqui...',
@@ -510,112 +519,128 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [isBubbleTextColorOpen, setIsBubbleTextColorOpen] = useState(false);
   const [isBubbleHighlightColorOpen, setIsBubbleHighlightColorOpen] = useState(false);
 
-  // Constrói lista de plugins atráves da Variante
-  const extensions: any[] = [
-    StarterKit.configure({
-      heading: variant === 'full' ? { levels: [1, 2, 3, 4] } : false,
-      bold: false,
-      paragraph: false,
-      codeBlock: variant === 'full' ? {} : false,
-      blockquote: variant === 'full' ? {} : false,
-      horizontalRule: false,
-      bulletList: variant === 'full' ? {} : false,
-      orderedList: variant === 'full' ? {} : false,
-      listItem: variant === 'full' ? {} : false,
-    }),
-    Paragraph.extend({
-      addAttributes() {
-        return {
-          lang: {
-            default: 'pt-BR',
-            renderHTML: attributes => ({ lang: attributes.lang }),
-            parseHTML: element => element.getAttribute('lang') || 'pt-BR',
-          },
-        }
-      },
-    }),
-
-    TextStyle.extend({
-      priority: 1,
-    }),
-    Color,
-    Bold.extend({
-      priority: 10,
-    }),
-    Underline,
-    Highlight.configure({ multicolor: true }),
-    Placeholder.configure({
-      placeholder: ({ editor }) => (editor.isEmpty ? placeholder : ''),
-    }),
-    Image.extend({
-      addAttributes() {
-        return {
-          ...this.parent?.(),
-          size: {
-            default: 'medium',
-            parseHTML: element => element.getAttribute('data-size') || 'medium',
-            renderHTML: attributes => {
-              return {
-                'data-size': attributes.size,
-                style: attributes.size === 'small' ? 'width: 250px'
-                  : attributes.size === 'medium' ? 'width: 500px'
-                    : 'width: 100%',
-              }
+  // Constrói e memoiza a lista de extensões Tiptap
+  const extensions = React.useMemo(() => {
+    const exts: any[] = [
+      StarterKit.configure({
+        heading: variant === 'full' ? { levels: [1, 2, 3, 4] } : false,
+        bold: false,
+        paragraph: false,
+        codeBlock: variant === 'full' ? {} : false,
+        blockquote: variant === 'full' ? {} : false,
+        horizontalRule: false,
+        bulletList: variant === 'full' ? {} : false,
+        orderedList: variant === 'full' ? {} : false,
+        listItem: variant === 'full' ? {} : false,
+      }),
+      Paragraph.extend({
+        addAttributes() {
+          return {
+            lang: {
+              default: 'pt-BR',
+              renderHTML: attributes => ({ lang: attributes.lang }),
+              parseHTML: element => element.getAttribute('lang') || 'pt-BR',
             },
-          },
-        }
-      },
-    }).configure({
-      HTMLAttributes: {
-        class: 'max-h-[400px] object-cover mx-auto transition-all duration-300 ease-in-out',
-      },
-    }),
-    DivWrapper,
-    SpoilerMark,
-    Mention.extend({
-      addAttributes() {
-        return {
-          id: { default: null },
-          label: { default: null },
-          nickname: { default: null },
-        };
-      },
-      // # atualizado: Padroniza o texto para @nickname
-      renderText({ node }) {
-        return `@${node.attrs.nickname}`;
-      },
-      // # atualizado: Define como o Tiptap lê o HTML salvo
-      parseHTML() {
-        return [{ tag: 'a[data-mention]' }];
-      },
-      // # atualizado: Define o HTML que é salvo (para fallback)
-      renderHTML({ node, HTMLAttributes }) {
-        if (!node.attrs.nickname) {
-          return ['span', mergeAttributes(HTMLAttributes), 'menção inválida'];
-        }
-        return [
-          'a',
-          mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-            'data-mention': '',
-            href: PATHS.PROFILE({ nickname: node.attrs.nickname }),
-            // # atualizado: Adiciona as classes de cor aqui também
-            class: 'text-primary bg-primary/10 px-1 rounded-md font-medium no-underline',
-          }),
-          `@${node.attrs.nickname}`,
-        ];
-      },
-      addNodeView() {
-        return ReactNodeViewRenderer(MentionLinkComponent);
-      },
-    }).configure({
-      HTMLAttributes: {
-        class: 'mention', // Classe de fallback
-      },
-      // # atualizado: Resolve o problema do cursor ao apagar
-      deleteTriggerWithBackspace: true,
-      suggestion,
-    }),
-  ];
+          }
+        },
+      }),
+
+      TextStyle.extend({
+        priority: 1,
+      }),
+      Color,
+      Bold.extend({
+        priority: 10,
+      }),
+      Underline,
+      Highlight.configure({ multicolor: true }),
+      Placeholder.configure({
+        placeholder: ({ editor }) => (editor.isEmpty ? placeholder : ''),
+      }),
+      Image.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            size: {
+              default: 'medium',
+              parseHTML: element => element.getAttribute('data-size') || 'medium',
+              renderHTML: attributes => {
+                return {
+                  'data-size': attributes.size,
+                  style: attributes.size === 'small' ? 'width: 250px'
+                    : attributes.size === 'medium' ? 'width: 500px'
+                      : 'width: 100%',
+                }
+              },
+            },
+          }
+        },
+      }).configure({
+        HTMLAttributes: {
+          class: 'max-h-[400px] object-cover mx-auto transition-all duration-300 ease-in-out',
+        },
+      }),
+      DivWrapper,
+      SpoilerMark,
+      Mention.extend({
+        addAttributes() {
+          return {
+            id: { default: null },
+            label: { default: null },
+            nickname: { default: null },
+          };
+        },
+        // # atualizado: Padroniza o texto para @nickname
+        renderText({ node }) {
+          return `@${node.attrs.nickname}`;
+        },
+        // # atualizado: Define como o Tiptap lê o HTML salvo
+        parseHTML() {
+          return [{ tag: 'a[data-mention]' }];
+        },
+        // # atualizado: Define o HTML que é salvo (para fallback)
+        renderHTML({ node, HTMLAttributes }) {
+          if (!node.attrs.nickname) {
+            return ['span', mergeAttributes(HTMLAttributes), 'menção inválida'];
+          }
+          return [
+            'a',
+            mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+              'data-mention': '',
+              href: PATHS.PROFILE({ nickname: node.attrs.nickname }),
+              // # atualizado: Adiciona as classes de cor aqui também
+              class: 'text-primary bg-primary/10 px-1 rounded-md font-medium no-underline',
+            }),
+            `@${node.attrs.nickname}`,
+          ];
+        },
+        addNodeView() {
+          return ReactNodeViewRenderer(MentionLinkComponent);
+        },
+      }).configure({
+        HTMLAttributes: {
+          class: 'mention', // Classe de fallback
+        },
+        // # atualizado: Resolve o problema do cursor ao apagar
+        deleteTriggerWithBackspace: true,
+        suggestion,
+      }),
+    ];
+
+    if (variant === 'full') {
+      exts.push(
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        Subscript,
+        Superscript
+      );
+    }
+
+    if (maxLength) {
+      exts.push(CharacterCount.configure({ limit: maxLength }));
+    }
+
+    return exts;
+  }, [variant, maxLength, placeholder]);
 
   // Identificar se o conteúdo inicial já tem hifenização para sincronizar o estado
   useEffect(() => {
@@ -623,18 +648,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       setIsHyphenated(true);
     }
   }, [variant]);
-
-  if (variant === 'full') {
-    extensions.push(
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Subscript,
-      Superscript
-    );
-  }
-
-  if (maxLength) {
-    extensions.push(CharacterCount.configure({ limit: maxLength }));
-  }
 
   const editor = useEditor({
     extensions,
@@ -989,4 +1002,5 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       )}
     </div>
   );
-};
+});
+RichTextEditor.displayName = 'RichTextEditor';
