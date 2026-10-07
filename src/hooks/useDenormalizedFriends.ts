@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 
 
 import {
@@ -231,9 +231,10 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
 
   // ==================== PROCESSAMENTO DE DADOS ====================
 
+  // Optimization: Memoize allFriends based on stable pages reference to maintain array identity
   const allFriends = useMemo(() =>
     friendsQuery.data?.pages.flatMap(page => page.data) || [],
-    [friendsQuery.data]
+    [friendsQuery.data?.pages]
   );
 
   const requests = useMemo(() => requestsQuery.data?.data || [], [requestsQuery.data]);
@@ -588,9 +589,44 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     );
   }, [sentRequests, searchQuery]);
 
+  // Optimization: Extract stable method references to avoid depending on changing query/mutation result objects
+  const refetchFriends = friendsQuery.refetch;
+  const fetchNextPageFriends = friendsQuery.fetchNextPage;
+  const refetchRequests = requestsQuery.refetch;
+  const refetchSentRequests = sentRequestsQuery.refetch;
+  const bulkMutateAsync = bulkMutation.mutateAsync;
+
+  const loadAllFriends = useCallback(async () => { await refetchFriends(); }, [refetchFriends]);
+  const loadMoreFriends = useCallback(async () => { await fetchNextPageFriends(); }, [fetchNextPageFriends]);
+  const refreshData = useCallback(async () => {
+    await Promise.all([
+      refetchFriends(),
+      refetchRequests(),
+      refetchSentRequests()
+    ]);
+  }, [refetchFriends, refetchRequests, refetchSentRequests]);
+
+  const cancelAllSentRequests = useCallback(async () => {
+    await bulkMutateAsync({ action: 'cancel', friendIds: sentRequests.map(s => s.friendId) });
+  }, [bulkMutateAsync, sentRequests]);
+
+  const acceptAllRequests = useCallback(async () => {
+    await bulkMutateAsync({ action: 'accept', friendIds: requests.map(r => r.friendId) });
+  }, [bulkMutateAsync, requests]);
+
+  const rejectAllRequests = useCallback(async () => {
+    await bulkMutateAsync({ action: 'reject', friendIds: requests.map(r => r.friendId) });
+  }, [bulkMutateAsync, requests]);
+
+  const isAccepting = useCallback((id: string) => optimisticActions[id] === 'accepting', [optimisticActions]);
+  const isRejecting = useCallback((id: string) => optimisticActions[id] === 'rejecting', [optimisticActions]);
+  const isRemoving = useCallback((id: string) => optimisticActions[id] === 'removing', [optimisticActions]);
+  const isCanceling = useCallback((id: string) => optimisticActions[id] === 'canceling', [optimisticActions]);
+
   // ==================== RETORNO ====================
 
-  return {
+  // Optimization: Wrap returned object in useMemo to maintain stable reference equality across re-renders
+  return useMemo(() => ({
     friends: allFriends,
     allFriends,
     requests: filteredRequests,
@@ -606,34 +642,60 @@ export const useDenormalizedFriends = (): UseFriendsResult & FriendshipActions =
     setSortField,
     sortDirection,
     setSortDirection,
-    loadAllFriends: async () => { await friendsQuery.refetch(); },
-    loadMoreFriends: async () => { await friendsQuery.fetchNextPage(); },
-    refreshData: async () => {
-      await Promise.all([
-        friendsQuery.refetch(),
-        requestsQuery.refetch(),
-        sentRequestsQuery.refetch()
-      ]);
-    },
+    loadAllFriends,
+    loadMoreFriends,
+    refreshData,
     sendFriendRequest: sendRequestMutation.mutateAsync,
     acceptFriendRequest: acceptMutation.mutateAsync,
     rejectFriendRequest: rejectMutation.mutateAsync,
     removeFriend: removeMutation.mutateAsync,
     cancelSentRequest: cancelSentMutation.mutateAsync,
-    cancelAllSentRequests: async () => { await bulkMutation.mutateAsync({ action: 'cancel', friendIds: sentRequests.map(s => s.friendId) }); },
-    acceptAllRequests: async () => { await bulkMutation.mutateAsync({ action: 'accept', friendIds: requests.map(r => r.friendId) }); },
-    rejectAllRequests: async () => { await bulkMutation.mutateAsync({ action: 'reject', friendIds: requests.map(r => r.friendId) }); },
+    cancelAllSentRequests,
+    acceptAllRequests,
+    rejectAllRequests,
     // ✨ NOVO: Helpers para verificar estados otimistas
-    isAccepting: (id: string) => optimisticActions[id] === 'accepting',
-    isRejecting: (id: string) => optimisticActions[id] === 'rejecting',
-    isRemoving: (id: string) => optimisticActions[id] === 'removing',
-    isCanceling: (id: string) => optimisticActions[id] === 'canceling',
-  };
+    isAccepting,
+    isRejecting,
+    isRemoving,
+    isCanceling,
+  }), [
+    allFriends,
+    filteredRequests,
+    filteredSentRequests,
+    userStats,
+    friendsQuery.isLoading,
+    friendsQuery.isPaused,
+    friendsQuery.isFetchingNextPage,
+    friendsQuery.error,
+    friendsQuery.hasNextPage,
+    requestsQuery.isLoading,
+    requestsQuery.error,
+    sentRequestsQuery.isLoading,
+    sentRequestsQuery.error,
+    searchQuery,
+    sortField,
+    sortDirection,
+    loadAllFriends,
+    loadMoreFriends,
+    refreshData,
+    sendRequestMutation.mutateAsync,
+    acceptMutation.mutateAsync,
+    rejectMutation.mutateAsync,
+    removeMutation.mutateAsync,
+    cancelSentMutation.mutateAsync,
+    cancelAllSentRequests,
+    acceptAllRequests,
+    rejectAllRequests,
+    isAccepting,
+    isRejecting,
+    isRemoving,
+    isCanceling,
+  ]);
 };
 
 export const useFriendshipStats = () => {
   const { stats, loading } = useDenormalizedFriends();
-  return { stats, loading };
+  return useMemo(() => ({ stats, loading }), [stats, loading]);
 };
 
 export const useFriendshipStatus = (targetUserId: string) => {
