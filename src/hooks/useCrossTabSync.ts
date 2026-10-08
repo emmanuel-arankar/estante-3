@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 /**
@@ -111,14 +111,19 @@ export const useCrossTabSync = () => {
 
         return () => {
             channel.removeEventListener('message', handleMessage);
+            // ✅ Performance Optimization: Cleanly close BroadcastChannel to prevent connection & memory leaks
+            channel.close();
         };
     }, [channel, queryClient]);
 
     /**
      * Envia evento para todas as outras abas
      * Nota: A aba que envia NÃO recebe a própria mensagem
+     *
+     * ✅ Performance Optimization: Wrapped in useCallback to preserve function reference stability
+     * and prevent cascading re-renders in consuming hooks/components (e.g., useDenormalizedFriends)
      */
-    const broadcast = (
+    const broadcast = useCallback((
         type: SyncEventType,
         data: Omit<SyncEvent['data'], 'timestamp'>
     ) => {
@@ -139,7 +144,8 @@ export const useCrossTabSync = () => {
             // ✅ Tratamento: Se o canal foi fechado, apenas logar (não é erro crítico)
             console.warn(`[CrossTabSync] Failed to broadcast (channel may be closed):`, error);
         }
-    };
+    }, [channel]);
 
-    return { broadcast };
+    // ✅ Performance Optimization: Memoize hook return value to maintain reference equality
+    return useMemo(() => ({ broadcast }), [broadcast]);
 };
