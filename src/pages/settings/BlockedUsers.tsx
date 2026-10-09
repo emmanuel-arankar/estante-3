@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Unlock, Search } from 'lucide-react';
@@ -33,7 +33,12 @@ import {
     unblockUserAPI
 } from '@/services/api/friendshipsApi';
 
-export const BlockedUsers = () => {
+/**
+ * BlockedUsers
+ * Displays and manages the list of blocked users.
+ * Optimized with React.memo and useMemo for efficient list filtering.
+ */
+export const BlockedUsers = memo(function BlockedUsers() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
@@ -50,10 +55,19 @@ export const BlockedUsers = () => {
         staleTime: 5 * 60 * 1000, // 5 minutos
     });
 
-    const filteredUsers = blockedUsers.filter(user =>
-        user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.nickname.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    /**
+     * Memoize filtered users to avoid re-calculating lower-case search filtering
+     * on non-search state changes (e.g. unblock dialog open/close, processingId state).
+     * Hoisting searchTerm.toLowerCase() outside the loop reduces redundant lowercasing.
+     */
+    const filteredUsers = useMemo(() => {
+        const query = searchTerm.toLowerCase().trim();
+        if (!query) return blockedUsers;
+        return blockedUsers.filter(user =>
+            user.displayName.toLowerCase().includes(query) ||
+            user.nickname.toLowerCase().includes(query)
+        );
+    }, [blockedUsers, searchTerm]);
 
     const handleUnblock = async () => {
         const { userId, userName } = unblockDialog;
@@ -189,4 +203,6 @@ export const BlockedUsers = () => {
             </AlertDialog>
         </>
     );
-};
+});
+
+BlockedUsers.displayName = 'BlockedUsers';
