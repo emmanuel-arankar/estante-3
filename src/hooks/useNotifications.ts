@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
     listNotifications,
@@ -8,10 +8,19 @@ import {
 } from '@/services/firebase/notifications';
 import type { Notification } from '@estante/common-types';
 import {
+    InfiniteData,
     useInfiniteQuery,
     useQuery,
     useQueryClient,
 } from '@tanstack/react-query';
+
+interface NotificationPage {
+    data: Notification[];
+    pagination: {
+        hasMore: boolean;
+        nextCursor?: string;
+    };
+}
 
 const NOTIFICATIONS_PAGE_SIZE = 15;
 
@@ -68,8 +77,11 @@ export const useNotifications = () => {
 
     // ==================== DERIVED DATA ====================
 
-    const notifications: Notification[] =
-        notificationsQuery.data?.pages.flatMap(page => page.data) || [];
+    // Wrap in useMemo to maintain stable array reference equality across component re-renders
+    const notifications: Notification[] = useMemo(() =>
+        notificationsQuery.data?.pages.flatMap(page => page.data) || [],
+        [notificationsQuery.data?.pages]
+    );
 
     const unreadCount = unreadQuery.data ?? 0;
     const hasMore = !!notificationsQuery.hasNextPage;
@@ -88,13 +100,13 @@ export const useNotifications = () => {
             await markAsReadAPI(notificationId);
 
             // Optimistic update na lista
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<InfiniteData<NotificationPage>>(
                 { queryKey: notificationKeys.list(false) },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page) => ({
                             ...page,
                             data: page.data.map((n: Notification) =>
                                 n.id === notificationId ? { ...n, read: true } : n
@@ -119,13 +131,13 @@ export const useNotifications = () => {
             const result = await markAllAsReadAPI();
 
             // Optimistic update: marcar todas como lidas
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<InfiniteData<NotificationPage>>(
                 { queryKey: notificationKeys.list(false) },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page) => ({
                             ...page,
                             data: page.data.map((n: Notification) => ({ ...n, read: true })),
                         })),
