@@ -581,7 +581,8 @@ export const SuggestionReviewModal = memo(function SuggestionReviewModal({ sugge
       </DialogContent>
     </Dialog>
   );
-}
+});
+SuggestionReviewModal.displayName = 'SuggestionReviewModal';
 
 // ─── Sub-componentes ─────────────────────────────────────────────────────────
 
