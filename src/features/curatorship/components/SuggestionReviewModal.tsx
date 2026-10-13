@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ContentSuggestion, reviewSuggestionAPI } from '@/services/api/suggestionsApi';
 import { searchPublishersAPI, searchPersonsAPI } from '@/services/api/booksApi';
@@ -77,7 +77,13 @@ const formatIsbnMask = (val: string, type: 'isbn13' | 'isbn10') => {
   return clean;
 };
 
-export function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props) {
+/**
+ * SuggestionReviewModal Component
+ *
+ * Wrapped in React.memo to prevent unnecessary re-renders when parent components update state.
+ * Internal event handlers and subcomponents (AutolinkField, AuthorEditRow) are memoized to preserve reference stability.
+ */
+export const SuggestionReviewModal = memo(function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props) {
   const [reviewNote, setReviewNote] = useState('');
 
   // Busca de Editoras/Selos
@@ -177,11 +183,11 @@ export function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props
     return d;
   });
 
-  const handleFieldChange = (key: string, value: any) => {
+  const handleFieldChange = useCallback((key: string, value: any) => {
     setEditableData(prev => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
-  const searchPubs = async (q: string, isImprint = false) => {
+  const searchPubs = useCallback(async (q: string, isImprint = false) => {
     if (q.length < 2) {
       if (isImprint) setImprintResults([]); else setPubResults([]);
       return;
@@ -195,7 +201,38 @@ export function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props
     } finally {
       if (isImprint) setSearchingImprint(false); else setSearchingPub(false);
     }
-  };
+  }, []);
+
+  const handleSearchPublisher = useCallback((q: string) => {
+    searchPubs(q, false);
+  }, [searchPubs]);
+
+  const handleSearchImprint = useCallback((q: string) => {
+    searchPubs(q, true);
+  }, [searchPubs]);
+
+  const handlePublisherChange = useCallback((name: string, id: string) => {
+    setEditableData(prev => ({ ...prev, publisherName: name, publisherId: id }));
+  }, []);
+
+  const handleImprintChange = useCallback((name: string, id: string) => {
+    setEditableData(prev => ({ ...prev, imprintName: name, imprintId: id }));
+  }, []);
+
+  const handleAuthorUpdate = useCallback((idx: number, updates: any) => {
+    setEditableData(prev => {
+      const next = [...(prev.editableAuthors || [])];
+      next[idx] = { ...next[idx], ...updates };
+      return { ...prev, editableAuthors: next };
+    });
+  }, []);
+
+  const handleAuthorRemove = useCallback((idx: number) => {
+    setEditableData(prev => {
+      const next = (prev.editableAuthors || []).filter((_: any, i: number) => i !== idx);
+      return { ...prev, editableAuthors: next };
+    });
+  }, []);
 
   const { mutate: doReview, isPending } = useMutation({
     mutationFn: (status: 'approved' | 'rejected') => {
@@ -420,11 +457,8 @@ export function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props
                   id={editableData.publisherId}
                   searching={searchingPub}
                   results={pubResults}
-                  onSearch={q => searchPubs(q, false)}
-                  onChange={(name, id) => {
-                    handleFieldChange('publisherName', name);
-                    handleFieldChange('publisherId', id);
-                  }}
+                  onSearch={handleSearchPublisher}
+                  onChange={handlePublisherChange}
                 />
 
                 {/* Selo / Imprint */}
@@ -434,11 +468,8 @@ export function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props
                   id={editableData.imprintId}
                   searching={searchingImprint}
                   results={imprintResults}
-                  onSearch={q => searchPubs(q, true)}
-                  onChange={(name, id) => {
-                    handleFieldChange('imprintName', name);
-                    handleFieldChange('imprintId', id);
-                  }}
+                  onSearch={handleSearchImprint}
+                  onChange={handleImprintChange}
                 />
 
                 {renderField('publicationDate')}
@@ -474,17 +505,11 @@ export function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props
                   editableData.editableAuthors.map((auth: any, idx: number) => (
                     <AuthorEditRow
                       key={idx}
+                      index={idx}
                       author={auth}
                       isEditable={suggestion.status === 'pending'}
-                      onUpdate={(updates) => {
-                        const next = [...editableData.editableAuthors];
-                        next[idx] = { ...next[idx], ...updates };
-                        handleFieldChange('editableAuthors', next);
-                      }}
-                      onRemove={() => {
-                        const next = editableData.editableAuthors.filter((_: any, i: number) => i !== idx);
-                        handleFieldChange('editableAuthors', next);
-                      }}
+                      onUpdate={handleAuthorUpdate}
+                      onRemove={handleAuthorRemove}
                     />
                   ))
                 ) : (
@@ -560,7 +585,7 @@ export function SuggestionReviewModal({ suggestion, onClose, onReviewed }: Props
 
 // ─── Sub-componentes ─────────────────────────────────────────────────────────
 
-function AutolinkField({ label, value, id, searching, results, onSearch, onChange }: {
+const AutolinkField = memo(function AutolinkField({ label, value, id, searching, results, onSearch, onChange }: {
   label: string, value: string, id: string, searching: boolean, results: any[],
   onSearch: (q: string) => void, onChange: (name: string, id: string) => void
 }) {
@@ -615,10 +640,11 @@ function AutolinkField({ label, value, id, searching, results, onSearch, onChang
       )}
     </div>
   );
-}
+});
+AutolinkField.displayName = 'AutolinkField';
 
-function AuthorEditRow({ author, isEditable, onUpdate, onRemove }: {
-  author: any, isEditable: boolean, onUpdate: (updates: any) => void, onRemove: () => void
+const AuthorEditRow = memo(function AuthorEditRow({ author, isEditable, index, onUpdate, onRemove }: {
+  author: any, isEditable: boolean, index: number, onUpdate: (idx: number, updates: any) => void, onRemove: (idx: number) => void
 }) {
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -656,7 +682,7 @@ function AuthorEditRow({ author, isEditable, onUpdate, onRemove }: {
           <Input
             value={author.name}
             onChange={(e) => {
-              onUpdate({ name: e.target.value, personId: '', photoUrl: '' });
+              onUpdate(index, { name: e.target.value, personId: '', photoUrl: '' });
               searchAuthors(e.target.value);
               setIsOpen(true);
             }}
@@ -672,7 +698,7 @@ function AuthorEditRow({ author, isEditable, onUpdate, onRemove }: {
                 <button
                   key={p.id}
                   onClick={() => {
-                    onUpdate({ name: p.name, personId: p.id, photoUrl: p.photoUrl });
+                    onUpdate(index, { name: p.name, personId: p.id, photoUrl: p.photoUrl });
                     setIsOpen(false);
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-emerald-50 text-left transition-colors border-b border-gray-50 last:border-none"
@@ -692,7 +718,7 @@ function AuthorEditRow({ author, isEditable, onUpdate, onRemove }: {
           )}
         </div>
 
-        <Select value={author.role} onValueChange={(r) => onUpdate({ role: r })}>
+        <Select value={author.role} onValueChange={(r) => onUpdate(index, { role: r })}>
           <SelectTrigger className="h-11 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-gray-200 rounded-xl outline-none">
             <SelectValue placeholder="Cargo..." />
           </SelectTrigger>
@@ -708,7 +734,7 @@ function AuthorEditRow({ author, isEditable, onUpdate, onRemove }: {
         <Button
           variant="ghost"
           size="icon"
-          onClick={onRemove}
+          onClick={() => onRemove(index)}
           className="h-10 w-10 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
         >
           <Trash2 className="w-4 h-4" />
@@ -716,4 +742,5 @@ function AuthorEditRow({ author, isEditable, onUpdate, onRemove }: {
       )}
     </div>
   );
-}
+});
+AuthorEditRow.displayName = 'AuthorEditRow';
