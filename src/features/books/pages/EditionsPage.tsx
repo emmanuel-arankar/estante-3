@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getWorkEditionsFilteredAPI, getWorkAPI, createReviewAPI } from '@/services/api/booksApi';
@@ -38,6 +38,148 @@ interface Filters {
   page: number;
 }
 
+interface EditionCardProps {
+  edition: Edition;
+  workId?: string;
+  authorsDisplay?: string;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
+  onRate: (editionId: string, rating: number) => void;
+}
+
+/**
+ * Memoized Edition Card component to prevent full list re-renders when
+ * expanding/collapsing individual items or rating editions.
+ */
+const EditionCard = memo(({
+  edition,
+  workId,
+  authorsDisplay,
+  isExpanded,
+  onToggleExpand,
+  onRate,
+}: EditionCardProps) => {
+  const formatName = getFormatById(edition.formatId!)?.name || 'Vários';
+
+  // Extração segura do selo editorial (imprint)
+  const imprintName = typeof edition.imprint === 'object' && edition.imprint !== null
+    ? (edition.imprint as { name?: string }).name
+    : edition.imprint;
+
+  const publisherDisplay = edition.publisher?.name;
+
+  return (
+    <div className="flex gap-6 pb-6 border-b border-gray-50 last:border-0 relative">
+      <Link to={PATHS.BOOK({ editionId: edition.id })} className="shrink-0">
+        <div className="w-[90px] rounded-sm bg-gray-50 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+          {edition.coverUrl ? (
+            <img src={edition.coverUrl} alt={edition.title} className="w-full h-auto rounded-sm" />
+          ) : (
+            <div className="w-[90px] h-[135px] bg-gray-100 flex items-center justify-center text-gray-300" />
+          )}
+        </div>
+      </Link>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between">
+          <Link to={PATHS.BOOK({ editionId: edition.id })} className="text-[16px] font-bold text-gray-900 hover:text-emerald-700 block transition-colors tracking-tight">
+            {edition.title} ({formatName})
+          </Link>
+        </div>
+
+        <div className="text-[13px] text-gray-600 mt-1">
+          <p>Publicado em {edition.publicationDate ? formatPublicationDate(edition.publicationDate) : 'Data desconhecida'} por {publisherDisplay}</p>
+
+          <div className="flex flex-col">
+            <AnimatePresence>
+              {isExpanded ? (
+                <motion.div
+                  key="details"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden space-y-0.5 py-1"
+                >
+                  <div className="flex items-baseline py-0.5 -mt-1">
+                    <span className="text-gray-600">
+                      {formatName}, {edition.formatCategoryId === 'audio' ? `${edition.duration || '---'} min` : `${edition.pages || '---'} páginas`}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline py-0.5 font-geist">
+                    <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Autor(es):</span>
+                    <span className="text-gray-900">{authorsDisplay || '---'}</span>
+                  </div>
+                  <div className="flex items-baseline py-0.5 font-geist">
+                    <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Editora:</span>
+                    <span className="text-gray-900">{edition.publisher?.name}{imprintName ? ` (${imprintName})` : ''}</span>
+                  </div>
+                  {!!edition.isbn13 && edition.formatCategoryId !== 'audio' && (
+                    <div className="flex items-baseline py-0.5 font-geist">
+                      <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">ISBN-13:</span>
+                      <span className="text-gray-900">{formatISBN(edition.isbn13)}</span>
+                    </div>
+                  )}
+                  {!!edition.isbn10 && edition.formatCategoryId !== 'audio' && (
+                    <div className="flex items-baseline py-0.5 font-geist">
+                      <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">ISBN-10:</span>
+                      <span className="text-gray-900">{formatISBN(edition.isbn10)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-baseline py-0.5 font-geist">
+                    <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">ASIN:</span>
+                    <span className="text-gray-900">{edition.asin || ''}</span>
+                  </div>
+                  <div className="flex items-baseline py-0.5 font-geist">
+                    <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Idioma:</span>
+                    <span className="text-gray-900">{getLanguageName(edition.language)}</span>
+                  </div>
+                  <div className="flex items-baseline py-0.5 font-geist">
+                    <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Avaliação:</span>
+                    <span className="text-gray-900">{edition.stats?.averageRating?.toFixed(2).replace('.', ',') || '0,00'} ({edition.stats?.ratingsCount || 0} {edition.stats?.ratingsCount === 1 ? 'avaliação' : 'avaliações'})</span>
+                  </div>
+
+                  <button
+                    onClick={() => onToggleExpand(edition.id)}
+                    className="text-[12px] text-emerald-600 hover:underline mt-2 font-bold block"
+                  >
+                    menos detalhes
+                  </button>
+                </motion.div>
+              ) : (
+                <button
+                  onClick={() => onToggleExpand(edition.id)}
+                  className="text-[12px] text-emerald-600 hover:underline font-bold text-left"
+                >
+                  mais detalhes
+                </button>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+
+      <div className="shrink-0 w-[175px] flex flex-col items-center gap-2">
+        <ShelfButton
+          editionId={edition.id}
+          workId={workId || edition.workId}
+          size="sm"
+        />
+
+        <div className="flex flex-col items-center gap-1">
+          <StarRating
+            rating={edition.userRating || edition.stats?.averageRating || 0}
+            size="sm"
+            interactive={true}
+            onRate={(rating) => onRate(edition.id, rating)}
+          />
+          <span className="text-[11px] text-gray-400 font-medium">Avaliar este livro</span>
+        </div>
+      </div>
+    </div>
+  );
+});
+EditionCard.displayName = 'EditionCard';
+
 export function EditionsPage() {
   const { workId } = useParams<{ workId: string }>();
   const [searchParams] = useSearchParams();
@@ -73,36 +215,44 @@ export function EditionsPage() {
     enabled: !!workId,
   });
 
-  const availableLanguages = editions?.data
-    ? Array.from(new Set(editions.data.map(e => e.language))).filter(Boolean)
-    : [];
+  const availableLanguages = useMemo(() => {
+    return editions?.data
+      ? Array.from(new Set(editions.data.map(e => e.language))).filter(Boolean)
+      : [];
+  }, [editions?.data]);
 
-  const availableFormats = editions?.data
-    ? Array.from(new Set(editions.data.map(e => e.formatId))).filter(Boolean)
-    : [];
+  const availableFormats = useMemo(() => {
+    return editions?.data
+      ? Array.from(new Set(editions.data.map(e => e.formatId))).filter(Boolean)
+      : [];
+  }, [editions?.data]);
 
-  const setFilter = (key: keyof Omit<Filters, 'page'>, value: string) => {
+  const authorsDisplay = useMemo(() => {
+    return work?.primaryAuthors?.map(a => a.name).join(', ') || '';
+  }, [work?.primaryAuthors]);
+
+  const setFilter = useCallback((key: keyof Omit<Filters, 'page'>, value: string) => {
     setFilters(f => ({ ...f, [key]: value, page: 1 }));
-  };
+  }, []);
 
-  const toggleExpand = (id: string) => {
+  const toggleExpand = useCallback((id: string) => {
     setExpandedItems(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const toggleAll = (expand: boolean) => {
+  const toggleAll = useCallback((expand: boolean) => {
     if (expand && editions?.data) {
       setExpandedItems(new Set(editions.data.map(e => e.id)));
     } else {
       setExpandedItems(new Set());
     }
-  };
+  }, [editions?.data]);
 
-  const handleRate = async (editionId: string, rating: number) => {
+  const handleRate = useCallback(async (editionId: string, rating: number) => {
     if (!user) {
       toastErrorClickable('Faça login para avaliar uma edição.');
       return;
@@ -117,10 +267,18 @@ export function EditionsPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['editions'] });
       toastSuccessClickable('Avaliação registrada!');
-    } catch (err) {
+    } catch {
       toastErrorClickable('Erro ao avaliar. Tente na página do livro.');
     }
-  };
+  }, [user, workId, queryClient]);
+
+  const resetFilters = useCallback(() => {
+    setFilters({ language: '', formatId: '', sortBy: 'date_published', sortDirection: 'desc', page: 1 });
+  }, []);
+
+  const toggleSortDirection = useCallback(() => {
+    setFilters(prev => ({ ...prev, sortDirection: prev.sortDirection === 'asc' ? 'desc' : 'asc' }));
+  }, []);
 
   const allExpanded = editions?.data && editions.data.length > 0 && expandedItems.size === editions.data.length;
 
@@ -248,7 +406,7 @@ export function EditionsPage() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 bg-white border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 shadow-none"
-                onClick={() => setFilters(prev => ({ ...prev, sortDirection: prev.sortDirection === 'asc' ? 'desc' : 'asc' }))}
+                onClick={toggleSortDirection}
                 title={filters.sortDirection === 'asc' ? 'Ordem crescente' : 'Ordem decrescente'}
               >
                 {filters.sortDirection === 'asc' ? <ArrowDownAZ size={16} /> : <ArrowDownZA size={16} />}
@@ -258,7 +416,7 @@ export function EditionsPage() {
 
           {(filters.language || filters.formatId || filters.sortBy !== 'date_published' || filters.sortDirection !== 'desc') && (
             <button
-              onClick={() => setFilters({ language: '', formatId: '', sortBy: 'date_published', sortDirection: 'desc', page: 1 })}
+              onClick={resetFilters}
               className="h-8 text-[12px] font-bold text-gray-400 hover:text-emerald-600 transition-colors px-2"
             >
               Limpar filtros
@@ -272,127 +430,17 @@ export function EditionsPage() {
           </div>
         ) : editions && editions.data.length > 0 ? (
           <div className="space-y-8">
-            {editions.data.map((edition: Edition) => {
-              const isExpanded = expandedItems.has(edition.id);
-              const formatName = getFormatById(edition.formatId!)?.name || 'Vários';
-
-              // Extração segura do selo editorial (imprint)
-              const imprintName = typeof edition.imprint === 'object'
-                ? (edition.imprint as any)?.name
-                : edition.imprint;
-
-              const publisherDisplay = edition.publisher?.name;
-
-              return (
-                <div key={edition.id} className="flex gap-6 pb-6 border-b border-gray-50 last:border-0 relative">
-                  <Link to={PATHS.BOOK({ editionId: edition.id })} className="shrink-0">
-                    <div className="w-[90px] rounded-sm bg-gray-50 border border-gray-100 shadow-sm transition-all hover:shadow-md">
-                      {edition.coverUrl ? (
-                        <img src={edition.coverUrl} alt={edition.title} className="w-full h-auto rounded-sm" />
-                      ) : (
-                        <div className="w-[90px] h-[135px] bg-gray-100 flex items-center justify-center text-gray-300" />
-                      )}
-                    </div>
-                  </Link>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <Link to={PATHS.BOOK({ editionId: edition.id })} className="text-[16px] font-bold text-gray-900 hover:text-emerald-700 block transition-colors tracking-tight">
-                        {edition.title} ({formatName})
-                      </Link>
-                    </div>
-
-                    <div className="text-[13px] text-gray-600 mt-1">
-                      <p>Publicado em {edition.publicationDate ? formatPublicationDate(edition.publicationDate) : 'Data desconhecida'} por {publisherDisplay}</p>
-
-                      <div className="flex flex-col">
-                        <AnimatePresence>
-                          {isExpanded ? (
-                            <motion.div
-                              key="details"
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden space-y-0.5 py-1"
-                            >
-                              <div className="flex items-baseline py-0.5 -mt-1">
-                                <span className="text-gray-600">
-                                  {formatName}, {edition.formatCategoryId === 'audio' ? `${edition.duration || '---'} min` : `${edition.pages || '---'} páginas`}
-                                </span>
-                              </div>
-                              <div className="flex items-baseline py-0.5 font-geist">
-                                <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Autor(es):</span>
-                                <span className="text-gray-900">{work?.primaryAuthors?.map(a => a.name).join(', ') || '---'}</span>
-                              </div>
-                              <div className="flex items-baseline py-0.5 font-geist">
-                                <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Editora:</span>
-                                <span className="text-gray-900">{edition.publisher?.name}{imprintName ? ` (${imprintName})` : ''}</span>
-                              </div>
-                              {!!edition.isbn13 && edition.formatCategoryId !== 'audio' && (
-                                <div className="flex items-baseline py-0.5 font-geist">
-                                  <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">ISBN-13:</span>
-                                  <span className="text-gray-900">{formatISBN(edition.isbn13)}</span>
-                                </div>
-                              )}
-                              {!!edition.isbn10 && edition.formatCategoryId !== 'audio' && (
-                                <div className="flex items-baseline py-0.5 font-geist">
-                                  <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">ISBN-10:</span>
-                                  <span className="text-gray-900">{formatISBN(edition.isbn10)}</span>
-                                </div>
-                              )}
-                              <div className="flex items-baseline py-0.5 font-geist">
-                                <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">ASIN:</span>
-                                <span className="text-gray-900">{edition.asin || ''}</span>
-                              </div>
-                              <div className="flex items-baseline py-0.5 font-geist">
-                                <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Idioma:</span>
-                                <span className="text-gray-900">{getLanguageName(edition.language)}</span>
-                              </div>
-                              <div className="flex items-baseline py-0.5 font-geist">
-                                <span className="w-24 shrink-0 text-gray-400 font-medium text-[12px] tracking-wider">Avaliação:</span>
-                                <span className="text-gray-900">{edition.stats?.averageRating?.toFixed(2).replace('.', ',') || '0,00'} ({edition.stats?.ratingsCount || 0} {edition.stats?.ratingsCount === 1 ? 'avaliação' : 'avaliações'})</span>
-                              </div>
-
-                              <button
-                                onClick={() => toggleExpand(edition.id)}
-                                className="text-[12px] text-emerald-600 hover:underline mt-2 font-bold block"
-                              >
-                                menos detalhes
-                              </button>
-                            </motion.div>
-                          ) : (
-                            <button
-                              onClick={() => toggleExpand(edition.id)}
-                              className="text-[12px] text-emerald-600 hover:underline font-bold text-left"
-                            >
-                              mais detalhes
-                            </button>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 w-[175px] flex flex-col items-center gap-2">
-                    <ShelfButton
-                      editionId={edition.id}
-                      workId={work?.id || edition.workId}
-                      size="sm"
-                    />
-
-                    <div className="flex flex-col items-center gap-1">
-                      <StarRating
-                        rating={edition.userRating || edition.stats?.averageRating || 0}
-                        size="sm"
-                        interactive={true}
-                        onRate={(rating) => handleRate(edition.id, rating)}
-                      />
-                      <span className="text-[11px] text-gray-400 font-medium">Avaliar este livro</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {editions.data.map((edition: Edition) => (
+              <EditionCard
+                key={edition.id}
+                edition={edition}
+                workId={work?.id || edition.workId}
+                authorsDisplay={authorsDisplay}
+                isExpanded={expandedItems.has(edition.id)}
+                onToggleExpand={toggleExpand}
+                onRate={handleRate}
+              />
+            ))}
           </div>
         ) : (
           <div className="text-center py-20 bg-gray-50 rounded-lg border border-dashed border-gray-200">
