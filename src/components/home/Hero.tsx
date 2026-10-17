@@ -1,44 +1,80 @@
-import { CSSProperties, useState } from 'react';
+import React, { CSSProperties, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Users, Star, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-export const Hero = () => {
+interface ParticleConfig {
+  id: number;
+  style: CSSProperties;
+  duration: number;
+  delay: number;
+}
+
+/**
+ * Performance Optimization: Extract background animated particles into a
+ * memoized subcomponent and use `useMemo` to generate fixed random positions/durations on mount.
+ * Prevents `Math.random()` re-evaluation and Framer Motion animation resets on every keystroke in search bar.
+ */
+const BackgroundParticles = React.memo(() => {
+  const particles = useMemo<ParticleConfig[]>(() => {
+    return Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      style: {
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+      },
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+    }));
+  }, []);
+
+  return (
+    <div className="absolute inset-0 bg-black/10">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute w-2 h-2 bg-white/20 rounded-full"
+          style={p.style}
+          animate={{
+            y: [0, -100, 0],
+            opacity: [0.2, 0.8, 0.2],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            delay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  );
+});
+
+BackgroundParticles.displayName = 'BackgroundParticles';
+
+/**
+ * Performance Optimization: `Hero` is wrapped in `React.memo` to eliminate
+ * unnecessary re-renders when parent pages or contexts update state.
+ */
+export const Hero = React.memo(() => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-    }
-  };
+  const handleSearch = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (searchQuery.trim()) {
+        navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      }
+    },
+    [navigate, searchQuery]
+  );
 
   return (
     <section className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden min-h-[calc(100vh-5rem)] flex items-center">
       {/* Animated background elements */}
-      <div className="absolute inset-0 bg-black/10">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-white/20 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            } as CSSProperties}
-            animate={{
-              y: [0, -100, 0],
-              opacity: [0.2, 0.8, 0.2],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }} 
-          />
-        ))}
-      </div>
+      <BackgroundParticles />
 
       <div className="relative container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto w-full">
@@ -119,4 +155,6 @@ export const Hero = () => {
       </div>
     </section>
   );
-};
+});
+
+Hero.displayName = 'Hero';
