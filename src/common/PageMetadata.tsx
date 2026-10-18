@@ -1,3 +1,4 @@
+import React from 'react';
 import { Helmet as Head } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 
@@ -16,7 +17,13 @@ const SITE_NAME = 'Estante de Bolso';
 const DEFAULT_OG_IMAGE = `${SITE_URL}og-image.png`;
 const TWITTER_HANDLE = '@EstanteDeBolso';
 
-export const PageMetadata = ({ title, description, ogTitle, ogDescription, image, noIndex, schema }: PageMetadataProps) => {
+/**
+ * Performance Optimization:
+ * PageMetadata is wrapped in React.memo to eliminate redundant JSON schema
+ * serialization, string concatenations, and react-helmet-async head updates
+ * when parent components re-render without changing metadata props.
+ */
+export const PageMetadata = React.memo(({ title, description, ogTitle, ogDescription, image, noIndex, schema }: PageMetadataProps) => {
   const location = useLocation();
   const canonicalUrl = `${SITE_URL}${location.pathname}`;
 
@@ -55,4 +62,6 @@ export const PageMetadata = ({ title, description, ogTitle, ogDescription, image
       )}
     </Head>
   );
-};
+});
+
+PageMetadata.displayName = 'PageMetadata';
