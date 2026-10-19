@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getSeriesAPI, getSeriesWorksAPI } from '@/services/api/booksApi';
@@ -9,11 +10,15 @@ import { ExternalLink, BookOpen, ChevronRight, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getLanguageName, getLanguageFlag } from '@/data/book-languages';
 import { getAlternateNameTypeName, getScriptName, sortAlternateNames, getAlternateNamePriority } from '@/data/alternate-names';
-import { AlternateName } from '@estante/common-types';
+import { AlternateName, Work } from '@estante/common-types';
 
 // ─── Sub-componente: Card de série relacionada ────────────────────────────────
 
-const RelatedSeriesCard = ({ seriesId }: { seriesId: string }) => {
+/**
+ * RelatedSeriesCard - Renderiza um card simples para séries relacionadas.
+ * Wrap em React.memo evita re-renders quando o componente pai atualizar.
+ */
+const RelatedSeriesCard = memo(({ seriesId }: { seriesId: string }) => {
   const { data: series } = useQuery({
     queryKey: ['series', seriesId],
     queryFn: () => getSeriesAPI(seriesId),
@@ -33,7 +38,68 @@ const RelatedSeriesCard = ({ seriesId }: { seriesId: string }) => {
       <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 shrink-0 transition-colors" />
     </Link>
   );
-};
+});
+
+RelatedSeriesCard.displayName = 'RelatedSeriesCard';
+
+// ─── Sub-componente: Item de obra da série ───────────────────────────────────
+
+interface SeriesWorkItemProps {
+  work: Work;
+  seriesId: string;
+}
+
+/**
+ * SeriesWorkItem - Renderiza o card de um volume da série.
+ * Wrap em React.memo evita re-renderizar a lista inteira quando o estado da página muda.
+ */
+const SeriesWorkItem = memo(({ work, seriesId }: SeriesWorkItemProps) => {
+  const entry = work.seriesEntries?.find((e: any) => e.seriesId === seriesId);
+  const editionId = (work as any).defaultEditionId || work.id;
+
+  const sanitizedDescription = useMemo(() => {
+    return work.description?.replace(/<[^>]*>/g, '') || "Sem descrição disponível.";
+  }, [work.description]);
+
+  return (
+    <Link
+      to={PATHS.BOOK({ editionId })}
+      className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors group"
+    >
+      <div className="w-16 h-24 bg-gray-50 rounded shadow-sm overflow-hidden flex-shrink-0 border border-gray-100">
+        {(work.coverUrl || (work as any).fallbackCoverUrl) ? (
+          <img
+            src={work.coverUrl || (work as any).fallbackCoverUrl}
+            alt={work.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <BookOpen className="w-6 h-6 text-gray-200" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          {entry?.position && (
+            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-tight text-indigo-600 border-indigo-100 bg-indigo-50/30">
+              Vol. {entry.position}
+            </Badge>
+          )}
+          <h3 className="font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+            {work.title}
+          </h3>
+        </div>
+        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+          {sanitizedDescription}
+        </p>
+      </div>
+      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 transition-colors" />
+    </Link>
+  );
+});
+
+SeriesWorkItem.displayName = 'SeriesWorkItem';
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
@@ -51,6 +117,22 @@ export function SeriesPage() {
     queryFn: () => getSeriesWorksAPI(seriesId!),
     enabled: !!seriesId,
   });
+
+  // Memoizar o agrupamento e ordenação de nomes alternativos por tipo e prioridade
+  const groupedAlternateNames = useMemo(() => {
+    if (!series?.alternateNames || series.alternateNames.length === 0) return [];
+
+    const groupedMap = sortAlternateNames(series.alternateNames).reduce((acc, alt) => {
+      const typeKey = alt.type || 'other';
+      if (!acc[typeKey]) acc[typeKey] = [];
+      acc[typeKey].push(alt);
+      return acc;
+    }, {} as Record<string, AlternateName[]>);
+
+    return Object.entries(groupedMap).sort(
+      (a, b) => getAlternateNamePriority(a[0]) - getAlternateNamePriority(b[0])
+    );
+  }, [series?.alternateNames]);
 
   if (isLoading) {
     return (
@@ -72,9 +154,6 @@ export function SeriesPage() {
   }
 
   const hasAlternateNames = series.alternateNames && series.alternateNames.length > 0;
-
-  // Extrair os livros da série a partir dos works que referenciam esta série
-  // (buscamos no futuro via endpoint dedicado; por ora usamos relatedSeriesIds como exemplo)
   const relatedSeriesIds = series.relatedSeriesIds || [];
 
   return (
@@ -172,48 +251,9 @@ export function SeriesPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50">
-                  {worksData.data.map((work) => {
-                    const entry = work.seriesEntries?.find((e: any) => e.seriesId === seriesId);
-                    const editionId = (work as any).defaultEditionId || work.id;
-                    
-                    return (
-                      <Link
-                        key={work.id}
-                        to={PATHS.BOOK({ editionId })}
-                        className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors group"
-                      >
-                        <div className="w-16 h-24 bg-gray-50 rounded shadow-sm overflow-hidden flex-shrink-0 border border-gray-100">
-                          {(work.coverUrl || (work as any).fallbackCoverUrl) ? (
-                            <img
-                              src={work.coverUrl || (work as any).fallbackCoverUrl}
-                              alt={work.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <BookOpen className="w-6 h-6 text-gray-200" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            {entry?.position && (
-                              <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-tight text-indigo-600 border-indigo-100 bg-indigo-50/30">
-                                Vol. {entry.position}
-                              </Badge>
-                            )}
-                            <h3 className="font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
-                              {work.title}
-                            </h3>
-                          </div>
-                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                            {work.description?.replace(/<[^>]*>/g, '') || "Sem descrição disponível."}
-                          </p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 transition-colors" />
-                      </Link>
-                    );
-                  })}
+                  {worksData.data.map((work) => (
+                    <SeriesWorkItem key={work.id} work={work} seriesId={seriesId!} />
+                  ))}
                 </div>
               )}
             </div>
@@ -233,44 +273,36 @@ export function SeriesPage() {
             )}
 
             {/* Detalhes Regionais */}
-            {hasAlternateNames && (
+            {hasAlternateNames && groupedAlternateNames.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
                   <Globe className="w-4 h-4 text-indigo-600" /> Detalhes Regionais
                 </h3>
                 <div className="space-y-3">
-                  {Object.entries(
-                    sortAlternateNames(series.alternateNames!).reduce((acc, alt) => {
-                      const typeKey = alt.type || 'other';
-                      if (!acc[typeKey]) acc[typeKey] = [];
-                      acc[typeKey].push(alt);
-                      return acc;
-                    }, {} as Record<string, AlternateName[]>)
-                  ).sort((a, b) => getAlternateNamePriority(a[0]) - getAlternateNamePriority(b[0]))
-                    .map(([type, names]) => (
-                      <div key={type} className="bg-gray-50/50 rounded-xl p-3 border border-gray-100">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">
-                          {getAlternateNameTypeName(type)}
-                        </span>
-                        <div className="space-y-2">
-                          {names.map((alt, idx) => (
-                            <div key={idx} className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-bold text-gray-800">
-                                {alt.value}
+                  {groupedAlternateNames.map(([type, names]) => (
+                    <div key={type} className="bg-gray-50/50 rounded-xl p-3 border border-gray-100">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">
+                        {getAlternateNameTypeName(type)}
+                      </span>
+                      <div className="space-y-2">
+                        {names.map((alt, idx) => (
+                          <div key={idx} className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-gray-800">
+                              {alt.value}
+                            </span>
+                            {(alt.language || alt.script) && (
+                              <span className="text-gray-400 font-medium text-[10px] bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-sm whitespace-nowrap">
+                                {[
+                                  alt.language ? getLanguageName(alt.language) : '',
+                                  alt.script ? getScriptName(alt.script, alt.language) : ''
+                                ].filter(Boolean).join(', ').toLowerCase()}
                               </span>
-                              {(alt.language || alt.script) && (
-                                <span className="text-gray-400 font-medium text-[10px] bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-sm whitespace-nowrap">
-                                  {[
-                                    alt.language ? getLanguageName(alt.language) : '',
-                                    alt.script ? getScriptName(alt.script, alt.language) : ''
-                                  ].filter(Boolean).join(', ').toLowerCase()}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
