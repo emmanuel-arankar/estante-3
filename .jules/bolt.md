@@ -1,0 +1,3 @@
+## 2026-10-20 - Memoizing derived arrays in custom React Query hooks
+**Learning:** Returning array transformations like `.flatMap()` directly inside custom React Query hooks generates a new array reference on every hook re-render (e.g. on 30s polling ticks for unread counts). Wrapping array derivations in `useMemo` dependent on `[queryData.pages]` maintains array reference stability and prevents downstream `useMemo` recalculations and component re-renders.
+**Action:** Always wrap derived array operations (`.flatMap`, `.filter`, `.map`) in custom hooks in `useMemo` dependent on page/data references.
