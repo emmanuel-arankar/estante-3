@@ -23,7 +23,7 @@ import { myReviewByEditionQuery } from '@/features/books/reviews.queries';
 import { createReviewAPI, updateReviewAPI, deleteReviewAPI } from '@/services/api/reviewsApi';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import {
   Breadcrumb,
@@ -35,7 +35,10 @@ import { motion } from 'framer-motion';
 import { Home, Book, ChevronRight } from 'lucide-react';
 import { itemVariants, SMOOTH_TRANSITION } from '@/lib/animations';
 
-const FormatIcon = ({ formatId }: { formatId: string }) => {
+/**
+ * FormatIcon memoized helper to avoid recreating icon nodes when parent component renders.
+ */
+const FormatIcon = React.memo(({ formatId }: { formatId: string }) => {
   const iconName = getCategoryIconByFormatId(formatId);
   switch (iconName) {
     case 'tablet': return <Tablet className="w-4 h-4 mr-1.5 inline text-gray-400" />;
@@ -43,9 +46,15 @@ const FormatIcon = ({ formatId }: { formatId: string }) => {
     case 'book-open':
     default: return <BookOpen className="w-4 h-4 mr-1.5 inline text-gray-400" />;
   }
-};
+});
+FormatIcon.displayName = 'FormatIcon';
 
-export function BookPage() {
+/**
+ * Performance Optimization:
+ * BookPage is memoized with React.memo and useCallback handlers to prevent unnecessary
+ * re-renders during query refetches and parent layout updates.
+ */
+export const BookPage = React.memo(function BookPage() {
   const { edition: initialEdition } = useLoaderData() as { edition: Edition };
 
   // React Query mantém os dados sincronizados
@@ -71,7 +80,7 @@ export function BookPage() {
   const { data: myReviewRes } = useQuery(myReviewByEditionQuery(edition?.id, !!user));
   const myReview = myReviewRes?.data;
 
-  const handleRate = async (rating: number) => {
+  const handleRate = useCallback(async (rating: number) => {
     if (!user) {
       toastErrorClickable('Faça login para avaliar uma edição.');
       return;
@@ -94,9 +103,9 @@ export function BookPage() {
     } catch (err) {
       toastErrorClickable('Ocorreu um erro ao registrar sua avaliação.');
     }
-  };
+  }, [user, myReview, edition, work?.id, queryClient]);
 
-  const handleDeleteRating = async () => {
+  const handleDeleteRating = useCallback(async () => {
     if (!myReview) return;
     try {
       const isEmptyReview = !myReview.content && !myReview.title;
@@ -111,7 +120,7 @@ export function BookPage() {
     } catch (err) {
       toastErrorClickable('Erro ao remover a avaliação.');
     }
-  };
+  }, [myReview, queryClient]);
 
   // Carregar Work Details se existir (prefetch feito no loader)
   const { data: work } = useQuery({
@@ -584,4 +593,6 @@ export function BookPage() {
       </div>
     </>
   );
-};
+});
+
+BookPage.displayName = 'BookPage';
