@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface MutualFriendsData {
   count: number;
@@ -57,38 +57,60 @@ export const setMutualFriendsCache = (
   });
 };
 
-// Hook para usar cache de amigos em comum
+// Hook para usar cache de amigos em comum com deduplicação e inicialização síncrona
 export const useMutualFriendsCache = (
   userId1: string,
   userId2: string,
   fetchFn: () => Promise<{ count: number; friends: { displayName: string; nickname: string; photoURL: string | null }[] }>
 ) => {
-  const [data, setData] = useState<{ count: number; friends: { displayName: string; nickname: string; photoURL: string | null }[] } | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Ref para estabilizar a referência de fetchFn e evitar loop de re-renders quando inline function for fornecida
+  const fetchFnRef = useRef(fetchFn);
+  useEffect(() => {
+    fetchFnRef.current = fetchFn;
+  });
+
+  // Performance: Inicialização síncrona a partir do cache evita layout flash e re-renders desnecessários no mount
+  const [data, setData] = useState<{ count: number; friends: { displayName: string; nickname: string; photoURL: string | null }[] } | null>(() => {
+    const cached = getMutualFriendsFromCache(userId1, userId2);
+    return cached ? { count: cached.count, friends: cached.friends } : null;
+  });
+  const [loading, setLoading] = useState(() => !getMutualFriendsFromCache(userId1, userId2));
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadData = async () => {
       // Verificar cache primeiro
       const cached = getMutualFriendsFromCache(userId1, userId2);
       if (cached) {
-        setData({ count: cached.count, friends: cached.friends });
+        if (isMounted) {
+          setData({ count: cached.count, friends: cached.friends });
+          setLoading(false);
+        }
         return;
       }
 
-      // Buscar dados e adicionar ao cache
-      setLoading(true);
+      if (isMounted) setLoading(true);
       try {
-        const result = await fetchFn();
-        setData(result);
-        setMutualFriendsCache(userId1, userId2, result.count, result.friends);
+        // Performance: Reutiliza fetchMutualFriendsDeduped para mesclar requisições concorrentes em voo
+        const result = await fetchMutualFriendsDeduped(userId1, userId2, () => fetchFnRef.current());
+        if (isMounted) {
+          setData(result);
+        }
       } catch (error) {
         console.error('Erro ao carregar amigos em comum:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [userId1, userId2]);
 
   return { data, loading };
