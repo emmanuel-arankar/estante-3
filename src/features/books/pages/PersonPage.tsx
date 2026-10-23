@@ -1,4 +1,4 @@
-
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Globe, Info, ExternalLink, Calendar } from 'lucide-react';
@@ -7,16 +7,72 @@ import { PATHS } from '@/router/paths';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { Edition } from '@estante/common-types';
+import { Edition, AlternateName } from '@estante/common-types';
 import { formatPublicationDate } from '@/lib/utils';
 import { getLanguageName, getLanguageFlag } from '@/data/book-languages';
 import { getContributorRoleName } from '@/data/book-contributors';
 import { getAlternateNameTypeName, getScriptName } from '@/data/alternate-names';
-import { AlternateName } from '@estante/common-types';
-import { useState, useEffect } from 'react';
 import { trackEvent } from '@/lib/analytics';
 
-export function PersonPage() {
+/**
+ * Memoized sub-component for rendering individual edition cards in PersonPage.
+ * Isolates contributor role resolution and prevents re-rendering all edition cards when parent state updates.
+ */
+interface PersonEditionCardProps {
+  edition: Edition;
+  personId?: string;
+}
+
+const PersonEditionCard = memo(({ edition, personId }: PersonEditionCardProps) => {
+  const role = edition.contributors?.find(c => c.personId === personId)?.role;
+  const isMainAuthor = role === 'author' || role === 'co-author';
+  const displayRole = role ? getContributorRoleName(role) : null;
+
+  return (
+    <Link
+      to={PATHS.BOOK({ editionId: edition.id })}
+      className="group flex flex-col gap-2"
+    >
+      {/* Zona de Capa Compacta com Alinhamento na Base */}
+      <div className="w-full h-[265px] flex flex-col justify-end">
+        <div className="w-full bg-gray-100 rounded-lg border border-gray-200 relative group-hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1">
+          {edition.coverUrl ? (
+            <img src={edition.coverUrl} alt={edition.title} className="w-full h-auto rounded-lg" />
+          ) : (
+            <div className="aspect-[2/3] w-full flex items-center justify-center p-4">
+              <span className="text-gray-400 text-xs font-medium text-center">{edition.title}</span>
+            </div>
+          )}
+          {/* Role badge (over the cover) */}
+          {displayRole && (
+            <div className={`absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-sm ${isMainAuthor ? 'bg-emerald-600 text-white' : 'bg-white/90 text-gray-700 border border-gray-100'}`}>
+              {displayRole}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col mt-2 space-y-0.5">
+        <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 group-hover:text-emerald-600 transition-colors">
+          {edition.title}
+        </h4>
+        {edition.subtitle && (
+          <span className="text-xs text-gray-600 line-clamp-1 italic">{edition.subtitle}</span>
+        )}
+        {edition.publicationDate && (
+          <span className="text-xs text-gray-500">{formatPublicationDate(edition.publicationDate)}</span>
+        )}
+      </div>
+    </Link>
+  );
+});
+
+PersonEditionCard.displayName = 'PersonEditionCard';
+
+/**
+ * PersonPage component displaying author/talent details and publications.
+ * Wrapped in React.memo and uses memoized derived state to optimize rendering.
+ */
+export const PersonPage = memo(() => {
   const { personId } = useParams();
   const page = 1; // Temporário até implementar páginação real
   const [imageError, setImageError] = useState(false);
@@ -36,9 +92,23 @@ export function PersonPage() {
   });
 
   // Compute derived properties
-  const hasAlternateNames = person?.alternateNames && person.alternateNames.length > 0;
-  const hasEncyclopediaLinks = person?.encyclopediaLinks && person.encyclopediaLinks.length > 0;
-  const hasSocialLinks = person?.socialLinks && person.socialLinks.length > 0;
+  const hasAlternateNames = Boolean(person?.alternateNames && person.alternateNames.length > 0);
+  const hasEncyclopediaLinks = Boolean(person?.encyclopediaLinks && person.encyclopediaLinks.length > 0);
+  const hasSocialLinks = Boolean(person?.socialLinks && person.socialLinks.length > 0);
+
+  // Memoize grouped alternate names by type to prevent redundant array and object allocation on re-renders
+  const groupedAlternateNames = useMemo(() => {
+    if (!person?.alternateNames || person.alternateNames.length === 0) return [];
+
+    const grouped = person.alternateNames.reduce((acc, alt) => {
+      const typeKey = alt.type || 'other';
+      if (!acc[typeKey]) acc[typeKey] = [];
+      acc[typeKey].push(alt);
+      return acc;
+    }, {} as Record<string, AlternateName[]>);
+
+    return Object.entries(grouped);
+  }, [person?.alternateNames]);
 
   // Rastrear visualização do perfil do autor
   useEffect(() => {
@@ -152,14 +222,7 @@ export function PersonPage() {
               <div className="space-y-6">
                 {hasAlternateNames && (
                   <div className="space-y-3">
-                    {Object.entries(
-                      person.alternateNames!.reduce((acc, alt) => {
-                        const typeKey = alt.type || 'other';
-                        if (!acc[typeKey]) acc[typeKey] = [];
-                        acc[typeKey].push(alt);
-                        return acc;
-                      }, {} as Record<string, AlternateName[]>)
-                    ).map(([type, names]) => (
+                    {groupedAlternateNames.map(([type, names]) => (
                       <div key={type} className="bg-gray-50/50 rounded-xl p-3 border border-gray-100">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">
                           {getAlternateNameTypeName(type)}
@@ -237,49 +300,11 @@ export function PersonPage() {
             ) : editionsData && editionsData.data.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-6">
                 {editionsData.data.map((edition: Edition) => (
-                  <Link
-                    to={PATHS.BOOK({ editionId: edition.id })}
+                  <PersonEditionCard
                     key={edition.id}
-                    className="group flex flex-col gap-2"
-                  >
-                    {/* Zona de Capa Compacta com Alinhamento na Base */}
-                    <div className="w-full h-[265px] flex flex-col justify-end">
-                      <div className="w-full bg-gray-100 rounded-lg border border-gray-200 relative group-hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1">
-                        {edition.coverUrl ? (
-                          <img src={edition.coverUrl} alt={edition.title} className="w-full h-auto rounded-lg" />
-                        ) : (
-                          <div className="aspect-[2/3] w-full flex items-center justify-center p-4">
-                            <span className="text-gray-400 text-xs font-medium text-center">{edition.title}</span>
-                          </div>
-                        )}
-                        {/* Role badge (over the cover) */}
-                        {edition.contributors && (
-                          (() => {
-                            const role = edition.contributors.find(c => c.personId === personId)?.role;
-                            if (!role) return null;
-                            const isMainAuthor = role === 'author' || role === 'co-author';
-                            const displayRole = getContributorRoleName(role);
-                            return (
-                              <div className={`absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-sm ${isMainAuthor ? 'bg-emerald-600 text-white' : 'bg-white/90 text-gray-700 border border-gray-100'}`}>
-                                {displayRole}
-                              </div>
-                            );
-                          })()
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col mt-2 space-y-0.5">
-                      <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 group-hover:text-emerald-600 transition-colors">
-                        {edition.title}
-                      </h4>
-                      {edition.subtitle && (
-                        <span className="text-xs text-gray-600 line-clamp-1 italic">{edition.subtitle}</span>
-                      )}
-                      {edition.publicationDate && (
-                        <span className="text-xs text-gray-500">{formatPublicationDate(edition.publicationDate)}</span>
-                      )}
-                    </div>
-                  </Link>
+                    edition={edition}
+                    personId={personId}
+                  />
                 ))}
               </div>
             ) : (
@@ -303,4 +328,6 @@ export function PersonPage() {
       </div>
     </main>
   );
-}
+});
+
+PersonPage.displayName = 'PersonPage';
