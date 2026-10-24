@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -12,7 +13,12 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PATHS } from '@/router/paths';
 
-export const NotificationDropdown = () => {
+/**
+ * Dropdown menu de notificações na barra superior (Header).
+ * Wrapped in React.memo to avoid unnecessary re-renders when parent components (e.g., Header)
+ * re-render due to search input typing, layout scrolls, or unread message updates.
+ */
+export const NotificationDropdown = memo(() => {
     const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
 
     return (
@@ -84,4 +90,6 @@ export const NotificationDropdown = () => {
             </DropdownMenuContent>
         </DropdownMenu>
     );
-};
+});
+
+NotificationDropdown.displayName = 'NotificationDropdown';

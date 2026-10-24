@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Bell, UserPlus, UserCheck, UserX, Heart, MessageSquare } from 'lucide-react';
@@ -11,7 +12,12 @@ interface NotificationItemProps {
     onMarkAsRead?: (notificationId: string) => void;
 }
 
-export const NotificationItem = ({ notification, onMarkAsRead }: NotificationItemProps) => {
+/**
+ * Componente individual de item de notificação.
+ * Wrapped in React.memo to prevent unnecessary re-renders when parent list
+ * or header components update state without modifying this item's props.
+ */
+export const NotificationItem = memo(({ notification, onMarkAsRead }: NotificationItemProps) => {
     const getNotificationIcon = () => {
         switch (notification.type) {
             case 'friend_request':
@@ -180,4 +186,6 @@ export const NotificationItem = ({ notification, onMarkAsRead }: NotificationIte
             )}
         </Link>
     );
-};
+});
+
+NotificationItem.displayName = 'NotificationItem';
