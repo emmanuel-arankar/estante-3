@@ -1,9 +1,14 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Facebook, Twitter, Instagram, Github } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-export const Footer = () => {
+/**
+ * Footer component wrapped in React.memo to prevent unnecessary re-renders
+ * when parent components (e.g. Layout, page transitions, scroll handlers) update state.
+ */
+export const Footer = React.memo(() => {
   return (
     <footer className="bg-gray-900 text-white w-full">
       <div className="max-w-7xl mx-auto px-4 py-12">
@@ -80,4 +85,6 @@ export const Footer = () => {
       </div>
     </footer>
   );
-};
+});
+
+Footer.displayName = 'Footer';
