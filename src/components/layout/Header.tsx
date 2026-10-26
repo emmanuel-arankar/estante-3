@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -62,7 +62,12 @@ interface HeaderProps {
   isAuthLoading?: boolean;
 }
 
-export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = false, isAuthLoading = false }: HeaderProps) => {
+/**
+ * Header component for primary app navigation and search bar.
+ * Wrapped in React.memo to prevent redundant re-renders when parent Layout
+ * updates layout state or window scroll position.
+ */
+export const Header = memo(({ userProfile, initialFriendRequests, isAuthenticated = false, isAuthLoading = false }: HeaderProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -180,14 +185,14 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
     };
   }, [userProfile?.id]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
-  };
+  }, [searchQuery, navigate]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
     try {
       // Navegar para Home PRIMEIRO para evitar que o ProtectedRoute da página atual
@@ -199,7 +204,40 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
     } finally {
       setIsLoggingOut(false);
     }
-  };
+  }, [navigate]);
+
+  const handleCloseSearch = useCallback(() => {
+    setIsSearchFocused(false);
+    setSearchQuery('');
+  }, []);
+
+  const handleOpenSuggestion = useCallback(() => {
+    const cleanQ = searchQuery.replace(/[-\s]/g, '').toUpperCase();
+    const isPossibleIsbn = /^\d{10}$|^\d{13}$/.test(cleanQ);
+    setSuggestionIsbn(isPossibleIsbn ? cleanQ : '');
+    setShowSuggestionModal(true);
+    setIsSearchFocused(false);
+  }, [searchQuery]);
+
+  const handleCloseSuggestionModal = useCallback(() => {
+    setShowSuggestionModal(false);
+  }, []);
+
+  const handleNavigateProfileMe = useCallback(() => {
+    navigate(PATHS.PROFILE_ME);
+  }, [navigate]);
+
+  const handleNavigateProfileEdit = useCallback(() => {
+    navigate(PATHS.PROFILE_EDIT);
+  }, [navigate]);
+
+  const handleNavigateCuratorDashboard = useCallback(() => {
+    navigate(PATHS.CURATOR_DASHBOARD);
+  }, [navigate]);
+
+  const handleNavigateSettingsBlocked = useCallback(() => {
+    navigate(PATHS.SETTINGS_BLOCKED);
+  }, [navigate]);
 
   return (
     <>
@@ -266,7 +304,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                                   <Link
                                     key={work.id}
                                     to={PATHS.WORK({ workId: work.id })}
-                                    onClick={() => { setIsSearchFocused(false); setSearchQuery(''); }}
+                                    onClick={handleCloseSearch}
                                     className="flex items-center space-x-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors"
                                   >
                                     <div className="w-10 h-14 bg-gray-50 rounded shadow-sm overflow-hidden flex-shrink-0 flex items-center justify-center relative">
@@ -301,7 +339,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                                   <Link
                                     key={user.id}
                                     to={PATHS.PROFILE({ nickname: user.nickname })}
-                                    onClick={() => { setIsSearchFocused(false); setSearchQuery(''); }}
+                                    onClick={handleCloseSearch}
                                     className="flex items-center space-x-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors"
                                   >
                                     <OptimizedAvatar src={user.photoURL} alt={user.displayName} fallback={user.displayName} size="sm" />
@@ -326,13 +364,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                             <p className="text-sm text-gray-500 mb-3">Nenhum resultado para <strong>&ldquo;{searchQuery}&rdquo;</strong></p>
                             {isAuthenticated && (
                               <button
-                                onClick={() => {
-                                  const cleanQ = searchQuery.replace(/[-\s]/g, '').toUpperCase();
-                                  const isPossibleIsbn = /^\d{10}$|^\d{13}$/.test(cleanQ);
-                                  setSuggestionIsbn(isPossibleIsbn ? cleanQ : '');
-                                  setShowSuggestionModal(true);
-                                  setIsSearchFocused(false);
-                                }}
+                                onClick={handleOpenSuggestion}
                                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-full text-sm font-semibold transition-colors border border-emerald-200"
                               >
                                 <BookPlus className="w-4 h-4" />
@@ -406,7 +438,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                       <DropdownMenuSeparator />
                       {/* # atualizado: Removido <PrefetchLink> e usado onSelect */}
                       <DropdownMenuItem
-                        onSelect={() => navigate(PATHS.PROFILE_ME)}
+                        onSelect={handleNavigateProfileMe}
                         className="cursor-pointer"
                       >
                         <UserCircle className="mr-2 h-4 w-4" />
@@ -415,7 +447,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
 
                       {/* # atualizado: Removido <Link> e usado onSelect */}
                       <DropdownMenuItem
-                        onSelect={() => navigate(PATHS.PROFILE_EDIT)}
+                        onSelect={handleNavigateProfileEdit}
                         className="cursor-pointer"
                       >
                         <PenLine className="mr-2 h-4 w-4" />
@@ -424,7 +456,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
 
                       {userProfile?.role && ['admin', 'librarian', 'manager'].includes(userProfile.role) && (
                         <DropdownMenuItem
-                          onSelect={() => navigate(PATHS.CURATOR_DASHBOARD)}
+                          onSelect={handleNavigateCuratorDashboard}
                           className="cursor-pointer text-emerald-700 focus:text-emerald-700 bg-emerald-50/50"
                         >
                           <ShieldCheck className="mr-2 h-4 w-4" />
@@ -432,7 +464,7 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        onSelect={() => navigate(PATHS.SETTINGS_BLOCKED)}
+                        onSelect={handleNavigateSettingsBlocked}
                         className="cursor-pointer"
                       >
                         <Ban className="mr-2 h-4 w-4" />
@@ -617,9 +649,11 @@ export const Header = ({ userProfile, initialFriendRequests, isAuthenticated = f
 
       <SuggestionModal
         open={showSuggestionModal}
-        onClose={() => setShowSuggestionModal(false)}
+        onClose={handleCloseSuggestionModal}
         initialIsbn={suggestionIsbn}
       />
     </>
   );
-};
+});
+
+Header.displayName = 'Header';
