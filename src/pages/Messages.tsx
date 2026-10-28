@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -33,14 +33,32 @@ import { PATHS } from '@/router/paths';
 import { deleteChat } from '@/services/firebase/realtime';
 import { useQuery } from '@tanstack/react-query';
 import { userProfileQuery } from '@/features/users/userProfile.queries';
+import type { User } from '@estante/common-types';
+
+export interface ChatConversation {
+  id: string;
+  otherUserId: string;
+  displayName?: string;
+  photoURL?: string;
+  lastMessage?: string;
+  lastMessageTime?: unknown;
+  lastSenderId?: string;
+  lastMessageRead?: boolean;
+  unreadCount: number;
+}
 
 interface ConversationItemProps {
-  chat: any;
-  user: any;
+  chat: ChatConversation;
+  user: User;
   onDelete: (otherUserId: string) => Promise<void>;
 }
 
-const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
+/**
+ * Item individual da lista de conversas.
+ * Memoizado com React.memo para evitar re-renders desnecessários
+ * ao digitar no campo de busca ou ao interagir com modais.
+ */
+const ConversationItem = memo(({ chat, user, onDelete }: ConversationItemProps) => {
   const { getAnonymizedUser } = useBlockedUsers();
 
   // Usar endpoint protegido que verifica bloqueio ANTES de retornar dados
@@ -150,9 +168,11 @@ const ConversationItem = ({ chat, user, onDelete }: ConversationItemProps) => {
       </div>
     </Link>
   );
-};
+});
 
-export const Messages = () => {
+ConversationItem.displayName = 'ConversationItem';
+
+export const Messages = memo(() => {
   const { user } = useAuth();
   const { chats, loading } = useChat();
   const navigate = useNavigate();
@@ -160,14 +180,14 @@ export const Messages = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
 
-  const handleDeleteChat = async (otherUserId: string) => {
+  const handleDeleteChat = useCallback(async (otherUserId: string) => {
     if (!user) return;
     try {
       await deleteChat(user.uid, otherUserId);
     } catch (error) {
       console.error("Erro ao deletar chat:", error);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -175,27 +195,34 @@ export const Messages = () => {
     }
   }, [user, navigate]);
 
-  const filteredChats = chats
-    .filter(chat => {
-      const name = chat.displayName || `Usuário ${chat.otherUserId?.slice(0, 8) || '...'}`;
-      return name.toLowerCase().includes(searchQuery.toLowerCase());
-    })
-    .sort((a, b) => {
-      // Helper to safely get milliseconds
-      const getTimeInMillis = (time: any): number => {
-        if (!time) return 0;
-        if (typeof time.toMillis === 'function') return time.toMillis();
-        if (time instanceof Date) return time.getTime();
-        if (typeof time === 'number') return time;
-        if (time.seconds) return time.seconds * 1000; // Serialized timestamp
-        if (typeof time === 'string') return new Date(time).getTime();
-        return 0;
-      };
+  // Memoiza a filtragem e ordenação dos chats para evitar recomputações desnecessárias a cada render
+  const filteredChats = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return chats
+      .filter(chat => {
+        const name = chat.displayName || `Usuário ${chat.otherUserId?.slice(0, 8) || '...'}`;
+        return name.toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const getTimeInMillis = (time: unknown): number => {
+          if (!time) return 0;
+          if (typeof time === 'object' && time !== null && 'toMillis' in time && typeof (time as { toMillis: () => number }).toMillis === 'function') {
+            return (time as { toMillis: () => number }).toMillis();
+          }
+          if (time instanceof Date) return time.getTime();
+          if (typeof time === 'number') return time;
+          if (typeof time === 'object' && time !== null && 'seconds' in time && typeof (time as { seconds: number }).seconds === 'number') {
+            return (time as { seconds: number }).seconds * 1000;
+          }
+          if (typeof time === 'string') return new Date(time).getTime();
+          return 0;
+        };
 
-      const timeA = getTimeInMillis(a.lastMessageTime);
-      const timeB = getTimeInMillis(b.lastMessageTime);
-      return timeB - timeA;
-    });
+        const timeA = getTimeInMillis(a.lastMessageTime);
+        const timeB = getTimeInMillis(b.lastMessageTime);
+        return timeB - timeA;
+      });
+  }, [chats, searchQuery]);
 
   if (!user) {
     return (
@@ -318,4 +345,6 @@ export const Messages = () => {
       </main>
     </>
   );
-};
+});
+
+Messages.displayName = 'Messages';
