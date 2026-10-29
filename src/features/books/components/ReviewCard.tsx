@@ -45,26 +45,28 @@ interface LikesAvatarGroupProps {
   authenticated: boolean;
 }
 
-const LikesAvatarGroup: React.FC<LikesAvatarGroupProps> = ({
+/**
+ * Component displaying avatar group for likes in a review.
+ * Memoized to prevent redundant renders when parent or sibling state updates.
+ */
+const LikesAvatarGroup: React.FC<LikesAvatarGroupProps> = React.memo(({
   reviewId, likesCount, liked, onLike, isPending, authenticated
 }) => {
   const [likers, setLikers] = useState<LikerInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  const loadLikers = async () => {
-    if (loaded || likesCount === 0) return;
-    try {
-      const res = await getReviewLikersAPI(reviewId);
-      setLikers((res.data || []).slice(0, 3));
-      setLoaded(true);
-    } catch { /* silencioso */ }
-  };
-
   React.useEffect(() => {
     if (likesCount > 0 && !loaded) {
+      const loadLikers = async () => {
+        try {
+          const res = await getReviewLikersAPI(reviewId);
+          setLikers((res.data || []).slice(0, 3));
+          setLoaded(true);
+        } catch { /* silencioso */ }
+      };
       loadLikers();
     }
-  }, [likesCount, reviewId]);
+  }, [likesCount, reviewId, loaded]);
 
   return (
     <div className="flex items-center gap-2">
@@ -99,7 +101,8 @@ const LikesAvatarGroup: React.FC<LikesAvatarGroupProps> = ({
       )}
     </div>
   );
-};
+});
+LikesAvatarGroup.displayName = 'LikesAvatarGroup';
 
 // ==== ==== REVIEW CARD ==== ====
 
@@ -107,7 +110,11 @@ interface ReviewCardProps {
   review: Review;
 }
 
-export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
+/**
+ * ReviewCard displays a user's book review along with ratings, likes, and comments.
+ * Memoized to eliminate unnecessary re-renders during parent list re-renders.
+ */
+export const ReviewCard: React.FC<ReviewCardProps> = React.memo(({ review }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
@@ -294,4 +301,5 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
       )}
     </div>
   );
-};
+});
+ReviewCard.displayName = 'ReviewCard';
