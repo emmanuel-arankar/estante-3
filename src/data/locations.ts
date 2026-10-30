@@ -18,6 +18,16 @@ export interface LocationData {
 // Exportar dados tipados
 export const brazilLocations = locationData as LocationData;
 
+// Performance Optimization: Hoist static Map lookup tables outside function calls
+// to replace linear state array searches (.find) with O(1) hash map lookups.
+const STATE_BY_CODE_MAP = new Map<string, BrazilState>(
+  brazilLocations.states.map(s => [s.code, s])
+);
+
+const STATE_BY_NAME_MAP = new Map<string, BrazilState>(
+  brazilLocations.states.map(s => [s.name, s])
+);
+
 // Funções auxiliares
 
 /**
@@ -31,7 +41,7 @@ export function getStates(): BrazilState[] {
  * Retorna lista de cidades de um estado específico
  */
 export function getCitiesByState(stateCode: string): string[] {
-  const state = brazilLocations.states.find(s => s.code === stateCode);
+  const state = STATE_BY_CODE_MAP.get(stateCode);
   return state?.cities || [];
 }
 
@@ -39,12 +49,12 @@ export function getCitiesByState(stateCode: string): string[] {
  * Busca estado pelo código
  */
 export function getStateByCode(stateCode: string): BrazilState | undefined {
-  return brazilLocations.states.find(s => s.code === stateCode);
+  return STATE_BY_CODE_MAP.get(stateCode);
 }
 
 /**
  * Busca estado pelo nome
  */
 export function getStateByName(stateName: string): BrazilState | undefined {
-  return brazilLocations.states.find(s => s.name === stateName);
+  return STATE_BY_NAME_MAP.get(stateName);
 }

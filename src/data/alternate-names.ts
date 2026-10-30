@@ -1,13 +1,23 @@
 import alternateNameTypes from './alternate-name-type.json';
 import scriptTypes from './script.json';
 
+// Performance Optimization: Hoist static Map lookup tables outside function calls
+// to replace linear array searches (.find) with O(1) hash map lookups.
+const ALTERNATE_NAME_TYPE_MAP = new Map<string, { id: string; name: string }>(
+  alternateNameTypes.types.map(t => [t.id, t])
+);
+
+const SCRIPT_TYPE_MAP = new Map<string, { id: string; name: string }>(
+  scriptTypes.scripts.map(s => [s.id, s])
+);
+
 export function getAlternateNameTypeName(id: string): string {
-  const type = alternateNameTypes.types.find(t => t.id === id);
+  const type = ALTERNATE_NAME_TYPE_MAP.get(id);
   return type ? type.name : id;
 }
 
 export function getScriptName(id: string, language?: string): string {
-  const script = scriptTypes.scripts.find(s => s.id === id);
+  const script = SCRIPT_TYPE_MAP.get(id);
   if (!script) return id;
 
   // Tratamento especial para o script "Han" (Hani) para evitar labels genéricos
