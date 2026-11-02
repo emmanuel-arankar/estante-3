@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Star } from 'lucide-react';
 
@@ -28,7 +28,14 @@ const getStarColorClass = (rating: number) => {
   return 'text-red-500';
 };
 
-export const StarRating: React.FC<StarRatingProps> = ({
+/**
+ * StarRating component
+ * Performance optimization:
+ * - Wrapped with React.memo to prevent unnecessary re-renders when parent lists
+ *   (e.g., ReviewCard lists, EditionsPage, BookPage) re-render with unchanged rating props.
+ * - Handlers are memoized with useCallback to preserve reference stability.
+ */
+export const StarRating: React.FC<StarRatingProps> = React.memo(({
   rating = 0,
   maxStars = 5,
   interactive = false,
@@ -41,24 +48,24 @@ export const StarRating: React.FC<StarRatingProps> = ({
 
   const displayRating = hoverRating > 0 ? hoverRating : rating;
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>, index: number) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLButtonElement>, index: number) => {
     if (!interactive) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const isLeftHalf = e.clientX - rect.left < rect.width / 2;
     setHoverRating(isLeftHalf ? index - 0.5 : index);
-  };
+  }, [interactive]);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     if (!interactive) return;
     setHoverRating(0);
-  };
+  }, [interactive]);
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>, index: number) => {
+  const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>, index: number) => {
     if (!interactive || !onRate) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const isLeftHalf = e.clientX - rect.left < rect.width / 2;
     onRate(isLeftHalf ? index - 0.5 : index);
-  };
+  }, [interactive, onRate]);
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -106,4 +113,6 @@ export const StarRating: React.FC<StarRatingProps> = ({
       )}
     </div>
   );
-};
+});
+
+StarRating.displayName = 'StarRating';
