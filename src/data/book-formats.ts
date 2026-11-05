@@ -32,6 +32,34 @@ export interface FormatData {
 export const bookFormats = formatData as FormatData;
 
 // =============================================================================
+// LOOKUP MAPS O(1)
+// =============================================================================
+
+/**
+ * Maps para busca O(1) de categorias e formatos, evitando iterações lineares
+ * repetidas em renderizações de listas e filtros (ex: BookPage, EditionsPage).
+ */
+const CATEGORY_MAP = new Map<string, FormatCategory>();
+const FORMAT_WITH_CATEGORY_MAP = new Map<string, BookFormat & { categoryId: string }>();
+const FORMAT_CATEGORY_ICON_MAP = new Map<string, string | undefined>();
+const CATEGORY_FORMAT_IDS_MAP = new Map<string, Set<string>>();
+
+for (const category of bookFormats.categories) {
+  CATEGORY_MAP.set(category.id, category);
+  const formatIds = new Set<string>();
+
+  for (const format of category.formats) {
+    formatIds.add(format.id);
+    FORMAT_WITH_CATEGORY_MAP.set(format.id, { ...format, categoryId: category.id });
+    if (category.icon) {
+      FORMAT_CATEGORY_ICON_MAP.set(format.id, category.icon);
+    }
+  }
+
+  CATEGORY_FORMAT_IDS_MAP.set(category.id, formatIds);
+}
+
+// =============================================================================
 // FUNÇÕES AUXILIARES
 // =============================================================================
 
@@ -43,43 +71,31 @@ export function getFormatCategories(): FormatCategory[] {
 }
 
 /**
- * Retorna formatos de uma categoria específica
+ * Retorna formatos de uma categoria específica (O(1))
  */
 export function getFormatsByCategory(categoryId: string): BookFormat[] {
-  const category = bookFormats.categories.find(c => c.id === categoryId);
-  return category?.formats || [];
+  return CATEGORY_MAP.get(categoryId)?.formats || [];
 }
 
 /**
- * Busca categoria pelo ID
+ * Busca categoria pelo ID (O(1))
  */
 export function getCategoryById(categoryId: string): FormatCategory | undefined {
-  return bookFormats.categories.find(c => c.id === categoryId);
+  return CATEGORY_MAP.get(categoryId);
 }
 
 /**
- * Retorna o ícone principal atrelado à categoria de um formato (se disponível)
+ * Retorna o ícone principal atrelado à categoria de um formato (se disponível) (O(1))
  */
 export function getCategoryIconByFormatId(formatId: string): string | undefined {
-  for (const category of bookFormats.categories) {
-    if (category.formats.some(f => f.id === formatId)) {
-      return category.icon;
-    }
-  }
-  return undefined;
+  return FORMAT_CATEGORY_ICON_MAP.get(formatId);
 }
 
 /**
- * Busca formato pelo ID (em qualquer categoria)
+ * Busca formato pelo ID (em qualquer categoria) (O(1))
  */
 export function getFormatById(formatId: string): (BookFormat & { categoryId: string }) | undefined {
-  for (const category of bookFormats.categories) {
-    const format = category.formats.find(f => f.id === formatId);
-    if (format) {
-      return { ...format, categoryId: category.id };
-    }
-  }
-  return undefined;
+  return FORMAT_WITH_CATEGORY_MAP.get(formatId);
 }
 
 /**
@@ -97,10 +113,8 @@ export function getAllCategoryIds(): string[] {
 }
 
 /**
- * Valida se um formatId pertence à categoryId informada
+ * Valida se um formatId pertence à categoryId informada (O(1))
  */
 export function isFormatInCategory(formatId: string, categoryId: string): boolean {
-  const category = bookFormats.categories.find(c => c.id === categoryId);
-  if (!category) return false;
-  return category.formats.some(f => f.id === formatId);
+  return CATEGORY_FORMAT_IDS_MAP.get(categoryId)?.has(formatId) ?? false;
 }
