@@ -3,7 +3,7 @@ import { useLocation, useOutletContext } from 'react-router-dom';
 import { formatDistanceToNow, isAfter, subMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, UserPlus, Clock, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
+import { Search, Users, UserPlus, Clock, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { SortDropdown } from '@/components/friends/SortDropdown';
 import {
   AlertDialog,
@@ -41,8 +41,6 @@ import { PATHS } from '@/router/paths';
 import { DenormalizedFriendship } from '@estante/common-types';
 import { getMutualFriendsAPI } from '@/services/api/friendshipsApi';
 import {
-  getMutualFriendsFromCache,
-  setMutualFriendsCache,
   fetchMutualFriendsDeduped
 } from '@/hooks/useMutualFriendsCache';
 
@@ -570,6 +568,11 @@ export const DenormalizedFriendsList: React.FC = () => {
     finally { setIsProcessingAll(false); }
   };
 
+  const handleSortChange = useCallback((field: SortOption, direction: SortDirection) => {
+    setSortField(field);
+    setSortDirection(direction);
+  }, [setSortField, setSortDirection]);
+
   // Barra de busca sempre renderizada (nunca desmontada pelo loading guard)
   const searchBar = (
     <div className="relative">
@@ -616,7 +619,7 @@ export const DenormalizedFriendsList: React.FC = () => {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle className="text-lg">{searchQuery ? 'Amigos encontrados' : 'Todos os amigos'}<span className="text-sm font-normal text-gray-500 ml-2">({searchQuery ? friends.length : stats.totalFriends})</span></CardTitle>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                  <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={(field, direction) => { setSortField(field); setSortDirection(direction); }} />
+                  <SortDropdown sortBy={sortField} sortDirection={sortDirection} onSortChange={handleSortChange} />
                   <Button onClick={refreshData} variant="outline" size="icon" className="h-8 w-8" title="Recarregar amigos"><RefreshCw className="h-4 w-4" /></Button>
                 </div>
               </CardHeader>
