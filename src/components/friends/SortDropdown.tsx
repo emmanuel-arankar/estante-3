@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { ChevronDown, ArrowDownAZ, ArrowDownZA, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,42 +15,55 @@ interface SortDropdownProps {
   onSortChange: (sortBy: SortOption, sortDirection: SortDirection) => void;
 }
 
-export const SortDropdown: React.FC<SortDropdownProps> = ({
+// Hoisted static array to prevent recreating array objects on every render pass
+const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
+  { value: 'name', label: 'Nome' },
+  { value: 'nickname', label: 'Alcunha' },
+  { value: 'friendshipDate', label: 'Data de amizade' },
+];
+
+/**
+ * SortDropdown
+ * Performance Optimization: Wrapped in React.memo to prevent unnecessary re-renders
+ * when parent lists (like DenormalizedFriendsList) re-render due to search input typing,
+ * pagination, or background refreshes.
+ */
+export const SortDropdown: React.FC<SortDropdownProps> = React.memo(({
   sortBy,
   sortDirection,
   onSortChange,
 }) => {
-  const options = [
-    { value: 'name', label: 'Nome' },
-    { value: 'nickname', label: 'Alcunha' },
-    { value: 'friendshipDate', label: 'Data de amizade' },
-  ];
+  // Memoize button text based on current sort option
+  const buttonText = useMemo(() => {
+    const option = SORT_OPTIONS.find((opt) => opt.value === sortBy);
+    return option ? option.label : 'Ordenar';
+  }, [sortBy]);
 
-  // Função para obter o texto do botão baseado na ordenação atual
-  const getButtonText = () => {
-    const option = options.find(opt => opt.value === sortBy);
-    if (!option) return 'Ordenar';
-    
-    return option.label;
-  };
-
-  // Função para obter o ícone correto
-  const getSortIcon = () => {
+  // Memoize sort direction toggle icon
+  const sortIcon = useMemo(() => {
     if (sortBy === 'default') return null;
-    
+
     return sortDirection === 'asc' ? (
       <ArrowDownAZ className="h-4 w-4" />
     ) : (
       <ArrowDownZA className="h-4 w-4" />
     );
-  };
+  }, [sortBy, sortDirection]);
 
-  // Função para alternar a direção da ordenação
-  const toggleSortDirection = () => {
+  // Memoize toggle handler
+  const toggleSortDirection = useCallback(() => {
     if (sortBy !== 'default') {
       onSortChange(sortBy, sortDirection === 'asc' ? 'desc' : 'asc');
     }
-  };
+  }, [sortBy, sortDirection, onSortChange]);
+
+  // Handle select option
+  const handleSelectOption = useCallback((optionValue: SortOption) => {
+    // Para nome e alcunha, padrão é A-Z (asc)
+    // Para data, padrão é mais recente primeiro (desc)
+    const direction = optionValue === 'friendshipDate' ? 'desc' : 'asc';
+    onSortChange(optionValue, direction);
+  }, [onSortChange]);
 
   return (
     <div className="flex items-center space-x-1">
@@ -63,31 +76,26 @@ export const SortDropdown: React.FC<SortDropdownProps> = ({
           onClick={toggleSortDirection}
           title={`Ordenar ${sortDirection === 'asc' ? 'decrescente' : 'crescente'}`}
         >
-          {getSortIcon()}
+          {sortIcon}
         </Button>
       )}
-      
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex items-center space-x-1 min-w-[180px] justify-between"
           >
-            <span className="text-sm truncate">{getButtonText()}</span>
+            <span className="text-sm truncate">{buttonText}</span>
             <ChevronDown className="h-3 w-3 flex-shrink-0" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {options.map((option) => (
+          {SORT_OPTIONS.map((option) => (
             <DropdownMenuItem
               key={option.value}
-              onClick={() => {
-                // Para nome e alcunha, padrão é A-Z (asc)
-                // Para data, padrão é mais recente primeiro (desc)
-                const direction = option.value === 'friendshipDate' ? 'desc' : 'asc';
-                onSortChange(option.value as SortOption, direction);
-              }}
+              onClick={() => handleSelectOption(option.value)}
               className="flex items-center justify-between"
             >
               <span>{option.label}</span>
@@ -100,4 +108,6 @@ export const SortDropdown: React.FC<SortDropdownProps> = ({
       </DropdownMenu>
     </div>
   );
-};
+});
+
+SortDropdown.displayName = 'SortDropdown';
